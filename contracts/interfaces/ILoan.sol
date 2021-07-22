@@ -3,7 +3,7 @@ pragma solidity 0.6.11;
 
 import { IERC20 } from "../../../../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import { IBasicFundsTokenFDT } from "../../../funds-distribution-token/v1/interfaces/IBasicFundsTokenFDT.sol";
+import { IBasicFundsTokenFDT } from "../../../funds-distribution-token/contracts/interfaces/IBasicFundsTokenFDT.sol";
 
 interface ILoan is IBasicFundsTokenFDT {
 

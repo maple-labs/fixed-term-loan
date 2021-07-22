@@ -8,19 +8,19 @@ import { Pausable }          from "../../../../lib/openzeppelin-contracts/contra
 
 import { IERC20Details } from "../../../external-interfaces/IERC20Details.sol";
 
-import { LoanLib } from "../../../libraries/loan/v1/LoanLib.sol";
-import { Util }    from "../../../libraries/util/v1/Util.sol";
+import { LoanLib } from "./libraries/LoanLib.sol";
+import { Util }    from "../../../libraries/util/contracts/Util.sol";
 
-import { ICollateralLocker }        from "../../collateral-locker/v1/interfaces/ICollateralLocker.sol";
-import { ICollateralLockerFactory } from "../../collateral-locker/v1/interfaces/ICollateralLockerFactory.sol";
-import { IFundingLocker }           from "../../funding-locker/v1/interfaces/IFundingLocker.sol";
-import { IFundingLockerFactory }    from "../../funding-locker/v1/interfaces/IFundingLockerFactory.sol";
-import { IMapleGlobals }            from "../../globals/v1/interfaces/IMapleGlobals.sol";
-import { ILiquidityLocker }         from "../../liquidity-locker/v1/interfaces/ILiquidityLocker.sol";
-import { IPool }                    from "../../pool/v1/interfaces/IPool.sol";
-import { IPoolFactory }             from "../../pool/v1/interfaces/IPoolFactory.sol";
+import { ICollateralLocker }        from "../../collateral-locker/contracts/interfaces/ICollateralLocker.sol";
+import { ICollateralLockerFactory } from "../../collateral-locker/contracts/interfaces/ICollateralLockerFactory.sol";
+import { IFundingLocker }           from "../../funding-locker/contracts/interfaces/IFundingLocker.sol";
+import { IFundingLockerFactory }    from "../../funding-locker/contracts/interfaces/IFundingLockerFactory.sol";
+import { IMapleGlobals }            from "../../globals/contracts/interfaces/IMapleGlobals.sol";
+import { ILiquidityLocker }         from "../../liquidity-locker/contracts/interfaces/ILiquidityLocker.sol";
+import { IPool }                    from "../../pool/contracts/interfaces/IPool.sol";
+import { IPoolFactory }             from "../../pool/contracts/interfaces/IPoolFactory.sol";
 
-import { BasicFundsTokenFDT } from "../../funds-distribution-token/v1/BasicFundsTokenFDT.sol";
+import { BasicFundsTokenFDT } from "../../funds-distribution-token/contracts/BasicFundsTokenFDT.sol";
 
 import { ILoan }        from "./interfaces/ILoan.sol";
 import { ILoanFactory } from "./interfaces/ILoanFactory.sol";

@@ -4,8 +4,8 @@ pragma experimental ABIEncoderV2;
 
 import { SafeMath } from "../../../../../lib/openzeppelin-contracts/contracts/math/SafeMath.sol";
 
-import { IMapleGlobals } from "../../../globals/v1/interfaces/IMapleGlobals.sol";
-import { ILoan }         from "../../../loan/v1/interfaces/ILoan.sol";
+import { IMapleGlobals } from "../../../globals/contracts/interfaces/IMapleGlobals.sol";
+import { ILoan }         from "../../../loan/contracts/interfaces/ILoan.sol";
 
 import { TestUtil } from "../../../../test/TestUtil.sol";
 import { Governor } from "../../../../test/user/Governor.sol";
