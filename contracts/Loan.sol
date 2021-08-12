@@ -1,40 +1,36 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.6.11;
 
-import { SafeMath }          from "../../../../lib/openzeppelin-contracts/contracts/math/SafeMath.sol";
-import { SignedSafeMath }    from "../../../../lib/openzeppelin-contracts/contracts/math/SignedSafeMath.sol";
-import { IERC20, SafeERC20 } from "../../../../lib/openzeppelin-contracts/contracts/token/ERC20/SafeERC20.sol";
-import { Pausable }          from "../../../../lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
-
-import { IERC20Details } from "../../../external-interfaces/IERC20Details.sol";
+import { BasicFundsTokenFDT }                    from "../modules/funds-distribution-token/contracts/BasicFundsTokenFDT.sol";
+import { Context as ERC20Context }               from "../modules/funds-distribution-token/modules/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import { IERC20, SafeERC20 }                     from "../modules/openzeppelin-contracts/contracts/token/ERC20/SafeERC20.sol";
+import { Context as PauseableContext, Pausable } from "../modules/openzeppelin-contracts/contracts/utils/Pausable.sol";
+import { Util, IMapleGlobals }                   from "../modules/util/contracts/Util.sol";
 
 import { LoanLib } from "./libraries/LoanLib.sol";
-import { Util }    from "../../../libraries/util/contracts/Util.sol";
-
-import { ICollateralLocker }        from "../../collateral-locker/contracts/interfaces/ICollateralLocker.sol";
-import { ICollateralLockerFactory } from "../../collateral-locker/contracts/interfaces/ICollateralLockerFactory.sol";
-import { IFundingLocker }           from "../../funding-locker/contracts/interfaces/IFundingLocker.sol";
-import { IFundingLockerFactory }    from "../../funding-locker/contracts/interfaces/IFundingLockerFactory.sol";
-import { IMapleGlobals }            from "../../globals/contracts/interfaces/IMapleGlobals.sol";
-import { ILiquidityLocker }         from "../../liquidity-locker/contracts/interfaces/ILiquidityLocker.sol";
-import { IPool }                    from "../../pool/contracts/interfaces/IPool.sol";
-import { IPoolFactory }             from "../../pool/contracts/interfaces/IPoolFactory.sol";
-
-import { BasicFundsTokenFDT } from "../../funds-distribution-token/contracts/BasicFundsTokenFDT.sol";
 
 import { ILoan }        from "./interfaces/ILoan.sol";
 import { ILoanFactory } from "./interfaces/ILoanFactory.sol";
+import {
+    IERC20Details as IERC20DetailsLike,  // NOTE: Necessary for https://github.com/ethereum/solidity/issues/9278
+    ICollateralLockerLike,
+    ILockerFactoryLike,
+    IFundingLockerLike,
+    IMapleGlobals as IMapleGlobalsLike,  // NOTE: Necessary for https://github.com/ethereum/solidity/issues/9278
+    ILiquidityLockerLike,
+    IPoolLike,
+    IPoolFactoryLike
+} from "./interfaces/Interfaces.sol";
 
 /// @title Loan maintains all accounting and functionality related to Loans.
 contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
 
-    using SafeMath        for uint256;
-    using SafeERC20       for IERC20;
+    using SafeERC20 for IERC20;
 
     State public override loanState;
 
-    IERC20 public override immutable liquidityAsset;
-    IERC20 public override immutable collateralAsset;
+    address public override immutable liquidityAsset;
+    address public override immutable collateralAsset;
 
     address public override immutable fundingLocker;
     address public override immutable flFactory;
@@ -102,14 +98,14 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         uint256[5] memory specs,
         address[3] memory calcs
     ) BasicFundsTokenFDT("Maple Loan Token", "MPL-LOAN", _liquidityAsset) public {
-        IMapleGlobals globals = _globals(msg.sender);
+        IMapleGlobalsLike globals = _globals(msg.sender);
 
         // Perform validity cross-checks.
         LoanLib.loanSanityChecks(globals, _liquidityAsset, _collateralAsset, specs);
 
         borrower        = _borrower;
-        liquidityAsset  = IERC20(_liquidityAsset);
-        collateralAsset = IERC20(_collateralAsset);
+        liquidityAsset  = _liquidityAsset;
+        collateralAsset = _collateralAsset;
         flFactory       = _flFactory;
         clFactory       = _clFactory;
         createdAt       = block.timestamp;
@@ -129,8 +125,8 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         superFactory           = msg.sender;
 
         // Deploy lockers.
-        collateralLocker = ICollateralLockerFactory(_clFactory).newLocker(_collateralAsset);
-        fundingLocker    = IFundingLockerFactory(_flFactory).newLocker(_liquidityAsset);
+        collateralLocker = ILockerFactoryLike(_clFactory).newLocker(_collateralAsset);
+        fundingLocker    = ILockerFactoryLike(_flFactory).newLocker(_liquidityAsset);
         emit LoanStateChanged(State.Ready);
     }
 
@@ -142,9 +138,9 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         _whenProtocolNotPaused();
         _isValidBorrower();
         _isValidState(State.Ready);
-        IMapleGlobals globals = _globals(superFactory);
+        IMapleGlobalsLike globals = _globals(superFactory);
 
-        IFundingLocker _fundingLocker = IFundingLocker(fundingLocker);
+        IFundingLockerLike _fundingLocker = IFundingLockerLike(fundingLocker);
 
         require(amt >= requestAmount,              "L:AMT_LT_REQUEST_AMT");
         require(amt <= _getFundingLockerBalance(), "L:AMT_GT_FUNDED_AMT");
@@ -156,7 +152,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         loanState = State.Active;
 
         // Transfer the required amount of collateral for drawdown from the Borrower to the CollateralLocker.
-        collateralAsset.safeTransferFrom(borrower, collateralLocker, collateralRequiredForDrawdown(amt));
+        IERC20(collateralAsset).safeTransferFrom(borrower, collateralLocker, collateralRequiredForDrawdown(amt));
 
         // Transfer funding amount from the FundingLocker to the Borrower, then drain remaining funds to the Loan.
         uint256 treasuryFee = globals.treasuryFee();
@@ -183,7 +179,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         _emitBalanceUpdateEventForFundingLocker();
         _emitBalanceUpdateEventForLoan();
 
-        emit BalanceUpdated(treasury, address(liquidityAsset), liquidityAsset.balanceOf(treasury));
+        emit BalanceUpdated(treasury, liquidityAsset, IERC20(liquidityAsset).balanceOf(treasury));
         emit LoanStateChanged(State.Active);
         emit Drawdown(amt);
     }
@@ -230,13 +226,13 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
             nextPaymentDue = uint256(0);
 
             // Transfer all collateral back to the Borrower.
-            ICollateralLocker(collateralLocker).pull(borrower, _getCollateralLockerBalance());
+            ICollateralLockerLike(collateralLocker).pull(borrower, _getCollateralLockerBalance());
             _emitBalanceUpdateEventForCollateralLocker();
             emit LoanStateChanged(State.Matured);
         }
 
         // Loan payer sends funds to the Loan.
-        liquidityAsset.safeTransferFrom(msg.sender, address(this), total);
+        IERC20(liquidityAsset).safeTransferFrom(msg.sender, address(this), total);
 
         // Update FDT accounting with funds received from interest payment.
         updateFundsReceived();
@@ -263,7 +259,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         _isValidState(State.Ready);
         _isValidPool();
         _isWithinFundingPeriod();
-        liquidityAsset.safeTransferFrom(msg.sender, fundingLocker, amt);
+        IERC20(liquidityAsset).safeTransferFrom(msg.sender, fundingLocker, amt);
 
         uint256 wad = _toWad(amt);  // Convert to WAD precision.
         _mint(mintTo, wad);         // Mint LoanFDTs to `mintTo` (i.e DebtLocker contract).
@@ -277,7 +273,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         _isValidState(State.Ready);
 
         // Update accounting for `claim()` and transfer funds from FundingLocker to Loan.
-        excessReturned = LoanLib.unwind(liquidityAsset, fundingLocker, createdAt, fundingPeriod);
+        excessReturned = LoanLib.unwind(IERC20(liquidityAsset), fundingLocker, createdAt, fundingPeriod);
 
         updateFundsReceived();
 
@@ -292,7 +288,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         require(LoanLib.canTriggerDefault(nextPaymentDue, defaultGracePeriod, superFactory, balanceOf(msg.sender), totalSupply()), "L:FAILED_TO_LIQ");
 
         // Pull the Collateral Asset from the CollateralLocker, swap to the Liquidity Asset, and hold custody of the resulting Liquidity Asset in the Loan.
-        (amountLiquidated, amountRecovered) = LoanLib.liquidateCollateral(collateralAsset, address(liquidityAsset), superFactory, collateralLocker);
+        (amountLiquidated, amountRecovered) = LoanLib.liquidateCollateral(IERC20(collateralAsset), liquidityAsset, superFactory, collateralLocker);
         _emitBalanceUpdateEventForCollateralLocker();
 
         // Decrement `principalOwed` by `amountRecovered`, set `defaultSuffered` to the difference (shortfall from the liquidation).
@@ -304,7 +300,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         else {
             liquidationExcess = amountRecovered.sub(principalOwed);
             principalOwed = 0;
-            liquidityAsset.safeTransfer(borrower, liquidationExcess);  // Send excess to the Borrower.
+            IERC20(liquidityAsset).safeTransfer(borrower, liquidationExcess);  // Send excess to the Borrower.
         }
 
         // Update LoanFDT accounting with funds received from the liquidation.
@@ -343,17 +339,17 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
     /**************************/
 
     function reclaimERC20(address token) external override {
-        LoanLib.reclaimERC20(token, address(liquidityAsset), _globals(superFactory));
+        LoanLib.reclaimERC20(token, liquidityAsset, _globals(superFactory));
     }
 
     /*********************/
     /*** FDT Functions ***/
     /*********************/
 
-    function withdrawFunds() public override(ILoan, BasicFundsTokenFDT) {
+    function withdrawFunds() public override {
         _whenProtocolNotPaused();
         super.withdrawFunds();
-        emit BalanceUpdated(address(this), address(fundsToken), fundsToken.balanceOf(address(this)));
+        emit BalanceUpdated(address(this), fundsToken, IERC20(fundsToken).balanceOf(address(this)));
     }
 
     /************************/
@@ -362,7 +358,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
 
     function getExpectedAmountRecovered() external override view returns (uint256) {
         uint256 liquidationAmt = _getCollateralLockerBalance();
-        return Util.calcMinAmount(_globals(superFactory), address(collateralAsset), address(liquidityAsset), liquidationAmt);
+        return Util.calcMinAmount(IMapleGlobals(address(_globals(superFactory))), collateralAsset, liquidityAsset, liquidationAmt);
     }
 
     function getNextPayment() public override view returns (uint256, uint256, uint256, uint256, bool) {
@@ -375,8 +371,8 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
 
     function collateralRequiredForDrawdown(uint256 amt) public override view returns (uint256) {
         return LoanLib.collateralRequiredForDrawdown(
-            IERC20Details(address(collateralAsset)),
-            IERC20Details(address(liquidityAsset)),
+            IERC20DetailsLike(collateralAsset),
+            IERC20DetailsLike(liquidityAsset),
             collateralRatio,
             superFactory,
             amt
@@ -405,28 +401,28 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         @dev Converts to WAD precision.
      */
     function _toWad(uint256 amt) internal view returns (uint256) {
-        return amt.mul(10 ** 18).div(10 ** IERC20Details(address(liquidityAsset)).decimals());
+        return amt.mul(10 ** 18).div(10 ** IERC20DetailsLike(liquidityAsset).decimals());
     }
 
     /**
         @dev Returns the MapleGlobals instance.
      */
-    function _globals(address loanFactory) internal view returns (IMapleGlobals) {
-        return IMapleGlobals(ILoanFactory(loanFactory).globals());
+    function _globals(address loanFactory) internal view returns (IMapleGlobalsLike) {
+        return IMapleGlobalsLike(ILoanFactory(loanFactory).globals());
     }
 
     /**
         @dev Returns the CollateralLocker balance.
      */
     function _getCollateralLockerBalance() internal view returns (uint256) {
-        return collateralAsset.balanceOf(collateralLocker);
+        return IERC20(collateralAsset).balanceOf(collateralLocker);
     }
 
     /**
         @dev Returns the FundingLocker balance.
      */
     function _getFundingLockerBalance() internal view returns (uint256) {
-        return liquidityAsset.balanceOf(fundingLocker);
+        return IERC20(liquidityAsset).balanceOf(fundingLocker);
     }
 
     /**
@@ -448,11 +444,11 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         @dev Checks that `msg.sender` is a Lender (LiquidityLocker) that is using an approved Pool to fund the Loan.
      */
     function _isValidPool() internal view {
-        address pool        = ILiquidityLocker(msg.sender).pool();
-        address poolFactory = IPool(pool).superFactory();
+        address pool        = ILiquidityLockerLike(msg.sender).pool();
+        address poolFactory = IPoolLike(pool).superFactory();
         require(
             _globals(superFactory).isValidPoolFactory(poolFactory) &&
-            IPoolFactory(poolFactory).isPool(pool),
+            IPoolFactoryLike(poolFactory).isPool(pool),
             "L:INVALID_LENDER"
         );
     }
@@ -470,7 +466,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         @param to    Address to send funds to.
         @param value Amount to send.
      */
-    function _transferFunds(IFundingLocker from, address to, uint256 value) internal {
+    function _transferFunds(IFundingLockerLike from, address to, uint256 value) internal {
         from.pull(to, value);
     }
 
@@ -479,7 +475,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         @dev It emits a `BalanceUpdated` event.
      */
     function _emitBalanceUpdateEventForLoan() internal {
-        emit BalanceUpdated(address(this), address(liquidityAsset), liquidityAsset.balanceOf(address(this)));
+        emit BalanceUpdated(address(this), liquidityAsset, IERC20(liquidityAsset).balanceOf(address(this)));
     }
 
     /**
@@ -487,7 +483,7 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         @dev It emits a `BalanceUpdated` event.
      */
     function _emitBalanceUpdateEventForFundingLocker() internal {
-        emit BalanceUpdated(fundingLocker, address(liquidityAsset), _getFundingLockerBalance());
+        emit BalanceUpdated(fundingLocker, liquidityAsset, _getFundingLockerBalance());
     }
 
     /**
@@ -495,7 +491,16 @@ contract Loan is ILoan, BasicFundsTokenFDT, Pausable {
         @dev It emits a `BalanceUpdated` event.
      */
     function _emitBalanceUpdateEventForCollateralLocker() internal {
-        emit BalanceUpdated(collateralLocker, address(collateralAsset), _getCollateralLockerBalance());
+        emit BalanceUpdated(collateralLocker, collateralAsset, _getCollateralLockerBalance());
+    }
+
+    function _msgSender() internal view override(PauseableContext, ERC20Context) returns (address payable) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view override(PauseableContext, ERC20Context) returns (bytes memory) {
+        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
+        return msg.data;
     }
 
 }

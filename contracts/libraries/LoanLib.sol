@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.6.11;
 
-import { SafeMath }          from "../../../../../lib/openzeppelin-contracts/contracts/math/SafeMath.sol";
-import { IERC20, SafeERC20 } from "../../../../../lib/openzeppelin-contracts/contracts/token/ERC20/SafeERC20.sol";
+import { SafeMath }          from "../../modules/openzeppelin-contracts/contracts/math/SafeMath.sol";
+import { IERC20, SafeERC20 } from "../../modules/openzeppelin-contracts/contracts/token/ERC20/SafeERC20.sol";
+import { IMapleGlobals }     from "../../modules/util/contracts/interfaces/IMapleGlobals.sol";
+import {
+    IERC20Details as IERC20DetailsLike,  // NOTE: Necessary for https://github.com/ethereum/solidity/issues/9278
+    IUniswapRouterLike,
+    ICollateralLockerLike,
+    IFundingLockerLike,
+    IMapleGlobals as IMapleGlobalsLike,  // NOTE: Necessary for https://github.com/ethereum/solidity/issues/9278
+    ILateFeeCalcLike,
+    ILoanFactoryLike,
+    IPremiumCalcLike,
+    IRepaymentCalcLike
+} from "../interfaces/Interfaces.sol";
 
-import { IERC20Details }  from "../../../../external-interfaces/IERC20Details.sol";
-import { IUniswapRouter } from "../../../../external-interfaces/IUniswapRouter.sol";
-
-import { ICollateralLocker } from "../../../../core/collateral-locker/contracts/interfaces/ICollateralLocker.sol";
-import { IFundingLocker }    from "../../../../core/funding-locker/contracts/interfaces/IFundingLocker.sol";
-import { IMapleGlobals }     from "../../../../core/globals/contracts/interfaces/IMapleGlobals.sol";
-import { ILateFeeCalc }      from "../../../../core/late-fee-calculator/contracts/interfaces/ILateFeeCalc.sol";
-import { ILoanFactory }      from "../../../../core/loan/contracts/interfaces/ILoanFactory.sol";
-import { IPremiumCalc }      from "../../../../core/premium-calculator/contracts/interfaces/IPremiumCalc.sol";
-import { IRepaymentCalc }    from "../../../../core/repayment-calculator/contracts/interfaces/IRepaymentCalc.sol";
-
-import { Util } from "../../../../libraries/util/contracts/Util.sol";
+import { Util } from "../../modules/util/contracts/Util.sol";
 
 /// @title LoanLib is a library of utility functions used by Loan.
 library LoanLib {
@@ -36,7 +37,7 @@ library LoanLib {
         @param  collateralAsset The contract address of the Collateral Asset.
         @param  specs           The contains specifications for this Loan.
      */
-    function loanSanityChecks(IMapleGlobals globals, address liquidityAsset, address collateralAsset, uint256[5] calldata specs) external view {
+    function loanSanityChecks(IMapleGlobalsLike globals, address liquidityAsset, address collateralAsset, uint256[5] calldata specs) external view {
         require(globals.isValidLiquidityAsset(liquidityAsset),   "L:INVALID_LIQ_ASSET");
         require(globals.isValidCollateralAsset(collateralAsset), "L:INVALID_COL_ASSET");
 
@@ -61,7 +62,7 @@ library LoanLib {
         uint256 preBal = liquidityAsset.balanceOf(address(this));
 
         // Drain funding from FundingLocker, transfers all the Liquidity Asset to this Loan.
-        IFundingLocker(fundingLocker).drain();
+        IFundingLockerLike(fundingLocker).drain();
 
         return liquidityAsset.balanceOf(address(this)).sub(preBal);
     }
@@ -92,17 +93,17 @@ library LoanLib {
         uint256 liquidationAmt = collateralAsset.balanceOf(address(collateralLocker));
 
         // Pull the Collateral Asset from CollateralLocker.
-        ICollateralLocker(collateralLocker).pull(address(this), liquidationAmt);
+        ICollateralLockerLike(collateralLocker).pull(address(this), liquidationAmt);
 
         if (address(collateralAsset) == liquidityAsset || liquidationAmt == uint256(0)) return (liquidationAmt, liquidationAmt);
 
         collateralAsset.safeApprove(UNISWAP_ROUTER, uint256(0));
         collateralAsset.safeApprove(UNISWAP_ROUTER, liquidationAmt);
 
-        IMapleGlobals globals = _globals(superFactory);
+        IMapleGlobalsLike globals = _globals(superFactory);
 
         // Get minimum amount of loan asset get after swapping collateral asset.
-        uint256 minAmount = Util.calcMinAmount(globals, address(collateralAsset), liquidityAsset, liquidationAmt);
+        uint256 minAmount = Util.calcMinAmount(IMapleGlobals(address(globals)) , address(collateralAsset), liquidityAsset, liquidationAmt);
 
         // Generate Uniswap path.
         address uniswapAssetForPath = globals.defaultUniswapPath(address(collateralAsset), liquidityAsset);
@@ -116,7 +117,7 @@ library LoanLib {
         if (middleAsset) path[2] = liquidityAsset;
 
         // Swap collateralAsset for Liquidity Asset.
-        uint256[] memory returnAmounts = IUniswapRouter(UNISWAP_ROUTER).swapExactTokensForTokens(
+        uint256[] memory returnAmounts = IUniswapRouterLike(UNISWAP_ROUTER).swapExactTokensForTokens(
             liquidationAmt,
             minAmount.sub(minAmount.mul(globals.maxSwapSlippage()).div(10_000)),
             path,
@@ -138,7 +139,7 @@ library LoanLib {
         @param liquidityAsset The address of token that is used by the loan for drawdown and payments.
         @param globals        The instance of a MapleGlobals.
      */
-    function reclaimERC20(address token, address liquidityAsset, IMapleGlobals globals) external {
+    function reclaimERC20(address token, address liquidityAsset, IMapleGlobalsLike globals) external {
         require(msg.sender == globals.governor(),               "L:NOT_GOV");
         require(token != liquidityAsset && token != address(0), "L:INVALID_TOKEN");
         IERC20(token).safeTransfer(msg.sender, IERC20(token).balanceOf(address(this)));
@@ -194,13 +195,13 @@ library LoanLib {
         _nextPaymentDue  = nextPaymentDue;
 
         // Get next payment amounts from RepaymentCalc.
-        (total, principal, interest) = IRepaymentCalc(repaymentCalc).getNextPayment(address(this));
+        (total, principal, interest) = IRepaymentCalcLike(repaymentCalc).getNextPayment(address(this));
 
         paymentLate = block.timestamp > _nextPaymentDue;
 
         // If payment is late, add late fees.
         if (paymentLate) {
-            uint256 lateFee = ILateFeeCalc(lateFeeCalc).getLateFee(interest);
+            uint256 lateFee = ILateFeeCalcLike(lateFeeCalc).getLateFee(interest);
 
             total    = total.add(lateFee);
             interest = interest.add(lateFee);
@@ -231,14 +232,14 @@ library LoanLib {
             uint256 interest
         )
     {
-        (total, principal, interest) = IPremiumCalc(premiumCalc).getPremiumPayment(address(this));
+        (total, principal, interest) = IPremiumCalcLike(premiumCalc).getPremiumPayment(address(this));
 
         if (block.timestamp <= nextPaymentDue) return (total, principal, interest);
 
         // If payment is late, calculate and add late fees using interest amount from regular payment.
-        (,, uint256 regInterest) = IRepaymentCalc(repaymentCalc).getNextPayment(address(this));
+        (,, uint256 regInterest) = IRepaymentCalcLike(repaymentCalc).getNextPayment(address(this));
 
-        uint256 lateFee = ILateFeeCalc(lateFeeCalc).getLateFee(regInterest);
+        uint256 lateFee = ILateFeeCalcLike(lateFeeCalc).getLateFee(regInterest);
 
         total    = total.add(lateFee);
         interest = interest.add(lateFee);
@@ -254,8 +255,8 @@ library LoanLib {
         @return The amount of Collateral Asset required to post in CollateralLocker for given drawdown amount.
      */
     function collateralRequiredForDrawdown(
-        IERC20Details collateralAsset,
-        IERC20Details liquidityAsset,
+        IERC20DetailsLike collateralAsset,
+        IERC20DetailsLike liquidityAsset,
         uint256 collateralRatio,
         address superFactory,
         uint256 amt
@@ -264,7 +265,7 @@ library LoanLib {
         view
         returns (uint256)
     {
-        IMapleGlobals globals = _globals(superFactory);
+        IMapleGlobalsLike globals = _globals(superFactory);
 
         uint256 wad = _toWad(amt, liquidityAsset);  // Convert to WAD precision.
 
@@ -283,11 +284,11 @@ library LoanLib {
     /*** Helper Functions ***/
     /************************/
 
-    function _globals(address loanFactory) internal view returns (IMapleGlobals) {
-        return IMapleGlobals(ILoanFactory(loanFactory).globals());
+    function _globals(address loanFactory) internal view returns (IMapleGlobalsLike) {
+        return IMapleGlobalsLike(ILoanFactoryLike(loanFactory).globals());
     }
 
-    function _toWad(uint256 amt, IERC20Details liquidityAsset) internal view returns (uint256) {
+    function _toWad(uint256 amt, IERC20DetailsLike liquidityAsset) internal view returns (uint256) {
         return amt.mul(10 ** 18).div(10 ** liquidityAsset.decimals());
     }
 

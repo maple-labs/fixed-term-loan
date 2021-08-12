@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.6.11;
 
-import { Pausable } from "../../../../lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
+import { Pausable } from "../modules/openzeppelin-contracts/contracts/utils/Pausable.sol";
 
-import { IMapleGlobals } from "../../globals/contracts/interfaces/IMapleGlobals.sol";
-
-import { ILoanFactory } from "./interfaces/ILoanFactory.sol";
+import { ILoanFactory }                       from "./interfaces/ILoanFactory.sol";
+import { IMapleGlobals as IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
 
 import { Loan } from "./Loan.sol";
 
@@ -19,7 +18,7 @@ contract LoanFactory is ILoanFactory, Pausable {
     uint8 public override constant LATEFEE_CALC_TYPE  = 11;
     uint8 public override constant PREMIUM_CALC_TYPE  = 12;
 
-    IMapleGlobals public override globals;
+    address public override globals;
 
     uint256 public override loansCreated;
 
@@ -29,12 +28,12 @@ contract LoanFactory is ILoanFactory, Pausable {
     mapping(address => bool) public override loanFactoryAdmins;
 
     constructor(address _globals) public {
-        globals = IMapleGlobals(_globals);
+        globals = _globals;
     }
 
     function setGlobals(address newGlobals) external override {
         _isValidGovernor();
-        globals = IMapleGlobals(newGlobals);
+        globals = newGlobals;
     }
 
     function createLoan(
@@ -46,7 +45,7 @@ contract LoanFactory is ILoanFactory, Pausable {
         address[3] memory calcs
     ) external override whenNotPaused returns (address loanAddress) {
         _whenProtocolNotPaused();
-        IMapleGlobals _globals = globals;
+        IMapleGlobalsLike _globals = IMapleGlobalsLike(globals);
 
         // Perform validity checks.
         require(_globals.isValidSubFactory(address(this), flFactory, FL_FACTORY), "LF:INVALID_FLF");
@@ -107,21 +106,21 @@ contract LoanFactory is ILoanFactory, Pausable {
         @dev Checks that `msg.sender` is the Governor.
      */
     function _isValidGovernor() internal view {
-        require(msg.sender == globals.governor(), "LF:NOT_GOV");
+        require(msg.sender == IMapleGlobalsLike(globals).governor(), "LF:NOT_GOV");
     }
 
     /**
         @dev Checks that `msg.sender` is the Governor or a LoanFactory Admin.
      */
     function _isValidGovernorOrLoanFactoryAdmin() internal view {
-        require(msg.sender == globals.governor() || loanFactoryAdmins[msg.sender], "LF:NOT_GOV_OR_ADMIN");
+        require(msg.sender == IMapleGlobalsLike(globals).governor() || loanFactoryAdmins[msg.sender], "LF:NOT_GOV_OR_ADMIN");
     }
 
     /**
         @dev Checks that the protocol is not in a paused state.
      */
     function _whenProtocolNotPaused() internal view {
-        require(!globals.protocolPaused(), "LF:PROTO_PAUSED");
+        require(!IMapleGlobalsLike(globals).protocolPaused(), "LF:PROTO_PAUSED");
     }
 
 }

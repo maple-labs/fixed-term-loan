@@ -1,173 +1,292 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.6.11;
-pragma experimental ABIEncoderV2;
 
-import { SafeMath } from "../../../../../lib/openzeppelin-contracts/contracts/math/SafeMath.sol";
+import { SafeMath } from "../../modules/openzeppelin-contracts/contracts/math/SafeMath.sol";
+import { DSTest }   from "../../modules/ds-test/src/test.sol";
 
-import { IMapleGlobals } from "../../../globals/contracts/interfaces/IMapleGlobals.sol";
-import { ILoan }         from "../../../loan/contracts/interfaces/ILoan.sol";
+import { Borrower } from "./accounts/Borrower.sol";
+import { Governor } from "./accounts/Governor.sol";
 
-import { TestUtil } from "../../../../test/TestUtil.sol";
-import { Governor } from "../../../../test/user/Governor.sol";
+import { ILoan } from "../interfaces/ILoan.sol";
 
-contract LoanFactoryTest is TestUtil {
+import { LoanFactory } from "../LoanFactory.sol";
+
+
+contract CollateralLockerFactoryMock {
+    
+    function newLocker(address asset) external pure returns(address) {
+        return address(10);
+    }
+
+}
+
+contract FundingLockerFactoryMock {
+    
+    function newLocker(address asset) external pure returns(address) {
+        return address(10);
+    }
+
+}
+
+contract GlobalsMock {
+
+    uint256 public constant fundingPeriod      = 10 days;
+    uint256 public constant defaultGracePeriod = 10 days;
+
+    bool public protocolPaused;
+
+    address public governor;
+
+    mapping(address => bool) public validCalcs;
+    mapping(address => bool) public isValidCollateralAsset;
+    mapping(address => bool) public isValidLiquidityAsset;
+
+    mapping(address => mapping(address => bool)) public validSubFactories;
+
+    constructor(address _governor) public {
+        governor = _governor;
+    }
+
+    function setCalc(address calc, bool valid) external {
+        validCalcs[calc] = valid;
+    }
+
+    function setCollateralAsset(address asset, bool valid) external {
+        isValidCollateralAsset[asset] = valid;
+    }
+
+    function setLiquidityAsset(address asset, bool valid) external {
+        isValidLiquidityAsset[asset] = valid;
+    }
+
+    function setProtocolPause(bool pause) external {
+        protocolPaused = pause;
+    }
+
+    function setValidSubFactory(address superFactory, address subFactory, bool valid) external {
+        validSubFactories[superFactory][subFactory] = valid;
+    }
+
+    function isValidSubFactory(address superFactory, address subFactory, uint8 factoryType) external view returns (bool) {
+        return validSubFactories[superFactory][subFactory];  // Don't check factoryType in mock
+    }
+
+    function isValidCalc(address calc, uint8 calcType) external view returns (bool) {
+        return validCalcs[calc];  // Don't check calcType in mock
+    }
+}
+
+contract LoanFactorySettersTest is DSTest {
 
     using SafeMath for uint256;
 
-    function setUp() public {
-        setUpGlobals();
-        setUpCalcs();
-        setUpTokens();
-        createBorrower();
-        setUpFactories();
-    }
-
     function test_setGlobals() public {
-        Governor fakeGov = new Governor();
+        Governor    realGov     = new Governor();
+        Governor    fakeGov     = new Governor();
+        GlobalsMock globals     = new GlobalsMock(address(realGov));
+        LoanFactory loanFactory = new LoanFactory(address(globals));
 
-        IMapleGlobals globals2 = fakeGov.createGlobals(address(mpl));  // Create upgraded MapleGlobals
+        assertEq(loanFactory.globals(), address(globals));
 
-        assertEq(address(loanFactory.globals()), address(globals));
+        assertTrue(!fakeGov.try_loanFactory_setGlobals(address(loanFactory), address(1)));
+        assertTrue( realGov.try_loanFactory_setGlobals(address(loanFactory), address(1)));
 
-        assertTrue(!fakeGov.try_setGlobals(address(loanFactory), address(globals2)));  // Non-governor cannot set new globals
-
-        globals2 = gov.createGlobals(address(mpl));      // Create upgraded MapleGlobals
-
-        assertTrue(gov.try_setGlobals(address(loanFactory), address(globals2)));       // Governor can set new globals
-        assertEq(address(loanFactory.globals()), address(globals2));                   // Globals is updated
+        assertEq(loanFactory.globals(), address(1));
     }
 
-    function test_createLoan_invalid_locker_factories() public {
-        gov.setValidSubFactory(address(loanFactory), address(flFactory), false);
-        gov.setValidSubFactory(address(loanFactory), address(clFactory), false);
-        gov.setValidLoanFactory(address(loanFactory),                    false);
+}
 
-        uint256[5] memory specs = [10, 10, 2, 10_000_000 * USD, 30];
+contract LoanFactoryCreateTest is DSTest {
 
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
+    using SafeMath for uint256;
 
-        // Add flFactory in valid list
-        gov.setValidLoanFactory(address(loanFactory), true);
-        gov.setValidSubFactory(address(loanFactory), address(flFactory), true);
+    Borrower    borrower; 
+    GlobalsMock globals;   
+    LoanFactory loanFactory;
 
-        // Still fails as clFactory isn't a valid factory.
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
-        gov.setValidSubFactory(address(loanFactory), address(clFactory), true);  // Add clFactory in the valid list.
+    address clFactoryMock;
+    address flFactoryMock;
+    address governorMock;
+    address collateralAssetMock; 
+    address liquidityAssetMock; 
+    address repaymentCalcMock; 
+    address premiumCalcMock; 
+    address lateFeeCalcMock; 
 
-        // Should successfully created
-        assertTrue(bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 1, "Incorrect loan instantiation");  // Should be incremented by 1.
+    address[3] calcs;
+
+    function setUp() public {
+        governorMock = address(1);
+
+        collateralAssetMock = address(2);
+        liquidityAssetMock  = address(3);
+
+        repaymentCalcMock = address(4);
+        premiumCalcMock   = address(5);
+        lateFeeCalcMock   = address(6);
+
+        collateralAssetMock = address(7);
+        liquidityAssetMock  = address(8);
+
+        clFactoryMock = address(new CollateralLockerFactoryMock());
+        flFactoryMock = address(new FundingLockerFactoryMock());
+
+        borrower    = new Borrower();
+        globals     = new GlobalsMock(governorMock);
+        loanFactory = new LoanFactory(address(globals));
+
+        globals.setValidSubFactory(address(loanFactory), clFactoryMock, true);
+        globals.setValidSubFactory(address(loanFactory), flFactoryMock, true);
+        
+        globals.setCalc(repaymentCalcMock, true);
+        globals.setCalc(premiumCalcMock,   true);
+        globals.setCalc(lateFeeCalcMock,   true);
+
+        globals.setCollateralAsset(collateralAssetMock, true);
+        globals.setLiquidityAsset(liquidityAssetMock,  true);
+
+        calcs = [repaymentCalcMock, premiumCalcMock, lateFeeCalcMock];
     }
 
-    function test_createLoan_invalid_calc_types() public {
-        uint256[5] memory specs = [10, 10, 2, 10_000_000 * USD, 30];
-
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, [calcs[1], calcs[1], calcs[2]]));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
-
-        // Incorrect type for second calculator contract.
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, [calcs[0], calcs[2], calcs[2]]));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
-
-        // Incorrect type for third calculator contract.
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, [calcs[0], calcs[1], calcs[0]]));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
-
-        // Should successfully created
-        assertTrue(bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 1, "Incorrect loan instantiation");  // Should be incremented by 1.
+    function isAbleToCreateLoan(uint256[5] memory specs) internal returns (bool) {
+        return borrower.try_loanFactory_createLoan(address(loanFactory), liquidityAssetMock, collateralAssetMock, flFactoryMock, clFactoryMock, specs, calcs);
     }
 
-    function test_createLoan_invalid_assets_and_specs() public {
-        uint256[5] memory specs = [10, 10, 2, 10_000_000 * USD, 30];
+    // TODO: setLoanFactoryAdmin
+    // TODO: pause/global pause
 
-        gov.setLiquidityAsset(USDC,  false);
-        gov.setCollateralAsset(WETH, false);
+    // function test_createLoan_pauses() public {
+    //     uint256[5] memory specs = [10, 10, 2, uint256(10_000_000), 30];
 
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
+    //     globals.setProtocolPause(true);
 
-        gov.setLiquidityAsset(USDC, true);  // Allow loan asset
-        // Still fails as collateral asset is not a valid collateral asset
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
+    //     assertTrue(!isAbleToCreateLoan(specs));
 
-        gov.setCollateralAsset(WETH, true);  // Set collateral asset.
-        // Still fails as loan asset can't be 0x0
-        assertTrue(!bob.try_createLoan(address(loanFactory), address(0), WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
+    //     globals.setProtocolPause(false);
+    //     loanFactory.pause();
+    // }
 
+    function test_createLoanWithInvalidSubFactories() public {
+        uint256[5] memory specs = [10, 10, 2, uint256(10_000_000), 30];
+
+        globals.setValidSubFactory(address(loanFactory), clFactoryMock, false);
+
+        assertTrue(!globals.isValidSubFactory(address(loanFactory), clFactoryMock, 0));
+        assertTrue( globals.isValidSubFactory(address(loanFactory), flFactoryMock, 2));
+
+        assertTrue(!isAbleToCreateLoan(specs));
+
+        globals.setValidSubFactory(address(loanFactory), clFactoryMock, true);
+        globals.setValidSubFactory(address(loanFactory), flFactoryMock, false);
+
+        assertTrue( globals.isValidSubFactory(address(loanFactory), clFactoryMock, 0));
+        assertTrue(!globals.isValidSubFactory(address(loanFactory), flFactoryMock, 2));
+
+        assertTrue(!isAbleToCreateLoan(specs));
+
+        globals.setValidSubFactory(address(loanFactory), flFactoryMock, true);
+
+        assertTrue(globals.isValidSubFactory(address(loanFactory), clFactoryMock, 0));
+        assertTrue(globals.isValidSubFactory(address(loanFactory), flFactoryMock, 2));
+
+        assertTrue(isAbleToCreateLoan(specs));
+    }
+
+    function test_createLoanWithInvalidCalcs() public {
+        uint256[5] memory specs = [10, 10, 2, uint256(10_000_000), 30];
+
+        globals.setCalc(repaymentCalcMock, false);
+
+        assertTrue(!globals.isValidCalc(repaymentCalcMock, 10));
+        assertTrue( globals.isValidCalc(premiumCalcMock,   11));
+        assertTrue( globals.isValidCalc(lateFeeCalcMock,   12));
+
+        assertTrue(!isAbleToCreateLoan(specs));
+
+        globals.setCalc(repaymentCalcMock, true);
+        globals.setCalc(premiumCalcMock,   false);
+
+        assertTrue( globals.isValidCalc(repaymentCalcMock, 10));
+        assertTrue(!globals.isValidCalc(premiumCalcMock,   11));
+        assertTrue( globals.isValidCalc(lateFeeCalcMock,   12));
+
+        assertTrue(!isAbleToCreateLoan(specs));
+
+        globals.setCalc(premiumCalcMock, true);
+        globals.setCalc(lateFeeCalcMock, false);
+
+        assertTrue( globals.isValidCalc(repaymentCalcMock, 10));
+        assertTrue( globals.isValidCalc(premiumCalcMock,   11));
+        assertTrue(!globals.isValidCalc(lateFeeCalcMock,   12));
+
+        assertTrue(!isAbleToCreateLoan(specs));
+
+        globals.setCalc(lateFeeCalcMock, true);
+
+        assertTrue(globals.isValidCalc(repaymentCalcMock, 10));
+        assertTrue(globals.isValidCalc(premiumCalcMock,   11));
+        assertTrue(globals.isValidCalc(lateFeeCalcMock,   12));
+
+        assertTrue(isAbleToCreateLoan(specs));
+    }
+
+    function test_createLoanWithInvalidAssets() public {
+        uint256[5] memory specs = [10, 10, 2, uint256(10_000_000), 30];
+
+        globals.setCollateralAsset(collateralAssetMock, false);
+
+        assertTrue(!globals.isValidCollateralAsset(collateralAssetMock));
+        assertTrue( globals.isValidLiquidityAsset(liquidityAssetMock));
+
+        assertTrue(!isAbleToCreateLoan(specs));
+
+        globals.setLiquidityAsset(liquidityAssetMock,   false);
+        globals.setCollateralAsset(collateralAssetMock, true);
+
+        assertTrue( globals.isValidCollateralAsset(collateralAssetMock));
+        assertTrue(!globals.isValidLiquidityAsset(liquidityAssetMock));
+
+        assertTrue(!isAbleToCreateLoan(specs));
+
+        globals.setLiquidityAsset(liquidityAssetMock, true);
+
+        assertTrue(globals.isValidCollateralAsset(collateralAssetMock));
+        assertTrue(globals.isValidLiquidityAsset(liquidityAssetMock));
+
+        assertTrue(isAbleToCreateLoan(specs));
+    }
+
+    function test_createLoanWithInvalidSpecs() public {
         // Fails because of error - ERR_PAYMENT_INTERVAL_DAYS_EQUALS_ZERO
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), [10, 10, 0, 10_000_000 * USD, 30], calcs));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
+        uint256[5] memory specs = [10, 10, 0, uint256(10_000_000), 30];
+        assertTrue(!isAbleToCreateLoan(specs));  
 
         // Fails because of error - ERR_INVALID_TERM_AND_PAYMENT_INTERVAL_DIVISION
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), [10, 19, 2, 10_000_000 * USD, 30], calcs));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
+        specs = [10, 19, 2, uint256(10_000_000), 30];
+        assertTrue(!isAbleToCreateLoan(specs));  
 
         // Fails because of error - ERR_REQUEST_AMT_EQUALS_ZERO
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), [uint256(10), 10, 2, uint256(0), 30], calcs));
-        assertEq(loanFactory.loansCreated(), 0, "Colluded state");  // Should be 0.
+        specs = [uint256(10), 10, 2, uint256(0), 30];
+        assertTrue(!isAbleToCreateLoan(specs)); 
 
-        // Should successfully created
-        assertTrue(bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 1, "Incorrect loan instantiation");  // Should be incremented by 1.
+        // Should be successfully created
+        specs = [10, 10, 2, uint256(10_000_000), 30];
+        assertTrue(isAbleToCreateLoan(specs)); 
     }
 
-    function test_createLoan_paused() public {
-        uint256[5] memory specs = [10, 10, 2, 10_000_000 * USD, 30];
+    function test_createLoan() public {
+        uint256[5] memory specs = [10, 10, 2, uint256(10_000_000), 30];
 
-        // Pause LoanFactory and attempt createLoan()
-        assertTrue(      gov.try_pause(address(loanFactory)));
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(   loanFactory.loansCreated(), 0);
+        assertEq(loanFactory.loansCreated(), 0);
 
-        // Unpause LoanFactory and createLoan()
-        assertTrue(     gov.try_unpause(address(loanFactory)));
-        assertTrue(bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(  loanFactory.loansCreated(), 1);
+        assertTrue(isAbleToCreateLoan(specs)); 
 
-        // Pause protocol and attempt createLoan()
-        assertTrue(      emergencyAdmin.try_setProtocolPause(address(globals), true));
-        assertTrue(!bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(   loanFactory.loansCreated(), 1);
+        assertEq(loanFactory.loansCreated(), 1);
 
-        // Unpause protocol and createLoan()
-        assertTrue(     emergencyAdmin.try_setProtocolPause(address(globals), false));
-        assertTrue(bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(  loanFactory.loansCreated(), 2);
-    }
+        address loanAddress = loanFactory.loans(0);
 
-    function test_createLoan_successfully() public {
-        uint256[5] memory specs = [10, 10, 2, 10_000_000 * USD, 30];
-
-        // Verify the loan gets created successfully.
-        assertTrue(bob.try_createLoan(address(loanFactory), USDC, WETH, address(flFactory), address(clFactory), specs, calcs));
-        assertEq(loanFactory.loansCreated(), 1, "Incorrect loan instantiation");  // Should be incremented by 1.
-        ILoan loan = ILoan(loanFactory.loans(0));                                 // Initial value of loansCreated.
-        assertTrue(loanFactory.isLoan(address(loan)));                            // Should be considered as a loan.
-
-        // Verify the storage of loan contract
-        assertEq(loan.borrower(),                  address(bob), "Incorrect borrower");
-        assertEq(address(loan.liquidityAsset()),   USDC, "Incorrect loan asset");
-        assertEq(address(loan.collateralAsset()),  WETH, "Incorrect collateral asset");
-        assertEq(loan.flFactory(),                 address(flFactory), "Incorrect FLF");
-        assertEq(loan.clFactory(),                 address(clFactory), "Incorrect CLF");
-        assertEq(loan.createdAt(),                 block.timestamp, "Incorrect created at timestamp");
-        assertEq(loan.apr(),                       specs[0], "Incorrect APR");
-        assertEq(loan.termDays(),                  specs[1], "Incorrect term days");
-        assertEq(loan.paymentsRemaining(),         specs[1].div(specs[2]), "Incorrect payments remaining");
-        assertEq(loan.paymentIntervalSeconds(),    specs[2].mul(1 days), "Incorrect payment interval in seconds");
-        assertEq(loan.requestAmount(),             specs[3], "Incorrect request amount value");
-        assertEq(loan.collateralRatio(),           specs[4], "Incorrect collateral ratio");
-        assertEq(loan.fundingPeriod(),             globals.fundingPeriod(), "Incorrect funding period in seconds");
-        assertEq(loan.defaultGracePeriod(),        globals.defaultGracePeriod(), "Incorrect default grace period in seconds");
-        assertEq(loan.repaymentCalc(),             calcs[0], "Incorrect repayment calculator");
-        assertEq(loan.lateFeeCalc(),               calcs[1], "Incorrect late fee calculator");
-        assertEq(loan.premiumCalc(),               calcs[2], "Incorrect premium calculator");
-        assertEq(loan.superFactory(),              address(loanFactory), "Incorrect super factory address");
+        assertTrue(loanAddress != address(0));
+        assertTrue(loanFactory.isLoan(loanAddress));  // Confirms that borth `loans` and `isLoan` mappings were added to correctly
     }
 
 }

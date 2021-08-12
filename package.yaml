@@ -1,0 +1,14 @@
+name: loan
+version: 1.0.0
+source: contracts
+packages:
+  - path: contracts/LoanFactory.sol
+    contractName: LoanFactory
+    customChecksum: 0x6d07c35082f8a5e7550b768663f14a0ea8abc4a99eff521814ac2d25e8334cbb
+  - path: contracts/Loan.sol
+    contractName: Loan
+    customChecksum: 0xf3041d8d7b45d5f76c44f7b69170c452303bf6aa758ac89ff87fb745c3cb68e8
+  - path: contracts/libraries/LoanLib.sol
+    contractName: LoanLib
+    customChecksum: 0x509e63a89f3d76b5bb70610b6bf59bdb38050697efa496256a479d4ad252da5d
+customDescription: Loan Artifacts and ABIs

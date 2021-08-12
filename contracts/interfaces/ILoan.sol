@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.6.11;
 
-import { IERC20 } from "../../../../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-
-import { IBasicFundsTokenFDT } from "../../../funds-distribution-token/contracts/interfaces/IBasicFundsTokenFDT.sol";
-
-interface ILoan is IBasicFundsTokenFDT {
+interface ILoan {
 
     /**
         Ready      = The Loan has been initialized and is ready for funding (assuming funding period hasn't ended).
@@ -92,12 +88,12 @@ interface ILoan is IBasicFundsTokenFDT {
     /**
         @dev The asset deposited by Lenders into the FundingLocker, when funding this Loan.
      */
-    function liquidityAsset() external view returns (IERC20);
+    function liquidityAsset() external view returns (address);
 
     /**
         @dev The asset deposited by Borrower into the CollateralLocker, for collateralizing this Loan.
      */
-    function collateralAsset() external view returns (IERC20);
+    function collateralAsset() external view returns (address);
 
     /**
         @dev The FundingLocker that holds custody of Loan funds before drawdown.
@@ -321,12 +317,6 @@ interface ILoan is IBasicFundsTokenFDT {
         @param token The address of the token to be reclaimed.
      */
     function reclaimERC20(address token) external;
-
-    /**
-        @dev Withdraws all available funds earned through LoanFDT for a token holder. 
-        @dev It emits a `BalanceUpdated` event. 
-     */
-    function withdrawFunds() external override;
 
     /**
         @dev    Returns the expected amount of Liquidity Asset to be recovered from a liquidation based on current oracle prices.

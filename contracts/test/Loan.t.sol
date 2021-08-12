@@ -2,14 +2,19 @@
 pragma solidity 0.6.11;
 pragma experimental ABIEncoderV2;
 
-import { IERC20 } from "../../../../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "../../modules/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { DSTest } from "../../modules/ds-test/src/test.sol";
 
 import { TestUtil } from "../../../../test/TestUtil.sol";
 import { Governor } from "../../../../test/user/Governor.sol";
 
 import { Loan } from "../Loan.sol";
 
-contract LoanTest is TestUtil {
+contract LoanTest is DSTest {
+
+    function test_blank() public {
+        assertTrue(true);
+    }
 
     function setUp() public {
         setUpGlobals();
