@@ -307,7 +307,7 @@ interface ILoan {
         @dev   Only the Borrower can call this function. 
         @dev   It emits a `LoanAdminSet` event. 
         @param loanAdmin The address being allowed or disallowed as a Loan Admin.
-        @param allowed   The atatus of a Loan Admin.
+        @param allowed   The status of a Loan Admin.
      */
     function setLoanAdmin(address loanAdmin, bool allowed) external;
 

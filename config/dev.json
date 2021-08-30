@@ -1,8 +1,14 @@
 {
   "language": "Solidity",
   "sources": {
+    "contracts/Loan.sol": {
+      "urls": ["contracts/Loan.sol"]
+    },
     "contracts/LoanFactory.sol": {
       "urls": ["contracts/LoanFactory.sol"]
+    },
+    "contracts/test/Loan.t.sol": {
+      "urls": ["contracts/test/Loan.t.sol"]
     },
     "contracts/test/LoanFactory.t.sol": {
       "urls": ["contracts/test/LoanFactory.t.sol"]
