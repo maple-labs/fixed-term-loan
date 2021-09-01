@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.6.11;
 
-import { IERC20 } from "../../../modules/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { BasicFundsTokenFDTUser } from "../../../modules/funds-distribution-token/contracts/test/accounts/BasicFundsTokenFDTUser.sol";
 
-// TODO: this is missing LoanUser is BasicFundsTokenFDTUser, only possible when funds-distribution-token gets test accounts
 import { ILoan } from "../../interfaces/ILoan.sol";
 
-import { ERC20User } from "./ERC20User.sol";
-
-contract LoanUser is ERC20User {
+contract LoanUser is BasicFundsTokenFDTUser {
 
     /************************/
     /*** Direct Functions ***/

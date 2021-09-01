@@ -27,8 +27,8 @@ contract Borrower is LoanAdmin, LoanUser {
         return ILoanFactory(loanFactory).createLoan(liquidityAsset, collateralAsset, flFactory, clFactory, specs, calcs); 
     }
 
-    function loan_drawdown(address loan, uint256 amt) external {
-        ILoan(loan).drawdown(amt);
+    function loan_drawdown(address loan, uint256 amount) external {
+        ILoan(loan).drawdown(amount);
     }
 
     function loan_setLoanAdmin(address loan, address loanAdmin, bool status) external {
@@ -55,8 +55,8 @@ contract Borrower is LoanAdmin, LoanUser {
         );
     }
 
-    function try_loan_drawdown(address loan, uint256 amt) external returns (bool ok) {
-        (ok,) = address(loan).call(abi.encodeWithSelector(ILoan.drawdown.selector, amt));
+    function try_loan_drawdown(address loan, uint256 amount) external returns (bool ok) {
+        (ok,) = address(loan).call(abi.encodeWithSelector(ILoan.drawdown.selector, amount));
     }
 
     function try_loan_setLoanAdmin(address loan, address loanAdmin, bool status) external returns (bool ok) {

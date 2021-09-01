@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.6.11;
 
-import { IERC20 } from "../../../modules/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-
 import { ILoan } from "../../interfaces/ILoan.sol";
 
 import { LoanUser } from "./LoanUser.sol";
