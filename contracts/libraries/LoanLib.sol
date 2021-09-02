@@ -271,7 +271,7 @@ library LoanLib {
 
         // Fetch current value of Liquidity Asset and Collateral Asset (Chainlink oracles provide 8 decimal precision).
         uint256 liquidityAssetPrice  = globals.getLatestPrice(address(liquidityAsset));
-        uint256 collateralPrice = globals.getLatestPrice(address(collateralAsset));
+        uint256 collateralPrice      = globals.getLatestPrice(address(collateralAsset));
 
         // Calculate collateral required.
         uint256 collateralRequiredUSD = wad.mul(liquidityAssetPrice).mul(collateralRatio).div(10_000);  // 18 + 8 = 26 decimals

@@ -32,15 +32,15 @@ contract LoanUser is BasicFundsTokenFDTUser {
     /*********************/
 
     function try_loan_makePayment(address loan) external returns (bool ok) {
-        (ok,) = address(loan).call(abi.encodeWithSelector(ILoan.makePayment.selector));
+        (ok,) = loan.call(abi.encodeWithSelector(ILoan.makePayment.selector));
     }
 
     function try_loan_makeFullPayment(address loan) external returns (bool ok) {
-        (ok,) = address(loan).call(abi.encodeWithSelector(ILoan.makeFullPayment.selector));
+        (ok,) = loan.call(abi.encodeWithSelector(ILoan.makeFullPayment.selector));
     }
 
     function try_loan_unwind(address loan) external returns (bool ok) {
-        (ok,) = address(loan).call(abi.encodeWithSelector(ILoan.unwind.selector));
+        (ok,) = loan.call(abi.encodeWithSelector(ILoan.unwind.selector));
     }
 
     function try_loan_triggerDefault(address loan) external returns (bool ok) {

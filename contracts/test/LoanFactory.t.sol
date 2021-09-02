@@ -15,12 +15,13 @@ contract LoanFactorySettersTest is TestUtils {
 
     GlobalsMock globals;
     Governor    governor;
-    LoanFactory loanFactory;
     Governor    notGovernor;
+    LoanFactory loanFactory;
 
     function setUp() external {
         governor    = new Governor();
         notGovernor = new Governor();
+
         globals     = new GlobalsMock(address(governor));
         loanFactory = new LoanFactory(address(globals));
     }

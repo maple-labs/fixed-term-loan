@@ -78,9 +78,9 @@ contract GlobalsMock {
     uint256 public constant fundingPeriod      = 10 days;
 
     uint256 public investorFee     = 50;
-    uint256 public treasuryFee     = 50;
     uint256 public maxSwapSlippage = 10_000;
     uint256 public minLoanEquity   = 2000;
+    uint256 public treasuryFee     = 50;
 
     mapping(address => mapping(uint8 => bool)) public isValidCalc;
 

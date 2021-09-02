@@ -30,9 +30,9 @@ contract LoanConstructorTest is TestUtils {
     address internal collateralLockerFactory;
     address internal fundingLockerFactory;
 
-    address internal constant repaymentCalc = address(111);
     address internal constant lateFeeCalc   = address(222);
     address internal constant premiumCalc   = address(333);
+    address internal constant repaymentCalc = address(111);
 
     function setUp() external {
         globals     = new GlobalsMock(address(this));

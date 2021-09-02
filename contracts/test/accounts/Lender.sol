@@ -21,6 +21,6 @@ contract Lender is LoanUser {
     /*********************/
 
     function try_loan_fundLoan(address loan, address mintTo, uint256 amt) external returns (bool ok) {
-        (ok,) = address(loan).call(abi.encodeWithSelector(ILoan.fundLoan.selector, mintTo, amt));
+        (ok,) = loan.call(abi.encodeWithSelector(ILoan.fundLoan.selector, mintTo, amt));
     }
 }

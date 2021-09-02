@@ -14,7 +14,7 @@ contract Borrower is LoanAdmin, LoanUser {
     /************************/
 
     function loanFactory_createLoan(
-        address loanFactory,
+        address factory,
         address liquidityAsset,
         address collateralAsset,
         address flFactory,
@@ -24,7 +24,7 @@ contract Borrower is LoanAdmin, LoanUser {
     )
         external returns (address loanAddress)
     {
-        return ILoanFactory(loanFactory).createLoan(liquidityAsset, collateralAsset, flFactory, clFactory, specs, calcs); 
+        return ILoanFactory(factory).createLoan(liquidityAsset, collateralAsset, flFactory, clFactory, specs, calcs); 
     }
 
     function loan_drawdown(address loan, uint256 amount) external {
@@ -40,7 +40,7 @@ contract Borrower is LoanAdmin, LoanUser {
     /*********************/
 
     function try_loanFactory_createLoan(
-        address loanFactory,
+        address factory,
         address liquidityAsset,
         address collateralAsset,
         address flFactory,
@@ -50,17 +50,17 @@ contract Borrower is LoanAdmin, LoanUser {
     )
         external returns (bool ok)
     {
-        (ok,) = loanFactory.call(
+        (ok,) = factory.call(
             abi.encodeWithSelector(ILoanFactory.createLoan.selector, liquidityAsset, collateralAsset, flFactory, clFactory, specs, calcs)
         );
     }
 
     function try_loan_drawdown(address loan, uint256 amount) external returns (bool ok) {
-        (ok,) = address(loan).call(abi.encodeWithSelector(ILoan.drawdown.selector, amount));
+        (ok,) = loan.call(abi.encodeWithSelector(ILoan.drawdown.selector, amount));
     }
 
     function try_loan_setLoanAdmin(address loan, address loanAdmin, bool status) external returns (bool ok) {
-        (ok,) = address(loan).call(abi.encodeWithSelector(ILoan.setLoanAdmin.selector, loanAdmin, status));
+        (ok,) = loan.call(abi.encodeWithSelector(ILoan.setLoanAdmin.selector, loanAdmin, status));
     }
 
 }

@@ -12,12 +12,12 @@ contract Governor is LoanFactoryAdmin {
     /*** Direct Functions ***/
     /************************/
 
-    function loanFactory_setGlobals(address loanFactory, address globals) external {
-        ILoanFactory(loanFactory).setGlobals(globals); 
+    function loanFactory_setGlobals(address factory, address globals) external {
+        ILoanFactory(factory).setGlobals(globals); 
     }
 
-    function loanFactory_setLoanFactoryAdmin(address loanFactory, address loanFactoryAdmin, bool allowed) external {
-        ILoanFactory(loanFactory).setLoanFactoryAdmin(loanFactoryAdmin, allowed); 
+    function loanFactory_setLoanFactoryAdmin(address factory, address loanFactoryAdmin, bool allowed) external {
+        ILoanFactory(factory).setLoanFactoryAdmin(loanFactoryAdmin, allowed); 
     }
 
     function loan_reclaimERC20(address loan, address token) external {
@@ -28,12 +28,12 @@ contract Governor is LoanFactoryAdmin {
     /*** Try Functions ***/
     /*********************/
 
-    function try_loanFactory_setGlobals(address loanFactory, address globals) external returns (bool ok) {
-        (ok,) = loanFactory.call(abi.encodeWithSelector(ILoanFactory.setGlobals.selector, globals));
+    function try_loanFactory_setGlobals(address factory, address globals) external returns (bool ok) {
+        (ok,) = factory.call(abi.encodeWithSelector(ILoanFactory.setGlobals.selector, globals));
     }
 
-    function try_loanFactory_setLoanFactoryAdmin(address loanFactory, address loanFactoryAdmin, bool allowed) external returns (bool ok) {
-        (ok,) = loanFactory.call(abi.encodeWithSelector(ILoanFactory.setLoanFactoryAdmin.selector, loanFactoryAdmin, allowed));
+    function try_loanFactory_setLoanFactoryAdmin(address factory, address loanFactoryAdmin, bool allowed) external returns (bool ok) {
+        (ok,) = factory.call(abi.encodeWithSelector(ILoanFactory.setLoanFactoryAdmin.selector, loanFactoryAdmin, allowed));
     }
 
     function try_loan_reclaimERC20(address loan, address token) external returns (bool ok) {

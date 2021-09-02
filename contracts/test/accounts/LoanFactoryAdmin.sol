@@ -9,24 +9,24 @@ contract LoanFactoryAdmin {
     /*** Direct Functions ***/
     /************************/
 
-    function loanFactory_pause(address loanFactory) external {
-        ILoanFactory(loanFactory).pause(); 
+    function loanFactory_pause(address factory) external {
+        ILoanFactory(factory).pause(); 
     }
 
-    function loanFactory_unpause(address loanFactory) external {
-        ILoanFactory(loanFactory).unpause(); 
+    function loanFactory_unpause(address factory) external {
+        ILoanFactory(factory).unpause(); 
     }
 
     /*********************/
     /*** Try Functions ***/
     /*********************/
 
-    function try_loanFactory_pause(address loanFactory) external returns (bool ok) {
-        (ok,) = loanFactory.call(abi.encodeWithSelector(ILoanFactory.pause.selector));
+    function try_loanFactory_pause(address factory) external returns (bool ok) {
+        (ok,) = factory.call(abi.encodeWithSelector(ILoanFactory.pause.selector));
     }
 
-    function try_loanFactory_unpause(address loanFactory) external returns (bool ok) {
-        (ok,) = loanFactory.call(abi.encodeWithSelector(ILoanFactory.unpause.selector));
+    function try_loanFactory_unpause(address factory) external returns (bool ok) {
+        (ok,) = factory.call(abi.encodeWithSelector(ILoanFactory.unpause.selector));
     }
 
 }
