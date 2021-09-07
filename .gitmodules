@@ -1,12 +1,3 @@
-[submodule "modules/openzeppelin-contracts"]
-	path = modules/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
-[submodule "modules/util"]
-	path = modules/util
-	url = https://github.com/maple-labs/util
-[submodule "modules/funds-distribution-token"]
-	path = modules/funds-distribution-token
-	url = https://github.com/maple-labs/funds-distribution-token
 [submodule "modules/contract-test-utils"]
 	path = modules/contract-test-utils
 	url = https://github.com/maple-labs/contract-test-utils.git

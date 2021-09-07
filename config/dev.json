@@ -1,40 +1,24 @@
 {
-  "language": "Solidity",
-  "sources": {
-    "contracts/LoanFactory.sol": {
-      "urls": ["contracts/LoanFactory.sol"]
-    },
-    "contracts/test/Loan.t.sol": {
-      "urls": ["contracts/test/Loan.t.sol"]
-    },
-    "contracts/test/LoanFactory.t.sol": {
-      "urls": ["contracts/test/LoanFactory.t.sol"]
+    "language": "Solidity",
+    "sources": {},
+    "settings": {
+        "optimizer": {
+            "enabled": false
+        },
+        "outputSelection": {
+            "*": {
+                "*": [
+                    "abi",
+                    "metadata",
+                    "evm.bytecode",
+                    "evm.deployedBytecode",
+                    "evm.gasEstimates"
+                ],
+                "": ["ast"]
+            }
+        },
+        "metadata": {
+            "bytecodeHash": "none"
+        }
     }
-  },
-  "settings": {
-    "optimizer": {
-      "enabled": false
-    },
-    "libraries": {
-      "": {
-        "contracts/libraries/LoanLib.sol:LoanLib": "0x51A189ccD2eB5e1168DdcA7e59F7c8f39AA52232",
-        "modules/util/contracts/Util.sol:Util": "0x95f9676A34aF2675B63948dDba8F8c798741A52a"
-      }
-    },
-    "outputSelection": {
-      "*": {
-        "*": [
-          "abi",
-          "metadata",
-          "evm.bytecode",
-          "evm.deployedBytecode",
-          "evm.gasEstimates"
-        ],
-        "": ["ast"]
-      }
-    },
-    "metadata": {
-      "bytecodeHash": "none"
-    }
-  }
 }
