@@ -1,6 +1,16 @@
 {
     "language": "Solidity",
-    "sources": {},
+    "sources": {
+        "contracts/Loan.sol": {
+            "urls": ["contracts/Loan.sol"]
+        },
+        "contracts/test/Loan.t.sol": {
+            "urls": ["contracts/test/Loan.t.sol"]
+        },
+        "contracts/test/LoanStories.t.sol": {
+            "urls": ["contracts/test/LoanStories.t.sol"]
+        }
+    },
     "settings": {
         "optimizer": {
             "enabled": false

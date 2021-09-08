@@ -1,6 +1,10 @@
 {
     "language": "Solidity",
-    "sources": {},
+    "sources": {
+        "contracts/Loan.sol": {
+            "urls": ["contracts/Loan.sol"]
+        }
+    },
     "settings": {
         "optimizer": {
             "enabled": true,
