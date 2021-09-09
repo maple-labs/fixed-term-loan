@@ -18,8 +18,8 @@ contract LoanTest is DSTest {
         assertEq(loan.getFee(10_000, 1_200_000, 365 days / 12), 1_000);    // 120% APY on 10k
     }
 
-    function test_getPayment() external {
-        (uint256 principalAmount, uint256 interestAmount) = loan.getPayment(1_000_000, 0, 120_000, 365 days / 12, 12);
+    function test_getInstallment() external {
+        (uint256 principalAmount, uint256 interestAmount) = loan.getInstallment(1_000_000, 0, 120_000, 365 days / 12, 12);
         assertEq(principalAmount, 78_850);
         assertEq(interestAmount,  10_000);
     }

@@ -133,9 +133,6 @@ contract LoanPrimitive {
         _nextPaymentDueDate += _paymentInterval;
         _principal          -= totalPrincipalAmount;
         _paymentsRemaining  -= numberOfPayments;
-
-        // TODO: How to ensure we don't end up with some principal remaining but no payments remaining?
-        //       Perhaps force the last payment to include all outstanding principal, just in case _getPaymentsBreakdown produces a rounding error.
     }
 
     function _postCollateral() internal virtual returns (uint256 amount) {
@@ -216,9 +213,9 @@ contract LoanPrimitive {
     }
 
     /**
-     *  @dev Returns principal and interest fee portions of a payment, given generic loan parameters.
+     *  @dev Returns principal and interest fee portions of a payment instalment, given generic loan parameters.
      */
-    function _getPayment(uint256 principal, uint256 endingPrincipal, uint256 interestRate, uint256 paymentInterval, uint256 totalPayments)
+    function _getInstallment(uint256 principal, uint256 endingPrincipal, uint256 interestRate, uint256 paymentInterval, uint256 totalPayments)
         internal pure virtual returns (uint256 principalAmount, uint256 interestAmount)
     {
         uint256 periodicRate = _getPeriodicFeeRate(interestRate, paymentInterval);
@@ -254,7 +251,11 @@ contract LoanPrimitive {
         uint256 lateFeeRate
     ) internal pure virtual returns (uint256 principalAmount, uint256 interestFee, uint256 lateFee) {
         // Get the expected principal and interest portions for the payment, as if it was on-time
-        (principalAmount, interestFee) = _getPayment(principal, endingPrincipal, interestRate, paymentInterval, paymentsRemaining);
+        (principalAmount, interestFee) = _getInstallment(principal, endingPrincipal, interestRate, paymentInterval, paymentsRemaining);
+
+        if (paymentsRemaining == 1) {
+            principalAmount = principal;
+        }
 
         // Determine how late the payment is
         uint256 secondsLate = paymentDate > nextPaymentDueDate ? paymentDate - nextPaymentDueDate : uint256(0);

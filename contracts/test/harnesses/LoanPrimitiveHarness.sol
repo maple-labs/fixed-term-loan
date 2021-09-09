@@ -21,7 +21,7 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _getFee(_amount, _feeRate, _interval);
     }
 
-    function getPayment(
+    function getInstallment(
         uint256 _principal,
         uint256 _endingPrincipal,
         uint256 _interestRate,
@@ -30,7 +30,7 @@ contract LoanPrimitiveHarness is LoanPrimitive {
     )
         external pure returns (uint256 principalAmount, uint256 interestAmount)
     {
-        return _getPayment(_principal, _endingPrincipal, _interestRate, _paymentInterval, _totalPayments);
+        return _getInstallment(_principal, _endingPrincipal, _interestRate, _paymentInterval, _totalPayments);
     }
 
     function getPaymentBreakdown(
