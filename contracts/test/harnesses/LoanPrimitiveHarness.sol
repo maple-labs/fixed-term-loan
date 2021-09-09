@@ -5,12 +5,8 @@ import { LoanPrimitive } from "../../LoanPrimitive.sol";
 
 contract LoanPrimitiveHarness is LoanPrimitive {
 
-    function getExtraCollateral() external view returns (uint256) {
-        return _getExtraCollateral();
-    }
-
-    function getExtraFunds() external view returns (uint256) {
-        return _getExtraFunds();
+    function getUnaccountedAmount(address asset) external view returns (uint256) {
+        return _getUnaccountedAmount(asset);
     }
 
     function initialize(address _borrower, address[2] memory _assets, uint256[6] memory _parameters, uint256[2] memory _requests) external {

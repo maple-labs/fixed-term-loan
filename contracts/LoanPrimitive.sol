@@ -85,9 +85,9 @@ contract LoanPrimitive {
      */
     function _skim(address asset, address destination) internal virtual returns (bool success, uint256 amount) {
         amount = asset == _collateralAsset
-            ? _getExtraCollateral()
+            ? _getUnaccountedAmount(_collateralAsset)
             : asset == _fundsAsset
-                ? _getExtraFunds()
+                ? _getUnaccountedAmount(_fundsAsset)
                 : IERC20(asset).balanceOf(address(this));
 
         success = ERC20Helper.transfer(asset, destination, amount);
@@ -116,7 +116,7 @@ contract LoanPrimitive {
         );
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment
-        _drawableFunds = _drawableFunds + _getExtraFunds() - (totalAmountPaid = (totalPrincipalAmount + totalInterestFees + totalLateFees));
+        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - (totalAmountPaid = (totalPrincipalAmount + totalInterestFees + totalLateFees));
 
         _claimableFunds     += totalAmountPaid;
         _nextPaymentDueDate += _paymentInterval;
@@ -128,7 +128,7 @@ contract LoanPrimitive {
     }
 
     function _postCollateral() internal virtual returns (uint256 amount) {
-        _collateral += (amount = _getExtraCollateral());
+        _collateral += (amount = _getUnaccountedAmount(_collateralAsset));
     }
 
     function _removeCollateral(uint256 amount, address destination) internal virtual returns (bool) {
@@ -137,7 +137,7 @@ contract LoanPrimitive {
     }
 
     function _returnFunds() internal virtual returns (uint256 amount) {
-        _drawableFunds += (amount = _getExtraFunds());
+        _drawableFunds += (amount = _getUnaccountedAmount(_fundsAsset));
     }
 
     /************************************/
@@ -146,13 +146,13 @@ contract LoanPrimitive {
 
     function _claimFunds(uint256 amount, address destination) internal virtual returns (bool) {
         _claimableFunds -= amount;
-        return ERC20Helper.transfer(_fundsAsset, destination, amount) && _fundsMaintained();
+        return ERC20Helper.transfer(_fundsAsset, destination, amount);
     }
 
     function _lend(address lender) internal virtual returns (bool success, uint256 amount) {
         success = (_nextPaymentDueDate == uint256(0)) &&
                   (_paymentsRemaining != uint256(0)) &&
-                  (_principalRequired == (_drawableFunds = _principal = amount = _getExtraFunds()));
+                  (_principalRequired == (_drawableFunds = _principal = amount = _getUnaccountedAmount(_fundsAsset)));
 
         _lender             = lender;
         _nextPaymentDueDate = block.timestamp + _paymentInterval;
@@ -183,29 +183,13 @@ contract LoanPrimitive {
         return _collateral * _principalRequired >= _collateralRequired * (_principal > _drawableFunds ? _principal - _drawableFunds : uint256(0));
     }
 
-    function _fundsMaintained() internal view returns (bool) {
-        // Whether the final funds balance of the loan is sufficient
-        return IERC20(_fundsAsset).balanceOf(address(this)) >=
-            _drawableFunds + _claimableFunds + (_collateralAsset == _fundsAsset ? _collateral : uint256(0));
-    }
-
     /**
-     *  @dev Returns the amount of collateralAsset above what has been currently accounted for.
+     *  @dev Returns the amount of an asset above what has been currently accounted for.
      */
-    function _getExtraCollateral() internal view virtual returns (uint256) {
-        return IERC20(_collateralAsset).balanceOf(address(this))
-            - _collateral
-            - (_collateralAsset == _fundsAsset ? _drawableFunds + _claimableFunds : uint256(0));
-    }
-
-    /**
-     *  @dev Returns the amount of fundsAsset above what has been currently accounted for.
-     */
-    function _getExtraFunds() internal view virtual returns (uint256) {
-        return IERC20(_fundsAsset).balanceOf(address(this))
-            - _drawableFunds
-            - _claimableFunds
-            - (_collateralAsset == _fundsAsset ? _collateral : uint256(0));
+    function _getUnaccountedAmount(address asset) internal view virtual returns (uint256) {
+        return IERC20(asset).balanceOf(address(this))
+            - (asset == _collateralAsset ? _collateral : uint256(0))
+            - (asset == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));
     }
 
     /*******************************/
