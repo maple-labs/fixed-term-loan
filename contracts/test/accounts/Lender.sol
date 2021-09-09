@@ -15,10 +15,12 @@ contract Lender is LoanUser {
         ILoan(loan).claimFunds(amount, destination);
     }
 
-    function loan_repossess(address loan, address collateralAssetDestination, address fundsAssetDestination) external returns (
-        uint256 collateralAssetAmount,
-        uint256 fundsAssetAmount
-    ) {
+    function loan_repossess(address loan, address collateralAssetDestination, address fundsAssetDestination)
+        external returns (
+            uint256 collateralAssetAmount,
+            uint256 fundsAssetAmount
+        )
+    {
         return ILoan(loan).repossess(collateralAssetDestination, fundsAssetDestination);
     }
 

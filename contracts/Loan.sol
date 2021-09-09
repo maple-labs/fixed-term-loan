@@ -9,8 +9,9 @@ import { LoanPrimitive } from "./LoanPrimitive.sol";
 
 contract Loan is ILoan, LoanPrimitive {
 
-    constructor(address _borrower, address[2] memory _assets, uint256[6] memory _parameters, uint256[2] memory _requests) {
-        _initialize(_borrower, _assets, _parameters, _requests);
+    constructor(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory amounts_) {
+        _initialize(borrower_, assets_, parameters_, amounts_);
+        emit Initialized(borrower_, assets_, parameters_, amounts_);
     }
 
     function borrower() external view override returns (address) {
@@ -53,8 +54,8 @@ contract Loan is ILoan, LoanPrimitive {
         return _collateralRequired;
     }
 
-    function principalRequired() external view override returns (uint256) {
-        return _principalRequired;
+    function principalRequested() external view override returns (uint256) {
+        return _principalRequested;
     }
 
     function drawableFunds() external view override returns (uint256) {
@@ -84,38 +85,58 @@ contract Loan is ILoan, LoanPrimitive {
     function drawdownFunds(uint256 amount, address destination) external override {
         require(msg.sender == _borrower,             "L:DF:NOT_BORROWER");
         require(_drawdownFunds(amount, destination), "L:DF:FAILED");
+        emit FundsDrawnDown(amount);
     }
 
-    function makePayment() external override returns (uint256) {
-        return _makePayments(uint256(1));
+    function makePayment()
+        external override
+        returns (
+            uint256 totalPrincipalAmount,
+            uint256 totalInterestFees,
+            uint256 totalLateFees
+        )
+    {
+        (totalPrincipalAmount, totalInterestFees, totalLateFees) = _makePayments(uint256(1));
+        emit PaymentsMade(uint256(1), totalPrincipalAmount, totalInterestFees, totalLateFees);
     }
 
-    function makePayments(uint256 numberOfPayments) external override returns (uint256) {
-        return _makePayments(numberOfPayments);
+    function makePayments(uint256 numberOfPayments)
+        external override
+        returns (
+            uint256 totalPrincipalAmount,
+            uint256 totalInterestFees,
+            uint256 totalLateFees
+        )
+    {
+        (totalPrincipalAmount, totalInterestFees, totalLateFees) = _makePayments(numberOfPayments);
+        emit PaymentsMade(numberOfPayments, totalPrincipalAmount, totalInterestFees, totalLateFees);
     }
 
-    function postCollateral() external override returns (uint256) {
-        return _postCollateral();
+    function postCollateral() external override returns (uint256 amount) {
+        emit CollateralPosted(amount = _postCollateral());
     }
 
     function removeCollateral(uint256 amount, address destination) external override {
         require(msg.sender == _borrower,                "L:RC:NOT_BORROWER");
         require(_removeCollateral(amount, destination), "L:RC:FAILED");
+        emit CollateralRemoved(amount);
     }
 
-    function returnFunds() external override returns (uint256) {
-        return _returnFunds();
+    function returnFunds() external override returns (uint256 amount) {
+        emit FundsReturned(amount = _returnFunds());
     }
 
     function claimFunds(uint256 amount, address destination) external override {
         require(msg.sender == _lender,            "L:CF:NOT_LENDER");
         require(_claimFunds(amount, destination), "L:CF:FAILED");
+        emit FundsClaimed(amount);
     }
 
-    function lend(address _lender) external override returns (uint256 amount) {
+    function lend(address lender_) external override returns (uint256 amount) {
         bool success;
-        (success, amount) = _lend(_lender);
+        (success, amount) = _lend(lender_);
         require(success, "L:L:FAILED");
+        emit Funded(lender_, _nextPaymentDueDate);
     }
 
     function repossess(address collateralAssetDestination, address fundsAssetDestination)
@@ -127,6 +148,15 @@ contract Loan is ILoan, LoanPrimitive {
 
         (, collateralAssetAmount) = _skim(_collateralAsset, collateralAssetDestination);
         (, fundsAssetAmount) =      _skim(_fundsAsset, fundsAssetDestination);
+
+        emit Repossessed(collateralAssetAmount, fundsAssetAmount);
+    }
+
+    function skim(address asset, address destination) external override returns (uint256 amount) {
+        bool success;
+        (success, amount) = _skim(asset, destination);
+        require(success, "L:S:FAILED");
+        emit Skimmed(asset, destination, amount);
     }
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments)

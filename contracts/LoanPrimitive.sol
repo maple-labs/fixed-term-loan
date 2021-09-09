@@ -25,7 +25,7 @@ contract LoanPrimitive {
 
     // Requests
     uint256 internal _collateralRequired;
-    uint256 internal _principalRequired;
+    uint256 internal _principalRequested;
 
     // State
     uint256 internal _drawableFunds;
@@ -52,15 +52,15 @@ contract LoanPrimitive {
      *                        [3]: lateFeeRate, 
      *                        [4]: paymentInterval, 
      *                        [5]: paymentsRemaining.
-     *  @param requests   Requested amounts: 
+     *  @param amounts   Requested amounts: 
      *                        [0]: collateralRequired, 
-     *                        [1]: principalRequired.
+     *                        [1]: principalRequested.
      */
     function _initialize(
         address borrower,
         address[2] memory assets,
         uint256[6] memory parameters,
-        uint256[2] memory requests
+        uint256[2] memory amounts
     )
         internal virtual
     {
@@ -76,21 +76,23 @@ contract LoanPrimitive {
         _paymentInterval   = parameters[4];
         _paymentsRemaining = parameters[5];
 
-        _collateralRequired = requests[0];
-        _principalRequired  = requests[1];
+        _collateralRequired = amounts[0];
+        _principalRequested = amounts[1];
     }
 
     /**
      *  @dev Sends any unaccounted amount of an asset to an address.
      */
     function _skim(address asset, address destination) internal virtual returns (bool success, uint256 amount) {
-        amount = asset == _collateralAsset
-            ? _getUnaccountedAmount(_collateralAsset)
-            : asset == _fundsAsset
-                ? _getUnaccountedAmount(_fundsAsset)
-                : IERC20(asset).balanceOf(address(this));
-
-        success = ERC20Helper.transfer(asset, destination, amount);
+        success = ERC20Helper.transfer(
+            asset,
+            destination,
+            amount = asset == _collateralAsset
+                ? _getUnaccountedAmount(_collateralAsset)
+                : asset == _fundsAsset
+                    ? _getUnaccountedAmount(_fundsAsset)
+                    : IERC20(asset).balanceOf(address(this))
+        );
     }
 
     /**************************************/
@@ -102,8 +104,15 @@ contract LoanPrimitive {
         return ERC20Helper.transfer(_fundsAsset, destination, amount) && _collateralMaintained();
     }
 
-    function _makePayments(uint256 numberOfPayments) internal virtual returns (uint256 totalAmountPaid) {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = _getPaymentsBreakdown(
+    function _makePayments(uint256 numberOfPayments) 
+        internal virtual
+        returns (
+            uint256 totalPrincipalAmount,
+            uint256 totalInterestFees,
+            uint256 totalLateFees
+        )
+    {
+        (totalPrincipalAmount, totalInterestFees, totalLateFees) = _getPaymentsBreakdown(
             numberOfPayments,
             block.timestamp,
             _nextPaymentDueDate,
@@ -114,6 +123,8 @@ contract LoanPrimitive {
             _paymentsRemaining,
             _lateFeeRate
         );
+
+        uint256 totalAmountPaid = totalPrincipalAmount + totalInterestFees + totalLateFees;
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment
         _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - (totalAmountPaid = (totalPrincipalAmount + totalInterestFees + totalLateFees));
@@ -150,9 +161,10 @@ contract LoanPrimitive {
     }
 
     function _lend(address lender) internal virtual returns (bool success, uint256 amount) {
-        success = (_nextPaymentDueDate == uint256(0)) &&
-                  (_paymentsRemaining != uint256(0)) &&
-                  (_principalRequired == (_drawableFunds = _principal = amount = _getUnaccountedAmount(_fundsAsset)));
+        success =
+            (_nextPaymentDueDate == uint256(0)) &&
+            (_paymentsRemaining != uint256(0)) &&
+            (_principalRequested == (_drawableFunds = _principal = amount = _getUnaccountedAmount(_fundsAsset)));
 
         _lender             = lender;
         _nextPaymentDueDate = block.timestamp + _paymentInterval;
@@ -179,8 +191,8 @@ contract LoanPrimitive {
     function _collateralMaintained() internal view returns (bool) {
         // Whether the final collateral ratio is commensurate with the amount of outstanding principal
         // uint256 outstandingPrincipal = principal > drawableFunds ? principal - drawableFunds : 0;
-        // return collateral / outstandingPrincipal >= collateralRequired / principalRequired;
-        return _collateral * _principalRequired >= _collateralRequired * (_principal > _drawableFunds ? _principal - _drawableFunds : uint256(0));
+        // return collateral / outstandingPrincipal >= collateralRequired / principalRequested;
+        return _collateral * _principalRequested >= _collateralRequired * (_principal > _drawableFunds ? _principal - _drawableFunds : uint256(0));
     }
 
     /**
@@ -200,7 +212,7 @@ contract LoanPrimitive {
      *  @dev Returns the fee by applying an annualized fee rate over an interval of time.
      */
     function _getFee(uint256 amount, uint256 feeRate, uint256 interval) internal pure virtual returns (uint256) {
-        return amount * _getPeriodicFeeRate(feeRate, interval) / uint256(1_000_000);
+        return amount * _getPeriodicFeeRate(feeRate, interval) / uint256(10_000 * 100);
     }
 
     /**
@@ -210,9 +222,9 @@ contract LoanPrimitive {
         internal pure virtual returns (uint256 principalAmount, uint256 interestAmount)
     {
         uint256 periodicRate = _getPeriodicFeeRate(interestRate, paymentInterval);
-        uint256 raisedRate   = _scaledExponent(uint256(1_000_000) + periodicRate, totalPayments, uint256(1_000_000));
+        uint256 raisedRate   = _scaledExponent(uint256(10_000 * 100) + periodicRate, totalPayments, uint256(10_000 * 100));
 
-        // TODO: Check if raisedRate can be <= 1_000_000
+        // TODO: Check if raisedRate can be <= 10_000 * 100
 
         uint256 total =
             (
@@ -220,10 +232,10 @@ contract LoanPrimitive {
                     (
                         (
                             principal * raisedRate
-                        ) / uint256(1_000_000)
+                        ) / uint256(10_000 * 100)
                     ) - endingPrincipal
                 ) * periodicRate
-            ) / (raisedRate - uint256(1_000_000));
+            ) / (raisedRate - uint256(10_000 * 100));
 
         principalAmount = total - (interestAmount = _getFee(principal, interestRate, paymentInterval));
     }
@@ -304,7 +316,9 @@ contract LoanPrimitive {
      *  @dev Returns exponentiation of a scaled base value.
      */
     function _scaledExponent(uint256 base, uint256 exponent, uint256 one) internal pure virtual returns (uint256) {
-        return exponent == uint256(0) ? one : (base * _scaledExponent(base, exponent - uint256(1), one)) / one;
+        return exponent == uint256(0)
+            ? one
+            : (base * _scaledExponent(base, exponent - uint256(1), one)) / one;
     }
 
 }

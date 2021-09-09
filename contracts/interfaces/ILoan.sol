@@ -57,11 +57,11 @@ interface ILoan {
      *                        [3]: lateFeeRate, 
      *                        [4]: paymentInterval, 
      *                        [5]: paymentsRemaining.
-     *  @param requests   Requested amounts: 
+     *  @param amounts    Requested amounts: 
      *                        [0]: collateralRequired, 
-     *                        [1]: principalRequired.
+     *                        [1]: principalRequested.
      */
-    event Initialized(address indexed borrower, address[2] assets, uint256[6] parameters, uint256[2] requests);
+    event Initialized(address indexed borrower, address[2] assets, uint256[6] parameters, uint256[2] amounts);
 
     /**
      *  @dev   Payments were made.
@@ -175,7 +175,7 @@ interface ILoan {
     /**
      *  @dev The initial principal amount requested by the borrower.
      */
-    function principalRequired() external view returns (uint256);
+    function principalRequested() external view returns (uint256);
 
     /********************************/
     /*** State Changing Functions ***/
@@ -198,22 +198,26 @@ interface ILoan {
     /**
      *  @dev    Lend funds to the loan/borrower.
      *  @param  lender The address to be registered as the lender.
-     *  @return The amount lent.
+     *  @return amount The amount lent.
      */
-    function lend(address lender) external returns (uint256);
+    function lend(address lender) external returns (uint256 amount);
 
     /**
      *  @dev    Make one installment payment to the loan.
-     *  @return The amount paid.
+     *  @return totalPrincipalAmount The portion of the amount paid paying back principal.
+     *  @return totalInterestFees    The portion of the amount paid paying interest fees.
+     *  @return totalLateFees        The portion of the amount paid paying late fees.
      */
-    function makePayment() external returns (uint256);
+    function makePayment() external returns (uint256 totalPrincipalAmount, uint256 totalInterestFees,uint256 totalLateFees);
 
     /**
      *  @dev    Make several installment payments to the loan.
-     *  @param  numberOfPayments The number of payment installments to make.
-     *  @return The amount paid.
+     *  @param  numberOfPayments     The number of payment installments to make.
+     *  @return totalPrincipalAmount The portion of the amount paid paying back principal.
+     *  @return totalInterestFees    The portion of the amount paid paying interest fees.
+     *  @return totalLateFees        The portion of the amount paid paying late fees.
      */
-    function makePayments(uint256 numberOfPayments) external returns (uint256);
+    function makePayments(uint256 numberOfPayments) external returns (uint256 totalPrincipalAmount, uint256 totalInterestFees,uint256 totalLateFees);
 
     /**
      *  @dev    Post collateral to the loan.
@@ -230,9 +234,9 @@ interface ILoan {
 
     /**
      *  @dev    Return funds to the loan (opposite of drawing down).
-     *  @return The amount returned.
+     *  @return amount The amount returned.
      */
-    function returnFunds() external returns (uint256);
+    function returnFunds() external returns (uint256 amount);
 
     /**
      *  @dev    Repossess collateral, and any funds, for a loan in default.
@@ -245,6 +249,14 @@ interface ILoan {
         uint256 collateralAssetAmount,
         uint256 fundsAssetAmount
     );
+
+    /**
+     *  @dev    Skims any amount, given an asset, which is unaccounted for (and thus not required).
+     *  @param  asset       The address of the asset.
+     *  @param  destination The address where the amount of the asset is to be sent.
+     *  @return amount      The amount of the asset skimmed.
+     */
+    function skim(address asset, address destination) external returns (uint256 amount);
 
     /**************************/
     /*** Readonly Functions ***/
