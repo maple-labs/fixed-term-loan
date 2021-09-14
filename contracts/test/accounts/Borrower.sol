@@ -11,24 +11,24 @@ contract Borrower is LoanUser {
     /*** Direct Functions ***/
     /************************/
 
-    function loan_drawdownFunds(address loan, uint256 amount, address destination) external {
-        ILoan(loan).drawdownFunds(amount, destination);
+    function loan_drawdownFunds(address loan_, uint256 amount_, address destination_) external {
+        ILoan(loan_).drawdownFunds(amount_, destination_);
     }
 
-    function loan_removeCollateral(address loan, uint256 amount, address destination) external {
-        ILoan(loan).removeCollateral(amount, destination);
+    function loan_removeCollateral(address loan_, uint256 amount_, address destination_) external {
+        ILoan(loan_).removeCollateral(amount_, destination_);
     }
 
     /*********************/
     /*** Try Functions ***/
     /*********************/
 
-    function try_loan_drawdownFunds(address loan, uint256 amount, address destination) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.drawdownFunds.selector, amount, destination));
+    function try_loan_drawdownFunds(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.drawdownFunds.selector, amount_, destination_));
     }
 
-    function try_loan_removeCollateral(address loan, uint256 amount, address destination) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.removeCollateral.selector, amount, destination));
+    function try_loan_removeCollateral(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.removeCollateral.selector, amount_, destination_));
     }
 
 }

@@ -11,56 +11,62 @@ contract LoanUser is ERC20User {
     /*** Direct Functions ***/
     /************************/
 
-    function loan_makePayment(address loan) external returns (uint256, uint256, uint256) {
-        return ILoan(loan).makePayment();
+    function loan_makePayment(address loan_) external returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_, uint256 totalLateFees_) {
+        return ILoan(loan_).makePayment();
     }
 
-    function loan_makePayments(address loan, uint256 numberOfPayments) external returns (uint256, uint256, uint256) {
-        return ILoan(loan).makePayments(numberOfPayments);
+    function loan_makePayments(address loan_, uint256 numberOfPayments_)
+        external returns (
+            uint256 totalPrincipalAmount_,
+            uint256 totalInterestFees_,
+            uint256 totalLateFees_
+        )
+    {
+        return ILoan(loan_).makePayments(numberOfPayments_);
     }
 
-    function loan_postCollateral(address loan) external returns (uint256) {
-        return ILoan(loan).postCollateral();
+    function loan_postCollateral(address loan_) external returns (uint256 amount_) {
+        return ILoan(loan_).postCollateral();
     }
 
-    function loan_returnFunds(address loan) external returns (uint256) {
-        return ILoan(loan).returnFunds();
+    function loan_returnFunds(address loan_) external returns (uint256 amount_) {
+        return ILoan(loan_).returnFunds();
     }
 
-    function loan_lend(address loan, address lender) external returns (uint256) {
-        return ILoan(loan).lend(lender);
+    function loan_lend(address loan_, address lender_) external returns (uint256 amount_) {
+        return ILoan(loan_).lend(lender_);
     }
 
-    function loan_skim(address loan, address asset, address destination) external returns (uint256) {
-        return ILoan(loan).skim(asset, destination);
+    function loan_skim(address loan_, address asset_, address destination_) external returns (uint256 amount_) {
+        return ILoan(loan_).skim(asset_, destination_);
     }
 
     /*********************/
     /*** Try Functions ***/
     /*********************/
 
-    function try_loan_makePayment(address loan) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.makePayment.selector));
+    function try_loan_makePayment(address loan_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.makePayment.selector));
     }
 
-    function try_loan_makePayments(address loan, uint256 numberOfPayments) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.makePayments.selector, numberOfPayments));
+    function try_loan_makePayments(address loan_, uint256 numberOfPayments_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.makePayments.selector, numberOfPayments_));
     }
 
-    function try_loan_postCollateral(address loan) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.postCollateral.selector));
+    function try_loan_postCollateral(address loan_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.postCollateral.selector));
     }
 
-    function try_loan_returnFunds(address loan) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.returnFunds.selector));
+    function try_loan_returnFunds(address loan_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.returnFunds.selector));
     }
 
-    function try_loan_lend(address loan, address lender) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.lend.selector, lender));
+    function try_loan_lend(address loan_, address lender_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.lend.selector, lender_));
     }
 
-    function try_loan_skim(address loan, address asset, address destination) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.skim.selector, asset, destination));
+    function try_loan_skim(address loan_, address asset_, address destination_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.skim.selector, asset_, destination_));
     }
 
 }

@@ -5,95 +5,95 @@ import { LoanPrimitive } from "../../LoanPrimitive.sol";
 
 contract LoanPrimitiveHarness is LoanPrimitive {
 
-    function getUnaccountedAmount(address asset) external view returns (uint256) {
-        return _getUnaccountedAmount(asset);
+    function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
+        return _getUnaccountedAmount(asset_);
     }
 
-    function initialize(address _borrower, address[2] memory _assets, uint256[6] memory _parameters, uint256[2] memory _requests) external {
-        _initialize(_borrower, _assets, _parameters, _requests) ;
+    function initialize(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory requests_) external {
+        _initialize(borrower_, assets_, parameters_, requests_) ;
     }
 
-    function skim(address _asset, address _destination) external returns (bool, uint256) {
-        return _skim(_asset, _destination);
+    function skim(address asset_, address destination_) external returns (bool success_, uint256 amount_) {
+        return _skim(asset_, destination_);
     }
 
-    function getFee(uint256 _amount, uint256 _feeRate, uint256 _interval) external pure returns (uint256) {
-        return _getFee(_amount, _feeRate, _interval);
+    function getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) external pure returns (uint256 fee_) {
+        return _getFee(amount_, feeRate_, interval_);
     }
 
     function getInstallment(
-        uint256 _principal,
-        uint256 _endingPrincipal,
-        uint256 _interestRate,
-        uint256 _paymentInterval,
-        uint256 _totalPayments
+        uint256 principal_,
+        uint256 endingPrincipal_,
+        uint256 interestRate_,
+        uint256 paymentInterval_,
+        uint256 totalPayments_
     )
-        external pure returns (uint256 principalAmount, uint256 interestAmount)
+        external pure returns (uint256 principalAmount_, uint256 interestAmount_)
     {
-        return _getInstallment(_principal, _endingPrincipal, _interestRate, _paymentInterval, _totalPayments);
+        return _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
     }
 
     function getPaymentBreakdown(
-        uint256 _paymentDate,
-        uint256 _nextPaymentDueDate,
-        uint256 _paymentInterval,
-        uint256 _principal,
-        uint256 _endingPrincipal,
-        uint256 _interestRate,
-        uint256 _paymentsRemaining,
-        uint256 _lateFeeRate
+        uint256 paymentDate_,
+        uint256 nextPaymentDueDate_,
+        uint256 paymentInterval_,
+        uint256 principal_,
+        uint256 endingPrincipal_,
+        uint256 interestRate_,
+        uint256 paymentsRemaining_,
+        uint256 lateFeeRate_
     )
-        external pure returns (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees)
+        external pure returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_, uint256 totalLateFees_)
     {
         return _getPaymentBreakdown(
-            _paymentDate,
-            _nextPaymentDueDate,
-            _paymentInterval,
-            _principal,
-            _endingPrincipal,
-            _interestRate,
-            _paymentsRemaining,
-            _lateFeeRate
+            paymentDate_,
+            nextPaymentDueDate_,
+            paymentInterval_,
+            principal_,
+            endingPrincipal_,
+            interestRate_,
+            paymentsRemaining_,
+            lateFeeRate_
         );
     }
 
     function getPaymentsBreakdown(
-        uint256 _numberOfPayments,
-        uint256 _currentTime,
-        uint256 _nextPaymentDueDate,
-        uint256 _paymentInterval,
-        uint256 _principal,
-        uint256 _endingPrincipal,
-        uint256 _interestRate,
-        uint256 _paymentsRemaining,
-        uint256 _lateFeeRate
+        uint256 numberOfPayments_,
+        uint256 currentTime_,
+        uint256 nextPaymentDueDate_,
+        uint256 paymentInterval_,
+        uint256 principal_,
+        uint256 endingPrincipal_,
+        uint256 interestRate_,
+        uint256 paymentsRemaining_,
+        uint256 lateFeeRate_
     )
         external pure 
         returns (
-            uint256 totalPrincipalAmount,
-            uint256 totalInterestFees,
-            uint256 totalLateFees
+            uint256 totalPrincipalAmount_,
+            uint256 totalInterestFees_,
+            uint256 totalLateFees_
         )
     {
         return _getPaymentsBreakdown(
-            _numberOfPayments,
-            _currentTime,
-            _nextPaymentDueDate,
-            _paymentInterval,
-            _principal,
-            _endingPrincipal,
-            _interestRate,
-            _paymentsRemaining,
-            _lateFeeRate
+            numberOfPayments_,
+            currentTime_,
+            nextPaymentDueDate_,
+            paymentInterval_,
+            principal_,
+            endingPrincipal_,
+            interestRate_,
+            paymentsRemaining_,
+            lateFeeRate_
         );
     }
 
-    function getPeriodicFeeRate(uint256 _feeRate, uint256 _interval) external pure returns (uint256) {
-        return _getPeriodicFeeRate(_feeRate, _interval);
+    function getPeriodicFeeRate(uint256 feeRate_, uint256 interval_) external pure returns (uint256 periodicFeeRate_) {
+        return _getPeriodicFeeRate(feeRate_, interval_);
     }
 
-    function scaledExponent(uint256 base, uint256 exponent, uint256 one) external pure returns (uint256) {
-        return _scaledExponent(base, exponent, one);
+    function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 scaledExponent_) {
+        return _scaledExponent(base_, exponent_, one_);
     }
 
 }

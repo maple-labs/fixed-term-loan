@@ -11,29 +11,29 @@ contract Lender is LoanUser {
     /*** Direct Functions ***/
     /************************/
 
-    function loan_claimFunds(address loan, uint256 amount, address destination) external {
-        ILoan(loan).claimFunds(amount, destination);
+    function loan_claimFunds(address loan_, uint256 amount_, address destination_) external {
+        ILoan(loan_).claimFunds(amount_, destination_);
     }
 
-    function loan_repossess(address loan, address collateralAssetDestination, address fundsAssetDestination)
+    function loan_repossess(address loan_, address collateralAssetDestination_, address fundsAssetDestination_)
         external returns (
-            uint256 collateralAssetAmount,
-            uint256 fundsAssetAmount
+            uint256 collateralAssetAmount_,
+            uint256 fundsAssetAmount_
         )
     {
-        return ILoan(loan).repossess(collateralAssetDestination, fundsAssetDestination);
+        return ILoan(loan_).repossess(collateralAssetDestination_, fundsAssetDestination_);
     }
 
     /*********************/
     /*** Try Functions ***/
     /*********************/
 
-    function try_loan_claimFunds(address loan, uint256 amount, address destination) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.claimFunds.selector, amount, destination));
+    function try_loan_claimFunds(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.claimFunds.selector, amount_, destination_));
     }
 
-    function try_loan_repossess(address loan, address collateralAssetDestination, address fundsAssetDestination) external returns (bool ok) {
-        (ok,) = loan.call(abi.encodeWithSelector(ILoan.repossess.selector, collateralAssetDestination, fundsAssetDestination));
+    function try_loan_repossess(address loan_, address collateralAssetDestination_, address fundsAssetDestination_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(ILoan.repossess.selector, collateralAssetDestination_, fundsAssetDestination_));
     }
 
 }
