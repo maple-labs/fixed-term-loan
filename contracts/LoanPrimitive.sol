@@ -82,15 +82,7 @@ contract LoanPrimitive {
 
     /// @dev Sends any unaccounted amount of token at `asset_` to `destination_`.
     function _skim(address asset_, address destination_) internal virtual returns (bool success_, uint256 amount_) {
-        success_ = ERC20Helper.transfer(
-            asset_,
-            destination_,
-            amount_ = asset_ == _collateralAsset
-                ? _getUnaccountedAmount(_collateralAsset)
-                : asset_ == _fundsAsset
-                    ? _getUnaccountedAmount(_fundsAsset)
-                    : IERC20(asset_).balanceOf(address(this))
-        );
+        success_ = ERC20Helper.transfer(asset_, destination_, amount_ = _getUnaccountedAmount(asset_));
     }
 
     /**************************************/
@@ -179,7 +171,6 @@ contract LoanPrimitive {
         _drawableFunds      = uint256(0);
         _claimableFunds     = uint256(0);
         _collateral         = uint256(0);
-        _collateral         = uint256(0);
         _nextPaymentDueDate = uint256(0);
         _principal          = uint256(0);
         _paymentsRemaining  = uint256(0);
@@ -219,14 +210,19 @@ contract LoanPrimitive {
     function _getInstallment(uint256 principal_, uint256 endingPrincipal_, uint256 interestRate_, uint256 paymentInterval_, uint256 totalPayments_)
         internal pure virtual returns (uint256 principalAmount_, uint256 interestAmount_)
     {
-        /**
-         *           |                                                                |   |                 RATE                |
-         *  AMOUNT = | ( PRINCIPAL * (1 + RATE) ^ TOTAL_PAYMENTS ) - ENDING_PRINCIPAL | * | ----------------------------------- |
-         *           |                                                                |   | ( (1 + RATE) ^ TOTAL_PAYMENTS ) - 1 |
-         *
-         *  where RATE is the interest rate (in basis points, and scaled by 100) for that payment interval, which is `periodicRate` below
-         *  where (1 + RATE) ^ TOTAL_PAYMENTS is `raisedRate` below (still in basis points and scaled by 100)
-         */
+        /*************************************************************************************************
+         *                             |                                                                 *
+         * A = installment amount      |      /                         \     /           R           \  *
+         * P = principal remaining     |     |  /                 \      |   | ----------------------- | *
+         * R = interest rate           | A = | | P * ( 1 + R ) ^ N | - E | * |   /             \       | *
+         * N = payments remaining      |     |  \                 /      |   |  | ( 1 + R ) ^ N | - 1  | *
+         * E = ending principal target |      \                         /     \  \             /      /  *
+         *                             |                                                                 *
+         *                             |-----------------------------------------------------------------*
+         *                                                                                               *
+         * - where R is in basis points, scaled by 100, for a payment interval (`periodicRate`)          *
+         * - where (1 + R) ^ N is still in basis points and scaled by 100 (`raisedRate`)                 *
+         *************************************************************************************************/
 
         uint256 periodicRate = _getPeriodicFeeRate(interestRate_, paymentInterval_);
         uint256 raisedRate   = _scaledExponent(uint256(10_000 * 100) + periodicRate, totalPayments_, uint256(10_000 * 100));
@@ -257,13 +253,13 @@ contract LoanPrimitive {
         uint256 nextPaymentDueDate_,
         uint256 paymentInterval_,
         uint256 principal_,
-        uint256 endingPrincipal,
+        uint256 endingPrincipal_,
         uint256 interestRate_,
         uint256 paymentsRemaining_,
         uint256 lateFeeRate_
     ) internal pure virtual returns (uint256 principalAmount_, uint256 interestFee_, uint256 lateFee_) {
         // Get the expected principal and interest portions for the payment, as if it was on-time
-        (principalAmount_, interestFee_) = _getInstallment(principal_, endingPrincipal, interestRate_, paymentInterval_, paymentsRemaining_);
+        (principalAmount_, interestFee_) = _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, paymentsRemaining_);
 
         if (paymentsRemaining_ == 1) {
             principalAmount_ = principal_;
@@ -286,7 +282,7 @@ contract LoanPrimitive {
         uint256 nextPaymentDueDate_,
         uint256 paymentInterval_,
         uint256 principal_,
-        uint256 endingPrincipal,
+        uint256 endingPrincipal_,
         uint256 interestRate_,
         uint256 paymentsRemaining_,
         uint256 lateFeeRate_
@@ -303,7 +299,7 @@ contract LoanPrimitive {
                 nextPaymentDueDate_,
                 paymentInterval_,
                 principal_,
-                endingPrincipal,
+                endingPrincipal_,
                 interestRate_,
                 paymentsRemaining_--,
                 lateFeeRate_
