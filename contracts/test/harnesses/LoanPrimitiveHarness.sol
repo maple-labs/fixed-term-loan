@@ -5,20 +5,56 @@ import { LoanPrimitive } from "../../LoanPrimitive.sol";
 
 contract LoanPrimitiveHarness is LoanPrimitive {
 
-    function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
-        return _getUnaccountedAmount(asset_);
-    }
+    /**************************/
+    /*** Mutating Functions ***/
+    /**************************/
 
     function initialize(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory requests_) external {
         _initialize(borrower_, assets_, parameters_, requests_) ;
+    }
+
+    function lend(address lender_) external returns (bool success, uint256 amount_) {
+        return _lend(lender_);
+    }
+
+    function claimFunds(uint256 amount_, address destination_) external returns (bool success_) {
+        return _claimFunds(amount_, destination_);
     }
 
     function skim(address asset_, address destination_) external returns (bool success_, uint256 amount_) {
         return _skim(asset_, destination_);
     }
 
+    /***********************/
+    /*** View Functions ****/
+    /***********************/
+
+    function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
+        return _getUnaccountedAmount(asset_);
+    }
+
     function getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) external pure returns (uint256 fee_) {
         return _getFee(amount_, feeRate_, interval_);
+    }
+
+    function lender() external view returns (address lender_) {
+        return _lender;
+    }
+
+    function drawableFunds() external view returns (uint256) {
+        return _drawableFunds;
+    }
+
+    function nextPaymentDueDate() external view returns (uint256) {
+        return _nextPaymentDueDate;
+    }
+
+    function paymentInterval() external view returns (uint256) {
+        return _paymentInterval;
+    }
+
+    function principal() external view returns (uint256) {
+        return _principal;
     }
 
     function getInstallment(

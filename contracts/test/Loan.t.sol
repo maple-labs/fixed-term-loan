@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { DSTest } from "../../modules/ds-test/src/test.sol";
+import { DSTest }    from "../../modules/ds-test/src/test.sol";
+import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
+
+import { Lender } from "./accounts/Lender.sol";
 
 import { LoanPrimitiveHarness } from "./harnesses/LoanPrimitiveHarness.sol";
 
-contract LoanTest is DSTest {
+//TODO separate getFee and getInstallment tests
+contract LoanPaymentBreakDownTest is DSTest {
 
     LoanPrimitiveHarness loan;
 
@@ -290,6 +294,163 @@ contract LoanTest is DSTest {
         assertEq(loan.scaledExponent(10_100, 1, 10_000), 10_100);
         assertEq(loan.scaledExponent(10_100, 2, 10_000), 10_201);
         assertEq(loan.scaledExponent(10_100, 3, 10_000), 10_303);
+    }
+
+}
+
+contract LoanLendTest is DSTest {
+
+    LoanPrimitiveHarness loan;
+    MockERC20            token;
+
+    uint256 constant MIN_REQUESTED_AMOUNT = 2;
+    uint256 constant MAX_REQUESTED_AMOUNT = type(uint256).max - 1;
+    address constant mockCollateralToken  = address(9);
+
+    function setUp() external {
+        loan  = new LoanPrimitiveHarness();
+        token = new MockERC20("FundsAsset", "FA", 0);
+    }
+
+    function _initializeLoanWithRequestAmount(uint256 requestedAmount_) internal {
+        address[2] memory assets = [address(mockCollateralToken), address(token)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(10 days),
+            uint256(1_200 * 100),
+            uint256(1_100 * 100),
+            uint256(365 days / 6),
+            uint256(6)
+        ];
+
+        uint256[2] memory requests = [uint256(300_000), requestedAmount_];
+
+        loan.initialize(address(1), assets, parameters, requests);
+    }
+
+    function _constrainRequestAmount(uint256 requestedAmount_) internal pure returns (uint256) {
+        return requestedAmount_ < MIN_REQUESTED_AMOUNT ? MIN_REQUESTED_AMOUNT : (requestedAmount_ > MAX_REQUESTED_AMOUNT ? MAX_REQUESTED_AMOUNT : requestedAmount_);
+    }
+
+    function test_lend_initialState() external {
+        assertEq(loan.lender(),                             address(0));
+        assertEq(loan.drawableFunds(),                      0);
+        assertEq(loan.nextPaymentDueDate(),                 0);
+        assertEq(loan.getUnaccountedAmount(address(token)), 0);
+        assertEq(loan.principal(),                          0);
+    }
+
+    function test_lend_getUnaccountedAmount(uint amount_) external {
+        assertEq(loan.getUnaccountedAmount(address(token)), 0);
+
+        token.mint(address(this), amount_);
+
+        token.transfer(address(loan), amount_);
+
+        assertEq(loan.getUnaccountedAmount(address(token)), amount_);
+    }
+
+    function test_lend_withoutSendingAsset(uint256 requestedAmount_) external {
+        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
+        _initializeLoanWithRequestAmount(requestedAmount);
+
+        (bool ok, ) = loan.lend(address(this));
+        assertTrue(!ok, "lend should have failed");
+    }
+
+    function test_lend_fullLend(uint256 requestedAmount_) external {
+        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
+        _initializeLoanWithRequestAmount(requestedAmount);
+        
+        token.mint(address(this), requestedAmount);
+        token.transfer(address(loan), requestedAmount);
+
+        assertEq(loan.getUnaccountedAmount(address(token)), requestedAmount);
+
+        (bool ok, uint256 amount) = loan.lend(address(this));
+        assertTrue(ok, "lend should have succeded");
+
+        assertEq(loan.lender(),                             address(this));
+        assertEq(amount,                                    requestedAmount);
+        assertEq(loan.getUnaccountedAmount(address(token)), 0);
+        assertEq(loan.drawableFunds(),                      amount);
+        assertEq(loan.nextPaymentDueDate(),                 block.timestamp + loan.paymentInterval());
+        assertEq(loan.principal(),                          amount);
+    }
+
+    function test_lend_partialLend(uint256 requestedAmount_) external {
+        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
+
+        _initializeLoanWithRequestAmount(requestedAmount);
+
+        token.mint(address(this), requestedAmount);
+        token.transfer(address(loan), requestedAmount - 1);
+
+        (bool ok, uint256 amount) = loan.lend(address(this));
+        assertTrue(!ok, "lend should have failed");
+
+    }
+
+    function test_lend_failWithDoubleLend(uint256 requestedAmount_) external {
+        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
+
+        // Dividing by two to make sure we can mint twice
+        _initializeLoanWithRequestAmount(requestedAmount / 2);
+
+        token.mint(address(this), requestedAmount);
+
+        token.transfer(address(loan), requestedAmount / 2);
+
+        (bool ok, uint256 amount) = loan.lend(address(this));
+        assertTrue(ok, "lend should have succeded");
+
+        assertEq(loan.lender(),                             address(this));
+        assertEq(amount,                                    requestedAmount / 2);
+        assertEq(loan.getUnaccountedAmount(address(token)), 0);
+        assertEq(loan.drawableFunds(),                      amount);
+        assertEq(loan.nextPaymentDueDate(),                 block.timestamp + loan.paymentInterval());
+        assertEq(loan.principal(),                          amount);
+
+        token.transfer(address(loan), requestedAmount / 2);
+
+        (ok, ) = loan.lend(address(this));
+        assertTrue(!ok, "lend should have failed");
+    }
+
+    function test_lend_sendingExtra(uint256 requestedAmount_) external {
+        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
+        _initializeLoanWithRequestAmount(requestedAmount);
+
+        token.mint(address(this), requestedAmount + 1);
+        token.transfer(address(loan), requestedAmount + 1);
+
+        (bool ok, ) = loan.lend(address(this));
+        assertTrue(!ok, "lend should have failed");
+    }
+
+    function test_lend_claimImmediatelyAfterLend(uint256 requestedAmount_) external {
+        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
+        _initializeLoanWithRequestAmount(requestedAmount);
+
+        token.mint(address(this), requestedAmount);
+        token.transfer(address(loan), requestedAmount);
+
+        (bool ok, uint256 amount) = loan.lend(address(this));
+        assertTrue(ok, "lend should have succeded");
+
+        assertEq(loan.lender(),                             address(this));
+        assertEq(amount,                                    requestedAmount);
+        assertEq(loan.getUnaccountedAmount(address(token)), 0);
+        assertEq(loan.drawableFunds(),                      amount);
+        assertEq(loan.nextPaymentDueDate(),                 block.timestamp + loan.paymentInterval());
+        assertEq(loan.principal(),                          amount);
+
+        try loan.claimFunds(requestedAmount, address(this)) {
+            assertTrue(false);
+        } catch {
+            assertTrue(true);
+        }
     }
 
 }
