@@ -157,7 +157,7 @@ contract LoanPrimitive {
     function _lend(address lender_) internal virtual returns (bool success_, uint256 amount_) {
         success_ =
             (_nextPaymentDueDate == uint256(0)) &&
-            (_paymentsRemaining != uint256(0)) &&
+            (_paymentsRemaining  != uint256(0)) &&
             (_principalRequested == (_drawableFunds = _principal = amount_ = _getUnaccountedAmount(_fundsAsset)));
 
         _lender             = lender_;

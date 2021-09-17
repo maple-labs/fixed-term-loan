@@ -45,6 +45,10 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _getUnaccountedAmount(asset_);
     }
 
+    function collateralRequired() external view returns (uint256 collateralRequired_) {
+        return _collateralRequired;
+    }
+
     function getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) external pure returns (uint256 fee_) {
         return _getFee(amount_, feeRate_, interval_);
     }
@@ -146,6 +150,10 @@ contract LoanPrimitiveHarness is LoanPrimitive {
 
     function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 scaledExponent_) {
         return _scaledExponent(base_, exponent_, one_);
+    }
+
+    function drawdownFunds(uint256 amount_, address destination_) external returns (bool success_) {
+        return _drawdownFunds(amount_, destination_);
     }
 
 }

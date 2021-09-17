@@ -4,8 +4,6 @@ pragma solidity ^0.8.7;
 import { DSTest }    from "../../modules/ds-test/src/test.sol";
 import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
-import { Lender } from "./accounts/Lender.sol";
-
 import { LoanPrimitiveHarness } from "./harnesses/LoanPrimitiveHarness.sol";
 
 contract LoanPaymentBreakDownTest is DSTest {
@@ -723,4 +721,163 @@ contract LendPostAndRemoveCollateralTest is DSTest {
         assertEq(collateralAsset.balanceOf(address(this)), collateralAmount_);
     }
 
+}
+
+contract LoanDrawdownTest is DSTest {
+    
+    LoanPrimitiveHarness loan;
+    MockERC20            collateralAsset;
+    MockERC20            fundsAsset;
+
+    uint256 MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion DAI (assumed reasonable upper limit for token amounts)
+
+    function setUp() external {
+        loan            = new LoanPrimitiveHarness();
+        collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        fundsAsset      = new MockERC20("Funds Asset",      "FA", 0);
+    }
+
+    function _initializeLoanWithAmounts(uint256 collateralRequired_, uint256 principalRequested_) internal {
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(10 days),
+            uint256(1_200 * 100),
+            uint256(1_100 * 100),
+            uint256(365 days / 6),
+            uint256(6)
+        ];
+
+        uint256[2] memory requests = [collateralRequired_, principalRequested_];
+
+        loan.initialize(address(1), assets, parameters, requests);
+    }
+
+    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
+        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
+    }
+
+    function _createLoanAndLend(uint256 collateralRequired_, uint256 principalRequested_) internal {
+        _initializeLoanWithAmounts(collateralRequired_, principalRequested_);
+
+        fundsAsset.mint(address(loan), principalRequested_);
+
+        loan.lend(address(this));
+    }
+
+    function _setUpDrawdown(
+        uint256 collateralRequired_,
+        uint256 minCollateral_,
+        uint256 maxCollateral_,
+        uint256 principalRequested_,
+        uint256 minPrincipal_,
+        uint256 maxPrincipal_
+    ) 
+        internal returns (uint256 collateralRequired, uint256 principalRequested)
+    {
+        collateralRequired = _constrictToRange(collateralRequired_, minCollateral_, maxCollateral_);
+        principalRequested = _constrictToRange(principalRequested_, minPrincipal_,  maxPrincipal_);
+        _createLoanAndLend(collateralRequired, principalRequested);
+
+        collateralAsset.mint(address(loan), collateralRequired);
+        loan.postCollateral();
+    }
+
+    function test_drawdown_initialState(uint256 collateralRequired_, uint256 principalRequested_) external {
+        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+
+        assertEq(loan.principal(),          principalRequested);
+        assertEq(loan.drawableFunds(),      principalRequested);
+        assertEq(loan.principalRequested(), principalRequested);
+
+        assertEq(loan.collateralRequired(), collateralRequired);
+        assertEq(loan.collateral(),         collateralRequired);
+
+        assertEq(fundsAsset.balanceOf(address(loan)),      principalRequested);
+        assertEq(collateralAsset.balanceOf(address(loan)), collateralRequired);
+    }
+
+    function test_drawdownFunds_withoutPostedCollateral(uint256 collateralRequired_, uint256 principalRequested_) external {
+        // Must have non-zero collateral and principal amounts to cause failure
+        uint256 collateralRequired = _constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
+        uint256 principalRequested = _constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
+        _createLoanAndLend(collateralRequired, principalRequested);
+
+        assertTrue(!loan.drawdownFunds(principalRequested, address(this)));
+    }
+
+    function test_drawdownFunds_exactAmount(uint256 collateralRequired_, uint256 principalRequested_) external {
+        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+
+        assertEq(loan.drawableFunds(),                principalRequested);
+        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested);
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+
+        assertTrue(loan.drawdownFunds(principalRequested, address(this)));
+
+        assertEq(loan.drawableFunds(),                0);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(fundsAsset.balanceOf(address(this)), principalRequested);
+    }
+
+    function test_drawdownFunds_lessThanDrawableFunds(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
+        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+
+        uint256 drawdownAmount = _constrictToRange(drawdownAmount_, 0, principalRequested);
+
+        assertEq(loan.drawableFunds(),                principalRequested);
+        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested);
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+
+        assertTrue(loan.drawdownFunds(drawdownAmount, address(this)));
+
+        assertEq(loan.drawableFunds(),                principalRequested - drawdownAmount);
+        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested - drawdownAmount);
+        assertEq(fundsAsset.balanceOf(address(this)), drawdownAmount);
+    }
+
+    function test_drawdownFunds_greaterThanDrawableFunds(uint256 collateralRequired_, uint256 principalRequested_) external {
+        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+
+        try loan.drawdownFunds(principalRequested + 1, address(this)) { assertTrue(false); } catch {}
+    }
+
+    function test_drawdownFunds_multipleDrawdowns(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
+        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+
+        uint256 drawdownAmount = _constrictToRange(drawdownAmount_, 0, principalRequested);
+
+        assertTrue(loan.drawdownFunds(drawdownAmount, address(this)));
+
+        assertEq(loan.drawableFunds(),                principalRequested - drawdownAmount);
+        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested - drawdownAmount);
+        assertEq(fundsAsset.balanceOf(address(this)), drawdownAmount);
+        
+        // Assert failure mode for amount larger than drawableFunds
+        try loan.drawdownFunds(principalRequested - drawdownAmount + 1, address(this)) { assertTrue(false); } catch {}
+
+        assertTrue(loan.drawdownFunds(principalRequested - drawdownAmount,     address(this)));
+
+        assertEq(loan.drawableFunds(),                0);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(fundsAsset.balanceOf(address(this)), principalRequested);
+    }
+
+    // TODO see if there is a way to make the transfer fail in drawdown due to lack of funds
+
+    function testFail_drawdownFunds_collateralNotMaintained(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
+        uint256 collateralRequired = _constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
+        uint256 principalRequested = _constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
+        _createLoanAndLend(collateralRequired, principalRequested);
+
+        collateralAsset.mint(address(loan), collateralRequired - 1);
+        loan.postCollateral();
+
+        assertEq(loan.collateral(), collateralRequired - 1);
+
+        // _collateralMaintained condition after a drawdown of principalRequested is made
+        assertTrue(loan.collateral() * loan.principalRequested() < loan.collateralRequired() * loan.principal());
+        require(loan.drawdownFunds(principalRequested, address(this)));
+    }
 }
