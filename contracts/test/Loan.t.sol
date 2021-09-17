@@ -8,24 +8,12 @@ import { Lender } from "./accounts/Lender.sol";
 
 import { LoanPrimitiveHarness } from "./harnesses/LoanPrimitiveHarness.sol";
 
-//TODO separate getFee and getInstallment tests
 contract LoanPaymentBreakDownTest is DSTest {
 
     LoanPrimitiveHarness loan;
 
     function setUp() external {
         loan = new LoanPrimitiveHarness();
-    }
-
-    function test_getFee() external {
-        assertEq(loan.getFee(1_000_000, 120_000, 365 days / 12), 10_000);  // 12% APY on 1M
-        assertEq(loan.getFee(10_000, 1_200_000, 365 days / 12), 1_000);    // 120% APY on 10k
-    }
-
-    function test_getInstallment() external {
-        (uint256 principalAmount, uint256 interestAmount) = loan.getInstallment(1_000_000, 0, 120_000, 365 days / 12, 12);
-        assertEq(principalAmount, 78_850);
-        assertEq(interestAmount,  10_000);
     }
 
     function test_getPaymentBreakdown_onePeriodBeforeDue() external {
@@ -274,9 +262,51 @@ contract LoanPaymentBreakDownTest is DSTest {
         assertEq(totalLateFees,        242);
     }
 
+}
+
+contract LoanFeeTest is DSTest {
+
+    LoanPrimitiveHarness loan;
+
+    function setUp() external {
+        loan = new LoanPrimitiveHarness();
+    }
+
+    function test_getFee() external {
+        assertEq(loan.getFee(1_000_000, 120_000, 365 days / 12), 10_000);  // 12% APY on 1M
+        assertEq(loan.getFee(10_000, 1_200_000, 365 days / 12), 1_000);    // 120% APY on 10k
+    }
+
+
     function test_getPeriodicFeeRate() external {
         assertEq(loan.getPeriodicFeeRate(120_000, 365 days),      120_000);
         assertEq(loan.getPeriodicFeeRate(120_000, 365 days / 12), 10_000);
+    }
+
+}
+
+contract LoanInstallmentTest is DSTest {
+
+    LoanPrimitiveHarness loan;
+
+    function setUp() external {
+        loan = new LoanPrimitiveHarness();
+    }
+    
+    function test_getInstallment() external {
+        (uint256 principalAmount, uint256 interestAmount) = loan.getInstallment(1_000_000, 0, 120_000, 365 days / 12, 12);
+        assertEq(principalAmount, 78_850);
+        assertEq(interestAmount,  10_000);
+    }
+
+}
+
+contract LoanScaledExponentTest is DSTest {
+
+    LoanPrimitiveHarness loan;
+
+    function setUp() external {
+        loan = new LoanPrimitiveHarness();
     }
 
     function test_scaledExponent() external {
