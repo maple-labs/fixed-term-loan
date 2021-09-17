@@ -476,11 +476,251 @@ contract LoanLendTest is DSTest {
         assertEq(loan.nextPaymentDueDate(),                 block.timestamp + loan.paymentInterval());
         assertEq(loan.principal(),                          amount);
 
-        try loan.claimFunds(requestedAmount, address(this)) {
-            assertTrue(false);
-        } catch {
-            assertTrue(true);
-        }
+        try loan.claimFunds(requestedAmount, address(this)) { assertTrue(false); } catch {}
+    }
+
+}
+
+contract LendPostAndRemoveCollateralTest is DSTest {
+
+    LoanPrimitiveHarness loan;
+    MockERC20            collateralAsset;
+    MockERC20            fundsAsset;
+
+    function setUp() external {
+        loan            = new LoanPrimitiveHarness();
+        collateralAsset = new MockERC20("CollateralAsset", "CA", 0);
+        fundsAsset      = new MockERC20("FundsAsset",      "FA", 0);
+    }
+
+    function _initializeLoanWithCollateralRequested(uint256 collateralAmount_) internal {
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(10 days),
+            uint256(1_200 * 100),
+            uint256(1_100 * 100),
+            uint256(365 days / 6),
+            uint256(6)
+        ];
+
+        uint256[2] memory requests = [uint256(collateralAmount_), uint256(1_000_000)];
+
+        loan.initialize(address(1), assets, parameters, requests);
+    }
+
+    /***********************/
+    /*** Post Collateral ***/
+    /***********************/
+
+    function test_postCollateral_initialState(uint256 collateralAmount_) external {
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        assertEq(loan.collateral(), 0);
+    }
+
+    function testFail_postCollateral_uninitializedLoan() external {
+        loan.postCollateral();
+    }
+
+    function test_postCollateral_exactAmount(uint256 collateralAmount_) external {
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        collateralAsset.mint(address(loan), collateralAmount_);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,            collateralAmount_);
+        assertEq(loan.collateral(), collateralAmount_);
+    }
+
+    function test_postCollateral_lessThanRequired(uint256 collateralAmount_) external {
+        collateralAmount_ = collateralAmount_ == 0 ? 1 : collateralAmount_;
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        collateralAsset.mint(address(loan), collateralAmount_ - 1);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,            collateralAmount_ - 1);
+        assertEq(loan.collateral(), amount);
+    }
+
+    function test_postCollateral_moreThanRequired(uint256 collateralAmount_) external {
+        collateralAmount_ = collateralAmount_ == type(uint256).max ? type(uint256).max - 1 : collateralAmount_;
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        collateralAsset.mint(address(loan), collateralAmount_ + 1);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,            collateralAmount_ + 1);
+        assertEq(loan.collateral(), amount);
+    }
+
+    function test_postCollateral_zeroAmount() external {
+        _initializeLoanWithCollateralRequested(0);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,            0);
+        assertEq(loan.collateral(), 0);
+    }
+
+    function test_postCollateral_withUnaccountedFundsAsset(uint256 collateralAmount_) external {
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        // Send funds asset to Loan
+        fundsAsset.mint(address(loan), loan.principalRequested());
+
+        collateralAsset.mint(address(loan), collateralAmount_);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,            collateralAmount_);
+        assertEq(loan.collateral(), collateralAmount_);
+    }
+
+    function test_postCollateral_doesNotCountOtherAssets(uint256 collateralAmount_) external {
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        // Send funds asset to Loan
+        fundsAsset.mint(address(loan), collateralAmount_);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,            0);
+        assertEq(loan.collateral(), 0);
+    }
+
+    function test_postCollateral_sameAssets(uint256 collateralAmount_) external {
+        collateralAmount_ = collateralAmount_ > type(uint256).max - 1_000_000 ? type(uint256).max - 1_000_000 : collateralAmount_;
+
+        // Initialize Loan with same asset for fund and collateral
+        address[2] memory assets = [address(collateralAsset), address(collateralAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(10 days),
+            uint256(1_200 * 100),
+            uint256(1_100 * 100),
+            uint256(365 days / 6),
+            uint256(6)
+        ];
+
+        uint256[2] memory requests = [uint256(collateralAmount_), uint256(1_000_000)];
+
+        loan.initialize(address(1), assets, parameters, requests);
+
+        // Fund Loan (note: lend() must be called for funds to be accounted for)
+        collateralAsset.mint(address(loan), 1_000_000);
+        loan.lend(address(this));
+
+        // Post collateral
+        collateralAsset.mint(address(loan), collateralAmount_);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,            collateralAmount_);
+        assertEq(loan.collateral(), collateralAmount_);
+    }
+
+    /*************************/
+    /*** Remove Collateral ***/
+    /*************************/
+
+    function test_removeCollateral_fullAmount(uint256 collateralAmount_) external {
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        collateralAsset.mint(address(loan), collateralAmount_);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,                                   collateralAmount_);
+        assertEq(loan.collateral(),                        collateralAmount_);
+        assertEq(collateralAsset.balanceOf(address(loan)), collateralAmount_);
+        assertEq(collateralAsset.balanceOf(address(this)), 0);
+
+        assertTrue(loan.removeCollateral(collateralAmount_, address(this)));
+
+        assertEq(loan.collateral(),                        0);
+        assertEq(collateralAsset.balanceOf(address(loan)), 0);
+        assertEq(collateralAsset.balanceOf(address(this)), collateralAmount_);
+    }
+
+    function test_removeCollateral_partialAmount(uint256 collateralAmount_) external {
+        collateralAmount_ = collateralAmount_ == 0 ? 1 : collateralAmount_;
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        collateralAsset.mint(address(loan), collateralAmount_);
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,                                   collateralAmount_);
+        assertEq(loan.collateral(),                        collateralAmount_);
+        assertEq(collateralAsset.balanceOf(address(loan)), collateralAmount_);
+        assertEq(collateralAsset.balanceOf(address(this)), 0);
+
+        assertTrue(loan.removeCollateral(collateralAmount_ - 1, address(this)));
+
+        assertEq(loan.collateral(),                        1);
+        assertEq(collateralAsset.balanceOf(address(loan)), 1);
+        assertEq(collateralAsset.balanceOf(address(this)), collateralAmount_ - 1);
+    }
+
+    function test_removeCollateral_moreThanAmount(uint256 collateralAmount_) external {
+        _initializeLoanWithCollateralRequested(collateralAmount_);
+
+        collateralAmount_ = collateralAmount_ == type(uint256).max ? type(uint256).max - 1 : collateralAmount_;
+        collateralAsset.mint(address(loan), collateralAmount_);
+
+        uint256 amount =  loan.postCollateral();
+
+        assertEq(amount,            collateralAmount_);
+        assertEq(loan.collateral(), collateralAmount_);
+
+        try loan.removeCollateral(collateralAmount_ + 1, address(this)) { assertTrue(false); } catch {}
+    }
+
+    function test_removeCollateral_sameAssets(uint256 collateralAmount_) external {
+        collateralAmount_ = collateralAmount_ > type(uint256).max - 1_000_000 ? type(uint256).max - 1_000_000 : collateralAmount_;
+
+        // Initialize loan with same asset for fund and collateral
+        address[2] memory assets = [address(collateralAsset), address(collateralAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(10 days),
+            uint256(1_200 * 100),
+            uint256(1_100 * 100),
+            uint256(365 days / 6),
+            uint256(6)
+        ];
+
+        uint256[2] memory requests = [uint256(collateralAmount_), uint256(1_000_000)];
+
+        loan.initialize(address(1), assets, parameters, requests);
+
+        // Fund Loan
+        collateralAsset.mint(address(loan), 1_000_000);
+        loan.lend(address(this));
+
+        // Post collateral
+        collateralAsset.mint(address(loan), collateralAmount_);
+
+
+        uint256 amount = loan.postCollateral();
+
+        assertEq(amount,                                   collateralAmount_);
+        assertEq(loan.collateral(),                        collateralAmount_);
+        assertEq(collateralAsset.balanceOf(address(loan)), 1_000_000 + collateralAmount_);
+
+        assertTrue(loan.removeCollateral(collateralAmount_, address(this)));
+
+        assertEq(loan.collateral(),                        0);
+        assertEq(collateralAsset.balanceOf(address(loan)), 1_000_000);
+        assertEq(collateralAsset.balanceOf(address(this)), collateralAmount_);
     }
 
 }

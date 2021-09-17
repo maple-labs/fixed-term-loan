@@ -21,6 +21,14 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _claimFunds(amount_, destination_);
     }
 
+    function postCollateral() external returns (uint256 amount_) {
+        return _postCollateral();
+    }
+
+    function removeCollateral(uint256 amount_, address destination_) external returns (bool success_) {
+        return _removeCollateral(amount_, destination_);
+    }
+
     function skim(address asset_, address destination_) external returns (bool success_, uint256 amount_) {
         return _skim(asset_, destination_);
     }
@@ -28,6 +36,10 @@ contract LoanPrimitiveHarness is LoanPrimitive {
     /***********************/
     /*** View Functions ****/
     /***********************/
+
+    function collateral() external view returns (uint256 collateral_) {
+        return _collateral;
+    }
 
     function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
         return _getUnaccountedAmount(asset_);
@@ -41,20 +53,24 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _lender;
     }
 
-    function drawableFunds() external view returns (uint256) {
+    function drawableFunds() external view returns (uint256 drawableFunds_) {
         return _drawableFunds;
     }
 
-    function nextPaymentDueDate() external view returns (uint256) {
+    function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_) {
         return _nextPaymentDueDate;
     }
 
-    function paymentInterval() external view returns (uint256) {
+    function paymentInterval() external view returns (uint256 paymentInterval_) {
         return _paymentInterval;
     }
 
-    function principal() external view returns (uint256) {
+    function principal() external view returns (uint256 principal_) {
         return _principal;
+    }
+
+    function principalRequested() external view returns (uint256 principalRequested_) {
+        return _principalRequested;
     }
 
     function getInstallment(
