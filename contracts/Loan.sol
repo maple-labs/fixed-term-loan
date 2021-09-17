@@ -14,72 +14,12 @@ contract Loan is ILoan, LoanPrimitive {
         emit Initialized(borrower_, assets_, parameters_, amounts_);
     }
 
-    function borrower() external view override returns (address borrower_) {
-        return _borrower;
-    }
+    /************************/
+    /*** Borrow Functions ***/
+    /************************/
 
-    function lender() external view override returns (address lender_) {
-        return _lender;
-    }
-
-    function collateralAsset() external view override returns (address collateralAsset_) {
-        return _collateralAsset;
-    }
-
-    function fundsAsset() external view override returns (address fundsAsset_) {
-        return _fundsAsset;
-    }
-
-    function endingPrincipal() external view override returns (uint256 endingPrincipal_) {
-        return _endingPrincipal;
-    }
-
-    function gracePeriod() external view override returns (uint256 gracePeriod_) {
-        return _gracePeriod;
-    }
-
-    function interestRate() external view override returns (uint256 interestRate_) {
-        return _interestRate;
-    }
-
-    function lateFeeRate() external view override returns (uint256 lateFeeRate_) {
-        return _lateFeeRate;
-    }
-
-    function paymentInterval() external view override returns (uint256 paymentInterval_) {
-        return _paymentInterval;
-    }
-
-    function collateralRequired() external view override returns (uint256 collateralRequired_) {
-        return _collateralRequired;
-    }
-
-    function principalRequested() external view override returns (uint256 principalRequested_) {
-        return _principalRequested;
-    }
-
-    function drawableFunds() external view override returns (uint256 drawableFunds_) {
-        return _drawableFunds;
-    }
-
-    function claimableFunds() external view override returns (uint256 claimableFunds_) {
-        return _claimableFunds;
-    }
-
-    function collateral() external view override returns (uint256 collateral_) {
-        return _collateral;
-    }
-
-    function nextPaymentDueDate() external view override returns (uint256 nextPaymentDueDate_) {
-        return _nextPaymentDueDate;
-    }
-
-    function paymentsRemaining() external view override returns (uint256 paymentsRemaining_) {
-        return _paymentsRemaining;
-    }
-
-    function principal() external view override returns (uint256 principal_) {
-        return _principal;
+    function postCollateral() external override returns (uint256 amount_) {
+        emit CollateralPosted(amount_ = _postCollateral());
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override {
@@ -112,10 +52,6 @@ contract Loan is ILoan, LoanPrimitive {
         emit PaymentsMade(numberOfPayments_, totalPrincipalAmount_, totalInterestFees_, totalLateFees_);
     }
 
-    function postCollateral() external override returns (uint256 amount_) {
-        emit CollateralPosted(amount_ = _postCollateral());
-    }
-
     function removeCollateral(uint256 amount_, address destination_) external override {
         require(msg.sender == _borrower,                  "L:RC:NOT_BORROWER");
         require(_removeCollateral(amount_, destination_), "L:RC:FAILED");
@@ -126,17 +62,21 @@ contract Loan is ILoan, LoanPrimitive {
         emit FundsReturned(amount_ = _returnFunds());
     }
 
-    function claimFunds(uint256 amount_, address destination_) external override {
-        require(msg.sender == _lender,              "L:CF:NOT_LENDER");
-        require(_claimFunds(amount_, destination_), "L:CF:FAILED");
-        emit FundsClaimed(amount_);
-    }
+    /**********************/
+    /*** Lend Functions ***/
+    /**********************/
 
     function lend(address lender_) external override returns (uint256 amount_) {
         bool success;
         (success, amount_) = _lend(lender_);
         require(success, "L:L:FAILED");
         emit Funded(lender_, _nextPaymentDueDate);
+    }
+
+    function claimFunds(uint256 amount_, address destination_) external override {
+        require(msg.sender == _lender,              "L:CF:NOT_LENDER");
+        require(_claimFunds(amount_, destination_), "L:CF:FAILED");
+        emit FundsClaimed(amount_);
     }
 
     function repossess(address collateralAssetDestination_, address fundsAssetDestination_)
@@ -152,12 +92,20 @@ contract Loan is ILoan, LoanPrimitive {
         emit Repossessed(collateralAssetAmount_, fundsAssetAmount_);
     }
 
+    /*************************/
+    /*** Utility Functions ***/
+    /*************************/
+
     function skim(address asset_, address destination_) external override returns (uint256 amount_) {
         bool success;
         (success, amount_) = _skim(asset_, destination_);
         require(success, "L:S:FAILED");
         emit Skimmed(asset_, destination_, amount_);
     }
+
+    /************************/
+    /*** Getter Functions ***/
+    /************************/
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments_)
         external view override
@@ -174,6 +122,78 @@ contract Loan is ILoan, LoanPrimitive {
             _paymentsRemaining,
             _lateFeeRate
         );
+    }
+
+    /***************************************/
+    /*** State Variable Getter Functions ***/
+    /***************************************/
+
+    function borrower() external view override returns (address borrower_) {
+        return _borrower;
+    }
+
+    function claimableFunds() external view override returns (uint256 claimableFunds_) {
+        return _claimableFunds;
+    }
+
+    function collateral() external view override returns (uint256 collateral_) {
+        return _collateral;
+    }
+
+    function collateralAsset() external view override returns (address collateralAsset_) {
+        return _collateralAsset;
+    }
+
+    function collateralRequired() external view override returns (uint256 collateralRequired_) {
+        return _collateralRequired;
+    }
+
+    function drawableFunds() external view override returns (uint256 drawableFunds_) {
+        return _drawableFunds;
+    }
+
+    function endingPrincipal() external view override returns (uint256 endingPrincipal_) {
+        return _endingPrincipal;
+    }
+
+    function fundsAsset() external view override returns (address fundsAsset_) {
+        return _fundsAsset;
+    }
+
+    function gracePeriod() external view override returns (uint256 gracePeriod_) {
+        return _gracePeriod;
+    }
+
+    function interestRate() external view override returns (uint256 interestRate_) {
+        return _interestRate;
+    }
+
+    function lateFeeRate() external view override returns (uint256 lateFeeRate_) {
+        return _lateFeeRate;
+    }
+
+    function lender() external view override returns (address lender_) {
+        return _lender;
+    }
+
+    function nextPaymentDueDate() external view override returns (uint256 nextPaymentDueDate_) {
+        return _nextPaymentDueDate;
+    }
+
+    function paymentInterval() external view override returns (uint256 paymentInterval_) {
+        return _paymentInterval;
+    }
+
+    function paymentsRemaining() external view override returns (uint256 paymentsRemaining_) {
+        return _paymentsRemaining;
+    }
+
+    function principalRequested() external view override returns (uint256 principalRequested_) {
+        return _principalRequested;
+    }
+
+    function principal() external view override returns (uint256 principal_) {
+        return _principal;
     }
 
 }
