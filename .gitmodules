@@ -7,3 +7,6 @@
 [submodule "modules/ds-test"]
 	path = modules/ds-test
 	url = https://github.com/dapphub/ds-test
+[submodule "modules/proxy-factory"]
+	path = modules/proxy-factory
+	url = https://github.com/maple-labs/proxy-factory.git

@@ -3,6 +3,9 @@
     "sources": {
         "contracts/Loan.sol": {
             "urls": ["contracts/Loan.sol"]
+        },
+        "contracts/MapleLoanFactory.sol": {
+            "urls": ["contracts/MapleLoanFactory.sol"]
         }
     },
     "settings": {
