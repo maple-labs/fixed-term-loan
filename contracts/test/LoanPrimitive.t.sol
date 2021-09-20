@@ -6,6 +6,8 @@ import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
 import { LoanPrimitiveHarness } from "./harnesses/LoanPrimitiveHarness.sol";
 
+// TODO: user `contract-test-utils`
+
 contract LoanPrimitivePaymentBreakDownTest is DSTest {
 
     LoanPrimitiveHarness loan;
@@ -15,7 +17,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentBreakdown_onePeriodBeforeDue() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
             10_000_000 - (1 * (365 days / 12)),
             10_000_000,
             365 days / 12,
@@ -32,7 +34,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentBreakdown_oneSecondBeforeDue() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
             10_000_000 - 1,
             10_000_000,
             365 days / 12,
@@ -49,7 +51,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentBreakdown_onePeriodLate() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
             10_000_000 + (1 * (365 days / 12)),  // current time is 2 periods after next payment date
             10_000_000,
             365 days / 12,
@@ -66,7 +68,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentBreakdown_twoPeriodsLate() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
             10_000_000 + (2 * (365 days / 12)),  // current time is 2 periods after next payment date
             10_000_000,
             365 days / 12,
@@ -83,7 +85,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentBreakdown_threePeriodsLate() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
             10_000_000 + (3 * (365 days / 12)),  // current time is 2 periods after next payment date
             10_000_000,
             365 days / 12,
@@ -100,7 +102,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentBreakdown_fourPeriodsLate() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
             10_000_000 + (4 * (365 days / 12)),  // current time is 2 periods after next payment date
             10_000_000,
             365 days / 12,
@@ -117,7 +119,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentsBreakdown_onePaymentOnePeriodBeforeDue() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
             1,
             10_000_000 - (1 * (365 days / 12)),
             10_000_000,
@@ -135,7 +137,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentsBreakdown_twoPaymentsOnePeriodBeforeDue() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
             2,
             10_000_000 - (1 * (365 days / 12)),
             10_000_000,
@@ -153,7 +155,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentsBreakdown_onePaymentOneSecondBeforeDue() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
             1,
             10_000_000 - 1,
             10_000_000,
@@ -171,7 +173,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentsBreakdown_twoPaymentsOneSecondBeforeDue() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
             2,
             10_000_000 - 1,
             10_000_000,
@@ -189,7 +191,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentsBreakdown_onePaymentOnePeriodLate() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
             1,
             10_000_000 + (1 * (365 days / 12)),
             10_000_000,
@@ -207,7 +209,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentsBreakdown_twoPaymentsOnePeriodLate() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
             2,
             10_000_000 + (1 * (365 days / 12)),
             10_000_000,
@@ -225,7 +227,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentsBreakdown_onePaymentTwoPeriodsLate() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
             1,
             10_000_000 + (2 * (365 days / 12)),
             10_000_000,
@@ -243,7 +245,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
     }
 
     function test_getPaymentsBreakdown_twoPaymentsTwoPeriodsLate() external {
-        (uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
             2,
             10_000_000 + (2 * (365 days / 12)),
             10_000_000,
@@ -290,9 +292,10 @@ contract LoanPrimitiveInstallmentTest is DSTest {
     function setUp() external {
         loan = new LoanPrimitiveHarness();
     }
-    
+
     function test_getInstallment() external {
-        (uint256 principalAmount, uint256 interestAmount) = loan.getInstallment(1_000_000, 0, 120_000, 365 days / 12, 12);
+        ( uint256 principalAmount, uint256 interestAmount ) = loan.getInstallment(1_000_000, 0, 120_000, 365 days / 12, 12);
+
         assertEq(principalAmount, 78_850);
         assertEq(interestAmount,  10_000);
     }
@@ -328,12 +331,13 @@ contract LoanPrimitiveScaledExponentTest is DSTest {
 
 contract LoanPrimitiveLendTest is DSTest {
 
+    uint256 constant MAX_REQUESTED_AMOUNT = type(uint256).max - 1;
+    uint256 constant MIN_REQUESTED_AMOUNT = 2;
+
     LoanPrimitiveHarness loan;
     MockERC20            token;
 
-    uint256 constant MIN_REQUESTED_AMOUNT = 2;
-    uint256 constant MAX_REQUESTED_AMOUNT = type(uint256).max - 1;
-    address constant mockCollateralToken  = address(9);
+    address mockCollateralToken = address(9);
 
     function setUp() external {
         loan  = new LoanPrimitiveHarness();
@@ -357,8 +361,8 @@ contract LoanPrimitiveLendTest is DSTest {
         loan.initialize(address(1), assets, parameters, requests);
     }
 
-    function _constrainRequestAmount(uint256 requestedAmount_) internal pure returns (uint256) {
-        return requestedAmount_ < MIN_REQUESTED_AMOUNT ? MIN_REQUESTED_AMOUNT : (requestedAmount_ > MAX_REQUESTED_AMOUNT ? MAX_REQUESTED_AMOUNT : requestedAmount_);
+    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
+        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
     }
 
     function test_lend_initialState() external {
@@ -369,38 +373,37 @@ contract LoanPrimitiveLendTest is DSTest {
         assertEq(loan.principal(),                          0);
     }
 
-    function test_lend_getUnaccountedAmount(uint amount_) external {
+    function test_lend_getUnaccountedAmount(uint256 amount_) external {
         assertEq(loan.getUnaccountedAmount(address(token)), 0);
 
         token.mint(address(this), amount_);
-
         token.transfer(address(loan), amount_);
 
         assertEq(loan.getUnaccountedAmount(address(token)), amount_);
     }
 
     function test_lend_withoutSendingAsset(uint256 requestedAmount_) external {
-        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
-        _initializeLoanWithRequestAmount(requestedAmount);
+        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(requestedAmount_);
 
-        (bool ok, ) = loan.lend(address(this));
+        ( bool ok, ) = loan.lend(address(this));
         assertTrue(!ok, "lend should have failed");
     }
 
     function test_lend_fullLend(uint256 requestedAmount_) external {
-        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
-        _initializeLoanWithRequestAmount(requestedAmount);
-        
-        token.mint(address(this), requestedAmount);
-        token.transfer(address(loan), requestedAmount);
+        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(requestedAmount_);
 
-        assertEq(loan.getUnaccountedAmount(address(token)), requestedAmount);
+        token.mint(address(this), requestedAmount_);
+        token.transfer(address(loan), requestedAmount_);
 
-        (bool ok, uint256 amount) = loan.lend(address(this));
-        assertTrue(ok, "lend should have succeded");
+        assertEq(loan.getUnaccountedAmount(address(token)), requestedAmount_);
+
+        ( bool ok, uint256 amount ) = loan.lend(address(this));
+        assertTrue(ok, "lend should have succeeded");
 
         assertEq(loan.lender(),                             address(this));
-        assertEq(amount,                                    requestedAmount);
+        assertEq(amount,                                    requestedAmount_);
         assertEq(loan.getUnaccountedAmount(address(token)), 0);
         assertEq(loan.drawableFunds(),                      amount);
         assertEq(loan.nextPaymentDueDate(),                 block.timestamp + loan.paymentInterval());
@@ -408,73 +411,72 @@ contract LoanPrimitiveLendTest is DSTest {
     }
 
     function test_lend_partialLend(uint256 requestedAmount_) external {
-        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
+        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
 
-        _initializeLoanWithRequestAmount(requestedAmount);
+        _initializeLoanWithRequestAmount(requestedAmount_);
 
-        token.mint(address(this), requestedAmount);
-        token.transfer(address(loan), requestedAmount - 1);
+        token.mint(address(this), requestedAmount_);
+        token.transfer(address(loan), requestedAmount_ - 1);
 
-        (bool ok, uint256 amount) = loan.lend(address(this));
+        ( bool ok, ) = loan.lend(address(this));
         assertTrue(!ok, "lend should have failed");
 
     }
 
     function test_lend_failWithDoubleLend(uint256 requestedAmount_) external {
-        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
+        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
 
         // Dividing by two to make sure we can mint twice
-        _initializeLoanWithRequestAmount(requestedAmount / 2);
+        _initializeLoanWithRequestAmount(requestedAmount_ / 2);
 
-        token.mint(address(this), requestedAmount);
+        token.mint(address(this), requestedAmount_);
+        token.transfer(address(loan), requestedAmount_ / 2);
 
-        token.transfer(address(loan), requestedAmount / 2);
-
-        (bool ok, uint256 amount) = loan.lend(address(this));
-        assertTrue(ok, "lend should have succeded");
+        ( bool ok, uint256 amount ) = loan.lend(address(this));
+        assertTrue(ok, "lend should have succeeded");
 
         assertEq(loan.lender(),                             address(this));
-        assertEq(amount,                                    requestedAmount / 2);
+        assertEq(amount,                                    requestedAmount_ / 2);
         assertEq(loan.getUnaccountedAmount(address(token)), 0);
         assertEq(loan.drawableFunds(),                      amount);
         assertEq(loan.nextPaymentDueDate(),                 block.timestamp + loan.paymentInterval());
         assertEq(loan.principal(),                          amount);
 
-        token.transfer(address(loan), requestedAmount / 2);
+        token.transfer(address(loan), requestedAmount_ / 2);
 
-        (ok, ) = loan.lend(address(this));
+        ( ok, ) = loan.lend(address(this));
         assertTrue(!ok, "lend should have failed");
     }
 
     function test_lend_sendingExtra(uint256 requestedAmount_) external {
-        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
-        _initializeLoanWithRequestAmount(requestedAmount);
+        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(requestedAmount_);
 
-        token.mint(address(this), requestedAmount + 1);
-        token.transfer(address(loan), requestedAmount + 1);
+        token.mint(address(this), requestedAmount_ + 1);
+        token.transfer(address(loan), requestedAmount_ + 1);
 
-        (bool ok, ) = loan.lend(address(this));
+        ( bool ok, ) = loan.lend(address(this));
         assertTrue(!ok, "lend should have failed");
     }
 
     function test_lend_claimImmediatelyAfterLend(uint256 requestedAmount_) external {
-        uint256 requestedAmount = _constrainRequestAmount(requestedAmount_);
-        _initializeLoanWithRequestAmount(requestedAmount);
+        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(requestedAmount_);
 
-        token.mint(address(this), requestedAmount);
-        token.transfer(address(loan), requestedAmount);
+        token.mint(address(this), requestedAmount_);
+        token.transfer(address(loan), requestedAmount_);
 
-        (bool ok, uint256 amount) = loan.lend(address(this));
-        assertTrue(ok, "lend should have succeded");
+        ( bool ok, uint256 amount ) = loan.lend(address(this));
+        assertTrue(ok, "lend should have succeeded");
 
         assertEq(loan.lender(),                             address(this));
-        assertEq(amount,                                    requestedAmount);
+        assertEq(amount,                                    requestedAmount_);
         assertEq(loan.getUnaccountedAmount(address(token)), 0);
         assertEq(loan.drawableFunds(),                      amount);
         assertEq(loan.nextPaymentDueDate(),                 block.timestamp + loan.paymentInterval());
         assertEq(loan.principal(),                          amount);
 
-        try loan.claimFunds(requestedAmount, address(this)) { assertTrue(false); } catch {}
+        try loan.claimFunds(requestedAmount_, address(this)) { assertTrue(false); } catch { }
     }
 
 }
@@ -486,12 +488,12 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     MockERC20            fundsAsset;
 
     function setUp() external {
-        loan            = new LoanPrimitiveHarness();
         collateralAsset = new MockERC20("CollateralAsset", "CA", 0);
         fundsAsset      = new MockERC20("FundsAsset",      "FA", 0);
+        loan            = new LoanPrimitiveHarness();
     }
 
-    function _initializeLoanWithCollateralRequested(uint256 collateralAmount_) internal {
+    function _initializeLoanWithCollateralRequested(uint256 collateralRequested_) internal {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
@@ -503,7 +505,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
             uint256(6)
         ];
 
-        uint256[2] memory requests = [uint256(collateralAmount_), uint256(1_000_000)];
+        uint256[2] memory requests = [uint256(collateralRequested_), uint256(1_000_000)];
 
         loan.initialize(address(1), assets, parameters, requests);
     }
@@ -571,7 +573,6 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
         // Send funds asset to Loan
         fundsAsset.mint(address(loan), loan.principalRequested());
-
         collateralAsset.mint(address(loan), collateralAmount_);
 
         uint256 amount = loan.postCollateral();
@@ -707,7 +708,6 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
         // Post collateral
         collateralAsset.mint(address(loan), collateralAmount_);
 
-
         uint256 amount = loan.postCollateral();
 
         assertEq(amount,                                   collateralAmount_);
@@ -729,12 +729,12 @@ contract LoanPrimitiveDrawdownTest is DSTest {
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
 
-    uint256 MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion DAI (assumed reasonable upper limit for token amounts)
+    uint256 MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
     function setUp() external {
-        loan            = new LoanPrimitiveHarness();
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 0);
+        loan            = new LoanPrimitiveHarness();
     }
 
     function _initializeLoanWithAmounts(uint256 collateralRequired_, uint256 principalRequested_) internal {
@@ -762,7 +762,6 @@ contract LoanPrimitiveDrawdownTest is DSTest {
         _initializeLoanWithAmounts(collateralRequired_, principalRequested_);
 
         fundsAsset.mint(address(loan), principalRequested_);
-
         loan.lend(address(this));
     }
 
@@ -773,111 +772,119 @@ contract LoanPrimitiveDrawdownTest is DSTest {
         uint256 principalRequested_,
         uint256 minPrincipal_,
         uint256 maxPrincipal_
-    ) 
-        internal returns (uint256 collateralRequired, uint256 principalRequested)
+    )
+        internal returns (uint256 constrictedCollateralRequired_, uint256 constrictedPrincipalRequested_)
     {
-        collateralRequired = _constrictToRange(collateralRequired_, minCollateral_, maxCollateral_);
-        principalRequested = _constrictToRange(principalRequested_, minPrincipal_,  maxPrincipal_);
-        _createLoanAndLend(collateralRequired, principalRequested);
+        constrictedCollateralRequired_ = _constrictToRange(collateralRequired_, minCollateral_, maxCollateral_);
+        constrictedPrincipalRequested_ = _constrictToRange(principalRequested_, minPrincipal_,  maxPrincipal_);
 
-        collateralAsset.mint(address(loan), collateralRequired);
+        _createLoanAndLend(constrictedCollateralRequired_, constrictedPrincipalRequested_);
+
+        collateralAsset.mint(address(loan), constrictedCollateralRequired_);
         loan.postCollateral();
     }
 
     function test_drawdown_initialState(uint256 collateralRequired_, uint256 principalRequested_) external {
-        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        (
+            collateralRequired_,
+            principalRequested_
+        ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
-        assertEq(loan.principal(),          principalRequested);
-        assertEq(loan.drawableFunds(),      principalRequested);
-        assertEq(loan.principalRequested(), principalRequested);
+        assertEq(loan.principal(),          principalRequested_);
+        assertEq(loan.drawableFunds(),      principalRequested_);
+        assertEq(loan.principalRequested(), principalRequested_);
 
-        assertEq(loan.collateralRequired(), collateralRequired);
-        assertEq(loan.collateral(),         collateralRequired);
+        assertEq(loan.collateralRequired(), collateralRequired_);
+        assertEq(loan.collateral(),         collateralRequired_);
 
-        assertEq(fundsAsset.balanceOf(address(loan)),      principalRequested);
-        assertEq(collateralAsset.balanceOf(address(loan)), collateralRequired);
+        assertEq(fundsAsset.balanceOf(address(loan)),      principalRequested_);
+        assertEq(collateralAsset.balanceOf(address(loan)), collateralRequired_);
     }
 
     function test_drawdownFunds_withoutPostedCollateral(uint256 collateralRequired_, uint256 principalRequested_) external {
         // Must have non-zero collateral and principal amounts to cause failure
-        uint256 collateralRequired = _constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
-        uint256 principalRequested = _constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
-        _createLoanAndLend(collateralRequired, principalRequested);
+        collateralRequired_ = _constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
+        principalRequested_ = _constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
 
-        assertTrue(!loan.drawdownFunds(principalRequested, address(this)));
+        _createLoanAndLend(collateralRequired_, principalRequested_);
+
+        assertTrue(!loan.drawdownFunds(principalRequested_, address(this)));
     }
 
     function test_drawdownFunds_exactAmount(uint256 collateralRequired_, uint256 principalRequested_) external {
-        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
-        assertEq(loan.drawableFunds(),                principalRequested);
-        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested);
+        assertEq(loan.drawableFunds(),                principalRequested_);
+        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested_);
         assertEq(fundsAsset.balanceOf(address(this)), 0);
 
-        assertTrue(loan.drawdownFunds(principalRequested, address(this)));
+        assertTrue(loan.drawdownFunds(principalRequested_, address(this)));
 
         assertEq(loan.drawableFunds(),                0);
         assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(fundsAsset.balanceOf(address(this)), principalRequested);
+        assertEq(fundsAsset.balanceOf(address(this)), principalRequested_);
     }
 
     function test_drawdownFunds_lessThanDrawableFunds(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
-        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
-        uint256 drawdownAmount = _constrictToRange(drawdownAmount_, 0, principalRequested);
+        drawdownAmount_ = _constrictToRange(drawdownAmount_, 0, principalRequested_);
 
-        assertEq(loan.drawableFunds(),                principalRequested);
-        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested);
+        assertEq(loan.drawableFunds(),                principalRequested_);
+        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested_);
         assertEq(fundsAsset.balanceOf(address(this)), 0);
 
-        assertTrue(loan.drawdownFunds(drawdownAmount, address(this)));
+        assertTrue(loan.drawdownFunds(drawdownAmount_, address(this)));
 
-        assertEq(loan.drawableFunds(),                principalRequested - drawdownAmount);
-        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested - drawdownAmount);
-        assertEq(fundsAsset.balanceOf(address(this)), drawdownAmount);
+        assertEq(loan.drawableFunds(),                principalRequested_ - drawdownAmount_);
+        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested_ - drawdownAmount_);
+        assertEq(fundsAsset.balanceOf(address(this)), drawdownAmount_);
     }
 
     function test_drawdownFunds_greaterThanDrawableFunds(uint256 collateralRequired_, uint256 principalRequested_) external {
-        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
-        try loan.drawdownFunds(principalRequested + 1, address(this)) { assertTrue(false); } catch {}
+        try loan.drawdownFunds(principalRequested_ + 1, address(this)) { assertTrue(false); } catch {}
     }
 
     function test_drawdownFunds_multipleDrawdowns(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
-        (uint256 collateralRequired, uint256 principalRequested) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
-        uint256 drawdownAmount = _constrictToRange(drawdownAmount_, 0, principalRequested);
+        drawdownAmount_ = _constrictToRange(drawdownAmount_, 0, principalRequested_);
 
-        assertTrue(loan.drawdownFunds(drawdownAmount, address(this)));
+        assertTrue(loan.drawdownFunds(drawdownAmount_, address(this)));
 
-        assertEq(loan.drawableFunds(),                principalRequested - drawdownAmount);
-        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested - drawdownAmount);
-        assertEq(fundsAsset.balanceOf(address(this)), drawdownAmount);
-        
+        assertEq(loan.drawableFunds(),                principalRequested_ - drawdownAmount_);
+        assertEq(fundsAsset.balanceOf(address(loan)), principalRequested_ - drawdownAmount_);
+        assertEq(fundsAsset.balanceOf(address(this)), drawdownAmount_);
+
         // Assert failure mode for amount larger than drawableFunds
-        try loan.drawdownFunds(principalRequested - drawdownAmount + 1, address(this)) { assertTrue(false); } catch {}
+        try loan.drawdownFunds(principalRequested_ - drawdownAmount_ + 1, address(this)) { assertTrue(false); } catch {}
 
-        assertTrue(loan.drawdownFunds(principalRequested - drawdownAmount,     address(this)));
+        assertTrue(loan.drawdownFunds(principalRequested_ - drawdownAmount_, address(this)));
 
         assertEq(loan.drawableFunds(),                0);
         assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(fundsAsset.balanceOf(address(this)), principalRequested);
+        assertEq(fundsAsset.balanceOf(address(this)), principalRequested_);
     }
 
     // TODO see if there is a way to make the transfer fail in drawdown due to lack of funds
 
-    function testFail_drawdownFunds_collateralNotMaintained(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
-        uint256 collateralRequired = _constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
-        uint256 principalRequested = _constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
-        _createLoanAndLend(collateralRequired, principalRequested);
+    function testFail_drawdownFunds_collateralNotMaintained(uint256 collateralRequired_, uint256 principalRequested_) external {
+        collateralRequired_ = _constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
+        principalRequested_ = _constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
+        _createLoanAndLend(collateralRequired_, principalRequested_);
 
-        collateralAsset.mint(address(loan), collateralRequired - 1);
+        collateralAsset.mint(address(loan), collateralRequired_ - 1);
         loan.postCollateral();
 
-        assertEq(loan.collateral(), collateralRequired - 1);
+        assertEq(loan.collateral(), collateralRequired_ - 1);
 
         // _collateralMaintained condition after a drawdown of principalRequested is made
         assertTrue(loan.collateral() * loan.principalRequested() < loan.collateralRequired() * loan.principal());
-        require(loan.drawdownFunds(principalRequested, address(this)));
+
+        // try loan.drawdownFunds(principalRequested_, address(this)) { } catch { assertTrue(true); }
+
+        require(loan.drawdownFunds(principalRequested_, address(this)));
     }
 }

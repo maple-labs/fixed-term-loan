@@ -124,7 +124,7 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         uint256 paymentsRemaining_,
         uint256 lateFeeRate_
     )
-        external pure 
+        external pure
         returns (
             uint256 totalPrincipalAmount_,
             uint256 totalInterestFees_,
