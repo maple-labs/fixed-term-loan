@@ -6,7 +6,7 @@ import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
 import { LoanPrimitiveHarness } from "./harnesses/LoanPrimitiveHarness.sol";
 
-contract LoanPaymentBreakDownTest is DSTest {
+contract LoanPrimitivePaymentBreakDownTest is DSTest {
 
     LoanPrimitiveHarness loan;
 
@@ -262,7 +262,7 @@ contract LoanPaymentBreakDownTest is DSTest {
 
 }
 
-contract LoanFeeTest is DSTest {
+contract LoanPrimitiveFeeTest is DSTest {
 
     LoanPrimitiveHarness loan;
 
@@ -283,7 +283,7 @@ contract LoanFeeTest is DSTest {
 
 }
 
-contract LoanInstallmentTest is DSTest {
+contract LoanPrimitiveInstallmentTest is DSTest {
 
     LoanPrimitiveHarness loan;
 
@@ -299,7 +299,7 @@ contract LoanInstallmentTest is DSTest {
 
 }
 
-contract LoanScaledExponentTest is DSTest {
+contract LoanPrimitiveScaledExponentTest is DSTest {
 
     LoanPrimitiveHarness loan;
 
@@ -326,7 +326,7 @@ contract LoanScaledExponentTest is DSTest {
 
 }
 
-contract LoanLendTest is DSTest {
+contract LoanPrimitiveLendTest is DSTest {
 
     LoanPrimitiveHarness loan;
     MockERC20            token;
@@ -479,7 +479,7 @@ contract LoanLendTest is DSTest {
 
 }
 
-contract LendPostAndRemoveCollateralTest is DSTest {
+contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
     LoanPrimitiveHarness loan;
     MockERC20            collateralAsset;
@@ -723,7 +723,7 @@ contract LendPostAndRemoveCollateralTest is DSTest {
 
 }
 
-contract LoanDrawdownTest is DSTest {
+contract LoanPrimitiveDrawdownTest is DSTest {
     
     LoanPrimitiveHarness loan;
     MockERC20            collateralAsset;

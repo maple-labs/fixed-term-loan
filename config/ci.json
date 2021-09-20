@@ -1,17 +1,17 @@
 {
     "language": "Solidity",
     "sources": {
-        "contracts/Loan.sol": {
-            "urls": ["contracts/Loan.sol"]
+        "contracts/MapleLoan.sol": {
+            "urls": ["contracts/MapleLoan.sol"]
         },
         "contracts/MapleLoanFactory.sol": {
             "urls": ["contracts/MapleLoanFactory.sol"]
         },
-        "contracts/test/Loan.t.sol": {
-            "urls": ["contracts/test/Loan.t.sol"]
+        "contracts/test/LoanPrimitive.t.sol": {
+            "urls": ["contracts/test/LoanPrimitive.t.sol"]
         },
-        "contracts/test/LoanStories.t.sol": {
-            "urls": ["contracts/test/LoanStories.t.sol"]
+        "contracts/test/MapleLoanStories.t.sol": {
+            "urls": ["contracts/test/MapleLoanStories.t.sol"]
         },
         "contracts/test/MapleLoanFactory.t.sol": {
             "urls": ["contracts/test/MapleLoanFactory.t.sol"]

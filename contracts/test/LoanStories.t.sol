@@ -8,7 +8,7 @@ import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 import { Borrower } from "./accounts/Borrower.sol";
 import { Lender }   from "./accounts/Lender.sol";
 
-import { Loan } from "./../Loan.sol";
+import { MapleLoan } from "./../MapleLoan.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -44,7 +44,7 @@ contract LoanTest is DSTest {
 
         uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
 
-        Loan loan = new Loan(address(borrower), assets, parameters, requests);
+        MapleLoan loan = new MapleLoan(address(borrower), assets, parameters, requests);
 
         lender.erc20_transfer(address(token), address(loan), 1_000_000);
         assertTrue(lender.try_loan_lend(address(loan), address(lender)), "Cannot lend");
@@ -202,7 +202,7 @@ contract LoanTest is DSTest {
 
         uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
 
-        Loan loan = new Loan(address(borrower), assets, parameters, requests);
+        MapleLoan loan = new MapleLoan(address(borrower), assets, parameters, requests);
 
         lender.erc20_transfer(address(token), address(loan), 1_000_000);
         assertTrue(lender.try_loan_lend(address(loan), address(lender)), "Cannot lend");

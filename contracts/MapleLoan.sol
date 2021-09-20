@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { ILoan } from "./interfaces/ILoan.sol";
+import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
 
 import { LoanPrimitive } from "./LoanPrimitive.sol";
 
-// TODO: Move to mocks as MockLoanPrimitive when Loan becomes Maple-specific.
-
-contract Loan is ILoan, LoanPrimitive {
+contract MapleLoan is IMapleLoan, LoanPrimitive {
 
     constructor(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory amounts_) {
         _initialize(borrower_, assets_, parameters_, amounts_);
