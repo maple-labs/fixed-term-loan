@@ -6,6 +6,9 @@
         },
         "contracts/MapleLoanFactory.sol": {
             "urls": ["contracts/MapleLoanFactory.sol"]
+        },
+        "contracts/MapleLoanInitializer.sol": {
+            "urls": ["contracts/MapleLoanInitializer.sol"]
         }
     },
     "settings": {

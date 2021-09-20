@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
+import { Proxied } from "../modules/proxy-factory/contracts/Proxied.sol";
+
 import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
+import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
 
 import { LoanPrimitive } from "./LoanPrimitive.sol";
 
-contract MapleLoan is IMapleLoan, LoanPrimitive {
+/// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
+contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
 
-    constructor(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory amounts_) {
-        _initialize(borrower_, assets_, parameters_, amounts_);
-        emit Initialized(borrower_, assets_, parameters_, amounts_);
+    /********************************/
+    /*** Administrative Functions ***/
+    /********************************/
+
+    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
+        require(msg.sender == _borrower, "L:U:NOT_BORROWER");
+
+        IMapleLoanFactory(factory()).upgradeLoan(toVersion_, arguments_);
     }
 
     /************************/
@@ -23,6 +32,7 @@ contract MapleLoan is IMapleLoan, LoanPrimitive {
     function drawdownFunds(uint256 amount_, address destination_) external override {
         require(msg.sender == _borrower,               "L:DF:NOT_BORROWER");
         require(_drawdownFunds(amount_, destination_), "L:DF:FAILED");
+
         emit FundsDrawnDown(amount_);
     }
 
@@ -34,7 +44,7 @@ contract MapleLoan is IMapleLoan, LoanPrimitive {
             uint256 totalLateFees_
         )
     {
-        (totalPrincipalAmount_, totalInterestFees_, totalLateFees_) = _makePayments(uint256(1));
+        ( totalPrincipalAmount_, totalInterestFees_, totalLateFees_ ) = _makePayments(uint256(1));
         emit PaymentsMade(uint256(1), totalPrincipalAmount_, totalInterestFees_, totalLateFees_);
     }
 
@@ -46,13 +56,14 @@ contract MapleLoan is IMapleLoan, LoanPrimitive {
             uint256 totalLateFees_
         )
     {
-        (totalPrincipalAmount_, totalInterestFees_, totalLateFees_) = _makePayments(numberOfPayments_);
+        ( totalPrincipalAmount_, totalInterestFees_, totalLateFees_ ) = _makePayments(numberOfPayments_);
         emit PaymentsMade(numberOfPayments_, totalPrincipalAmount_, totalInterestFees_, totalLateFees_);
     }
 
     function removeCollateral(uint256 amount_, address destination_) external override {
         require(msg.sender == _borrower,                  "L:RC:NOT_BORROWER");
         require(_removeCollateral(amount_, destination_), "L:RC:FAILED");
+
         emit CollateralRemoved(amount_);
     }
 
@@ -66,14 +77,16 @@ contract MapleLoan is IMapleLoan, LoanPrimitive {
 
     function lend(address lender_) external override returns (uint256 amount_) {
         bool success;
-        (success, amount_) = _lend(lender_);
+        ( success, amount_ ) = _lend(lender_);
         require(success, "L:L:FAILED");
+
         emit Funded(lender_, _nextPaymentDueDate);
     }
 
     function claimFunds(uint256 amount_, address destination_) external override {
         require(msg.sender == _lender,              "L:CF:NOT_LENDER");
         require(_claimFunds(amount_, destination_), "L:CF:FAILED");
+
         emit FundsClaimed(amount_);
     }
 
@@ -84,8 +97,8 @@ contract MapleLoan is IMapleLoan, LoanPrimitive {
         require(msg.sender == _lender, "L:R:NOT_LENDER");
         require(_repossess(),          "L:R:FAILED");
 
-        (, collateralAssetAmount_) = _skim(_collateralAsset, collateralAssetDestination_);
-        (, fundsAssetAmount_) =      _skim(_fundsAsset, fundsAssetDestination_);
+        ( , collateralAssetAmount_ ) = _skim(_collateralAsset, collateralAssetDestination_);
+        ( , fundsAssetAmount_ ) =      _skim(_fundsAsset, fundsAssetDestination_);
 
         emit Repossessed(collateralAssetAmount_, fundsAssetAmount_);
     }
@@ -96,8 +109,9 @@ contract MapleLoan is IMapleLoan, LoanPrimitive {
 
     function skim(address asset_, address destination_) external override returns (uint256 amount_) {
         bool success;
-        (success, amount_) = _skim(asset_, destination_);
+        ( success, amount_ ) = _skim(asset_, destination_);
         require(success, "L:S:FAILED");
+
         emit Skimmed(asset_, destination_, amount_);
     }
 

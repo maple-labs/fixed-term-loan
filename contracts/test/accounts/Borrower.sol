@@ -20,8 +20,12 @@ contract Borrower is LoanUser {
         IMapleLoan(loan_).removeCollateral(amount_, destination_);
     }
 
-    function mapleLoanFactory_createLoan(address factory_, bytes calldata arguments_) external {
-        IMapleLoanFactory(factory_).createLoan(arguments_);
+    function loan_upgrade(address loan_, uint256 toVersion_, bytes calldata arguments_) external {
+        IMapleLoan(loan_).upgrade(toVersion_, arguments_);
+    }
+
+    function mapleLoanFactory_createLoan(address factory_, bytes calldata arguments_) external returns (address loan_) {
+        return IMapleLoanFactory(factory_).createLoan(arguments_);
     }
 
     /*********************/
@@ -34,6 +38,10 @@ contract Borrower is LoanUser {
 
     function try_loan_removeCollateral(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.removeCollateral.selector, amount_, destination_));
+    }
+
+    function try_loan_upgrade(address loan_, uint256 toVersion_, bytes calldata arguments_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.upgrade.selector, toVersion_, arguments_));
     }
 
     function try_mapleLoanFactory_createLoan(address factory_, bytes calldata arguments_) external returns (bool ok_) {

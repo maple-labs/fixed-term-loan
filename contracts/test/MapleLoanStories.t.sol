@@ -15,7 +15,15 @@ interface Hevm {
     function store(address,bytes32,bytes32) external;
 }
 
-contract LoanTest is DSTest {
+contract ConstructableMapleLoan is MapleLoan {
+
+    constructor(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory amounts_) {
+        _initialize(borrower_, assets_, parameters_, amounts_);
+    }
+
+}
+
+contract MapleLoanTest is DSTest {
 
     Hevm hevm;
 
@@ -44,7 +52,7 @@ contract LoanTest is DSTest {
 
         uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
 
-        MapleLoan loan = new MapleLoan(address(borrower), assets, parameters, requests);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, requests);
 
         lender.erc20_transfer(address(token), address(loan), 1_000_000);
         assertTrue(lender.try_loan_lend(address(loan), address(lender)), "Cannot lend");
@@ -59,7 +67,7 @@ contract LoanTest is DSTest {
         assertEq(loan.drawableFunds(), 0, "Different drawable funds");
 
         // Check details for upcoming payment #1
-        (uint256 principalPortion, uint256 interestPortion, uint256 lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( uint256 principalPortion, uint256 interestPortion, uint256 lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         158_527,   "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -75,7 +83,7 @@ contract LoanTest is DSTest {
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #2
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         161_697, "Different principal");
         assertEq(interestPortion,          16_829,  "Different interest");
@@ -91,7 +99,7 @@ contract LoanTest is DSTest {
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #3
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         164_930, "Different principal");
         assertEq(interestPortion,          13_595,  "Different interest");
@@ -111,7 +119,7 @@ contract LoanTest is DSTest {
         assertEq(loan.collateral(), 154_454, "Different collateral");
 
         // Check details for upcoming payment #4
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         168_229, "Different principal");
         assertEq(interestPortion,          10_296,  "Different interest");
@@ -137,7 +145,7 @@ contract LoanTest is DSTest {
         assertTrue(lender.try_loan_claimFunds(address(loan), 714103, address(lender)), "Cannot claim funds");
 
         // Check details for upcoming payment #5
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         171_592, "Different principal");
         assertEq(interestPortion,          6_932,   "Different interest");
@@ -153,7 +161,7 @@ contract LoanTest is DSTest {
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #6
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         175_025, "Different principal");
         assertEq(interestPortion,          3_500,   "Different interest");
@@ -202,7 +210,7 @@ contract LoanTest is DSTest {
 
         uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
 
-        MapleLoan loan = new MapleLoan(address(borrower), assets, parameters, requests);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, requests);
 
         lender.erc20_transfer(address(token), address(loan), 1_000_000);
         assertTrue(lender.try_loan_lend(address(loan), address(lender)), "Cannot lend");
@@ -217,7 +225,7 @@ contract LoanTest is DSTest {
         assertEq(loan.drawableFunds(), 0, "Different drawable funds");
 
         // Check details for upcoming payment #1
-        (uint256 principalPortion, uint256 interestPortion, uint256 lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( uint256 principalPortion, uint256 interestPortion, uint256 lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -233,7 +241,7 @@ contract LoanTest is DSTest {
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #2
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -249,7 +257,7 @@ contract LoanTest is DSTest {
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #3
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -265,7 +273,7 @@ contract LoanTest is DSTest {
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #4
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -291,7 +299,7 @@ contract LoanTest is DSTest {
         assertTrue(lender.try_loan_claimFunds(address(loan), 80000, address(lender)), "Cannot claim funds");
 
         // Check details for upcoming payment #5
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -307,7 +315,7 @@ contract LoanTest is DSTest {
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #6
-        (principalPortion, interestPortion, lateFeesPortion) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
         assertEq(principalPortion,         1_000_000, "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");

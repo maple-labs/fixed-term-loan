@@ -7,14 +7,17 @@
         "contracts/MapleLoanFactory.sol": {
             "urls": ["contracts/MapleLoanFactory.sol"]
         },
+        "contracts/MapleLoanInitializer.sol": {
+            "urls": ["contracts/MapleLoanInitializer.sol"]
+        },
         "contracts/test/LoanPrimitive.t.sol": {
             "urls": ["contracts/test/LoanPrimitive.t.sol"]
         },
-        "contracts/test/MapleLoanStories.t.sol": {
-            "urls": ["contracts/test/MapleLoanStories.t.sol"]
-        },
         "contracts/test/MapleLoanFactory.t.sol": {
             "urls": ["contracts/test/MapleLoanFactory.t.sol"]
+        },
+        "contracts/test/MapleLoanStories.t.sol": {
+            "urls": ["contracts/test/MapleLoanStories.t.sol"]
         }
     },
     "settings": {

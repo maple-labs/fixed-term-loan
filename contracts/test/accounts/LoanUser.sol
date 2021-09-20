@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { IMapleLoan } from "../../interfaces/IMapleLoan.sol";
-
 import { ERC20User } from "../../../modules/erc20/src/test/accounts/ERC20User.sol";
+
+import { IMapleLoan } from "../../interfaces/IMapleLoan.sol";
 
 contract LoanUser is ERC20User {
 

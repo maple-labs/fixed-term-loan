@@ -104,7 +104,7 @@ contract LoanPrimitive {
             uint256 totalLateFees_
         )
     {
-        (totalPrincipalAmount_, totalInterestFees_, totalLateFees_) = _getPaymentsBreakdown(
+        ( totalPrincipalAmount_, totalInterestFees_, totalLateFees_ ) = _getPaymentsBreakdown(
             numberOfPayments_,
             block.timestamp,
             _nextPaymentDueDate,
@@ -259,7 +259,7 @@ contract LoanPrimitive {
         uint256 lateFeeRate_
     ) internal pure virtual returns (uint256 principalAmount_, uint256 interestFee_, uint256 lateFee_) {
         // Get the expected principal and interest portions for the payment, as if it was on-time
-        (principalAmount_, interestFee_) = _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, paymentsRemaining_);
+        ( principalAmount_, interestFee_ ) = _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, paymentsRemaining_);
 
         if (paymentsRemaining_ == 1) {
             principalAmount_ = principal_;
@@ -294,7 +294,7 @@ contract LoanPrimitive {
 
         // For each payments (current and late)
         for (; numberOfPayments_ > uint256(0); --numberOfPayments_) {
-            (uint256 principalAmount, uint256 interestFee, uint256 lateFee) = _getPaymentBreakdown(
+            ( uint256 principalAmount, uint256 interestFee, uint256 lateFee ) = _getPaymentBreakdown(
                 currentTime_,
                 nextPaymentDueDate_,
                 paymentInterval_,
