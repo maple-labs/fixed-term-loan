@@ -227,7 +227,7 @@ contract LoanPrimitive {
         uint256 periodicRate = _getPeriodicFeeRate(interestRate_, paymentInterval_);
         uint256 raisedRate   = _scaledExponent(uint256(10_000 * 100) + periodicRate, totalPayments_, uint256(10_000 * 100));
 
-        // TODO: Check if raisedRate can be <= 10_000 * 100
+        if (raisedRate <= uint256(10_000 * 100)) return ((principal_ - endingPrincipal_) / totalPayments_, 0);
 
         uint256 total =
             (

@@ -5,6 +5,8 @@ import { LoanPrimitive } from "../../LoanPrimitive.sol";
 
 contract LoanPrimitiveHarness is LoanPrimitive {
 
+    // TODO: Sort alphabetically
+
     /**************************/
     /*** Mutating Functions ***/
     /**************************/
@@ -33,6 +35,14 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _skim(asset_, destination_);
     }
 
+    function makePayments(uint256 numberOfPayments_) external returns (uint256 principal_, uint256 interest_, uint256 lateFees_) {
+        return _makePayments(numberOfPayments_);
+    }
+
+    function repossess() external returns (bool success_) {
+        return _repossess();
+    }
+
     /***********************/
     /*** View Functions ****/
     /***********************/
@@ -41,12 +51,28 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _collateral;
     }
 
+    function gracePeriod() external view returns (uint256 gracePeriod_) {
+        return _gracePeriod;
+    }
+
     function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
         return _getUnaccountedAmount(asset_);
     }
 
     function collateralRequired() external view returns (uint256 collateralRequired_) {
         return _collateralRequired;
+    }
+
+    function claimableFunds() external view returns (uint256 claimableFunds_) {
+        return _claimableFunds;
+    }
+
+    function interestRate() external view returns (uint256 interestRate_) {
+        return _interestRate;
+    }
+
+    function lateFeeRate() external view returns (uint256 lateFeeRate_) {
+        return _lateFeeRate;
     }
 
     function getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) external pure returns (uint256 fee_) {
@@ -69,12 +95,20 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _paymentInterval;
     }
 
+    function paymentsRemaining() external view returns (uint256 paymentsRemaining_) {
+        return _paymentsRemaining;
+    }
+
     function principal() external view returns (uint256 principal_) {
         return _principal;
     }
 
     function principalRequested() external view returns (uint256 principalRequested_) {
         return _principalRequested;
+    }
+
+    function endingPrincipal() external view returns (uint256 endingPrincipal_) {
+        return _endingPrincipal;
     }
 
     function getInstallment(

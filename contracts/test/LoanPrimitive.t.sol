@@ -6,6 +6,10 @@ import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
 import { LoanPrimitiveHarness } from "./harnesses/LoanPrimitiveHarness.sol";
 
+interface Hevm {
+    function warp(uint256) external;
+}
+
 // TODO: user `contract-test-utils`
 
 contract LoanPrimitivePaymentBreakDownTest is DSTest {
@@ -886,5 +890,121 @@ contract LoanPrimitiveDrawdownTest is DSTest {
         // try loan.drawdownFunds(principalRequested_, address(this)) { } catch { assertTrue(true); }
 
         require(loan.drawdownFunds(principalRequested_, address(this)));
+    }
+}
+
+contract LoanPrimitiveRepossessTest is DSTest {
+
+    Hevm hevm;
+
+    LoanPrimitiveHarness loan;
+    MockERC20            collateralAsset;
+    MockERC20            fundsAsset;
+
+    uint256 start;
+
+    uint256 MAX_TIME = 10_000 * 365 days;  // Assumed reasonable upper limit for payment intervals and grace periods
+
+    function setUp() external {
+        hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))); 
+
+        collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        fundsAsset      = new MockERC20("Funds Asset",      "FA", 0);
+        loan            = new LoanPrimitiveHarness();
+
+        start = block.timestamp;
+    }
+
+    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
+        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
+    }
+
+    function test_repossess(uint256 gracePeriod_, uint256 paymentInterval_) external {
+        /*******************/
+        /*** Create Loan ***/
+        /*******************/
+
+        // Not fuzzing since values are just set to zero
+        uint256 collateralRequired =   300_000;
+        uint256 principalRequested = 1_000_000;
+
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            principalRequested,
+            _constrictToRange(gracePeriod_, 0, MAX_TIME),
+            uint256(1_200 * 100),
+            uint256(1_100 * 100),
+            _constrictToRange(paymentInterval_, 0, MAX_TIME),
+            uint256(6)
+        ];
+
+        uint256[2] memory requests = [collateralRequired, principalRequested];
+
+        loan.initialize(address(1), assets, parameters, requests);
+
+        /*********************************/
+        /*** Lend and Partial Drawdown ***/
+        /*********************************/
+
+        fundsAsset.mint(address(loan), principalRequested);
+        loan.lend(address(this));
+
+        collateralAsset.mint(address(loan), collateralRequired);
+        loan.postCollateral();
+
+        loan.drawdownFunds(400_000, address(this));  // Drawdown 400k, leaving 600k as drawable funds
+
+        /********************/
+        /*** Make Payment ***/
+        /********************/
+
+        ( uint256 principal, uint256 interest, uint256 lateFees ) = loan.getPaymentsBreakdown(
+            1, 
+            block.timestamp, 
+            loan.nextPaymentDueDate(), 
+            loan.paymentInterval(), 
+            loan.principal(), 
+            loan.endingPrincipal(), 
+            loan.interestRate(), 
+            loan.paymentsRemaining(), 
+            loan.lateFeeRate()
+        );
+
+        uint256 totalPayment = principal + interest + lateFees;
+
+        fundsAsset.mint(address(loan), totalPayment);
+
+        hevm.warp(loan.nextPaymentDueDate());
+
+        loan.makePayments(1);
+
+        /*****************/
+        /*** Repossess ***/
+        /*****************/
+
+        assertEq(loan.drawableFunds(),      600_000);      
+        assertEq(loan.claimableFunds(),     totalPayment);     
+        assertEq(loan.collateral(),         300_000);         
+        assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 2);  // Made a payment, so paymentInterval moved
+        assertEq(loan.principal(),          1_000_000);          
+        assertEq(loan.paymentsRemaining(),  5);  
+
+        assertTrue(!loan.repossess(), "Should fail: not past grace period");
+
+        hevm.warp(loan.nextPaymentDueDate() + loan.gracePeriod()); // Warp to timestamp of payment due date plus grace period
+
+        assertTrue(!loan.repossess(), "Should fail: not past grace period");
+
+        hevm.warp(loan.nextPaymentDueDate() + loan.gracePeriod() + 1); // Warp to one second past grace period
+
+        assertTrue(loan.repossess(), "Should pass: past grace period");
+
+        assertEq(loan.drawableFunds(),      0);      
+        assertEq(loan.claimableFunds(),     0);     
+        assertEq(loan.collateral(),         0);         
+        assertEq(loan.nextPaymentDueDate(), 0);
+        assertEq(loan.principal(),          0);          
+        assertEq(loan.paymentsRemaining(),  0);  
     }
 }
