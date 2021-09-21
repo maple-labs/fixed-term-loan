@@ -891,6 +891,7 @@ contract LoanPrimitiveDrawdownTest is DSTest {
 
         require(loan.drawdownFunds(principalRequested_, address(this)));
     }
+
 }
 
 contract LoanPrimitiveRepossessTest is DSTest {
@@ -1007,4 +1008,165 @@ contract LoanPrimitiveRepossessTest is DSTest {
         assertEq(loan.principal(),          0);          
         assertEq(loan.paymentsRemaining(),  0);  
     }
+
+}
+
+contract LoanPrimitiveReturnFundsTest is DSTest {
+
+    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
+        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
+    }
+
+    function test_returnFunds(uint256 fundsToReturn_) external {
+        fundsToReturn_ = _constrictToRange(fundsToReturn_, 0, type(uint256).max >> 3);
+
+        LoanPrimitiveHarness loan            = new LoanPrimitiveHarness();
+        MockERC20            collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        MockERC20            fundsAsset      = new MockERC20("Funds Asset", "FA", 0);
+
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(1),
+            uint256(1),
+            uint256(1),
+            uint256(1),
+            uint256(1),
+            uint256(1)
+        ];
+
+        uint256[2] memory requests = [uint256(1), uint256(1)];
+
+        loan.initialize(address(1), assets, parameters, requests);
+
+        assertEq(loan.returnFunds(), 0);
+
+        assertEq(loan.drawableFunds(), uint256(0));
+
+        fundsAsset.mint(address(loan), fundsToReturn_);
+
+        assertEq(loan.returnFunds(),   fundsToReturn_);
+        assertEq(loan.drawableFunds(), fundsToReturn_);
+
+        fundsAsset.mint(address(loan), fundsToReturn_);
+
+        assertEq(loan.returnFunds(),   fundsToReturn_);
+        assertEq(loan.drawableFunds(), 2 * fundsToReturn_);
+
+        collateralAsset.mint(address(loan), fundsToReturn_);
+
+        assertEq(loan.returnFunds(),   0);
+        assertEq(loan.drawableFunds(), 2 * fundsToReturn_);
+    }
+
+}
+
+contract LoanPrimitiveClaimFundsTest is DSTest {
+
+    LoanPrimitiveHarness loan;
+    MockERC20            collateralAsset;
+    MockERC20            fundsAsset;
+
+    function setUp() external {
+        collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        fundsAsset      = new MockERC20("Funds Asset",      "FA", 0);
+        loan            = new LoanPrimitiveHarness();
+    }
+
+    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
+        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
+    }
+
+    function test_claimFunds(uint256 fundingAmount_, uint256 amountToClaim_) external {
+        // `amountToClaim_` is constrict to half the constricted `fundingAmount_`
+        fundingAmount_ = _constrictToRange(fundingAmount_, 2, type(uint256).max >> 10);
+        amountToClaim_ = _constrictToRange(amountToClaim_, 1, fundingAmount_ / 2);
+
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        // 0% interest loan with 2 payments, so half of principal paid in each installment
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(1),
+            uint256(0),
+            uint256(0),
+            uint256(100),
+            uint256(2)
+        ];
+
+        uint256[2] memory requests = [uint256(0), uint256(fundingAmount_)];
+
+        loan.initialize(address(1), assets, parameters, requests);
+        fundsAsset.mint(address(loan), fundingAmount_);
+        loan.lend(address(this));
+        loan.makePayments(1);
+
+        // Half the `fundingAmount_` should be claimable, and all `fundingAmount_` should still be in the contract
+        assertEq(loan.claimableFunds(),               fundingAmount_ / 2);
+        assertEq(fundsAsset.balanceOf(address(loan)), fundingAmount_);
+
+        loan.claimFunds(amountToClaim_, address(this));
+
+        uint256 newClaimableAmount =  (fundingAmount_ / 2) - amountToClaim_;
+
+        assertEq(loan.claimableFunds(),               newClaimableAmount);
+        assertEq(fundsAsset.balanceOf(address(loan)), fundingAmount_ - amountToClaim_);
+        assertEq(fundsAsset.balanceOf(address(this)), amountToClaim_);
+
+        loan.claimFunds(newClaimableAmount, address(this));
+
+        assertEq(loan.claimableFunds(),               0);
+        assertEq(fundsAsset.balanceOf(address(loan)), fundingAmount_ - (amountToClaim_ + newClaimableAmount));
+        assertEq(fundsAsset.balanceOf(address(this)), amountToClaim_ + newClaimableAmount);
+    }
+
+    function testFail_claimFunds_noClaimableFunds() external {
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(1),
+            uint256(0),
+            uint256(0),
+            uint256(100),
+            uint256(2)
+        ];
+
+        uint256[2] memory requests = [uint256(0), uint256(10_000)];
+
+        loan.initialize(address(1), assets, parameters, requests);
+        fundsAsset.mint(address(loan), 10_000);
+        loan.lend(address(this));
+
+        assertEq(loan.claimableFunds(),               0);
+        assertEq(fundsAsset.balanceOf(address(loan)), 10_000);
+
+        loan.claimFunds(1, address(this));
+    }
+
+    function testFail_claimFunds_insufficientClaimableFunds() external {
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(1),
+            uint256(0),
+            uint256(0),
+            uint256(100),
+            uint256(2)
+        ];
+
+        uint256[2] memory requests = [uint256(0), uint256(10_000)];
+
+        loan.initialize(address(1), assets, parameters, requests);
+        fundsAsset.mint(address(loan), 10_000);
+        loan.lend(address(this));
+        loan.makePayments(1);
+
+        assertEq(loan.claimableFunds(), 5_000);
+        assertEq(fundsAsset.balanceOf(address(loan)), 10_000);
+
+        loan.claimFunds(5_001, address(this));
+    }
+
 }

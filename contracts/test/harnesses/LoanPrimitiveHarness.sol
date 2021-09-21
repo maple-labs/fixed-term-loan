@@ -43,6 +43,10 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _repossess();
     }
 
+    function returnFunds() external returns (uint256 amount_) {
+        return _returnFunds();
+    }
+
     /***********************/
     /*** View Functions ****/
     /***********************/
