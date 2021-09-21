@@ -9,16 +9,26 @@ import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
 import { LoanPrimitive } from "./LoanPrimitive.sol";
 
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
-contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
+contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
 
     /********************************/
     /*** Administrative Functions ***/
     /********************************/
 
-    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
-        require(msg.sender == _borrower, "L:U:NOT_BORROWER");
+    function migrate(address migrator_, bytes calldata arguments_) external override {
+        require(msg.sender == _factory(),        "ML:M:NOT_FACTORY");
+        require(_migrate(migrator_, arguments_), "ML:M:FAILED");
+    }
 
-        IMapleLoanFactory(factory()).upgradeLoan(toVersion_, arguments_);
+    function setImplementation(address newImplementation_) external override {
+        require(msg.sender == _factory(),               "ML:SI:NOT_FACTORY");
+        require(_setImplementation(newImplementation_), "ML:SI:FAILED");
+    }
+
+    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
+        require(msg.sender == _borrower, "ML:U:NOT_BORROWER");
+
+        IMapleLoanFactory(_factory()).upgradeLoan(toVersion_, arguments_);
     }
 
     /************************/
@@ -30,8 +40,8 @@ contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override {
-        require(msg.sender == _borrower,               "L:DF:NOT_BORROWER");
-        require(_drawdownFunds(amount_, destination_), "L:DF:FAILED");
+        require(msg.sender == _borrower,               "ML:DF:NOT_BORROWER");
+        require(_drawdownFunds(amount_, destination_), "ML:DF:FAILED");
 
         emit FundsDrawnDown(amount_);
     }
@@ -61,8 +71,8 @@ contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
     }
 
     function removeCollateral(uint256 amount_, address destination_) external override {
-        require(msg.sender == _borrower,                  "L:RC:NOT_BORROWER");
-        require(_removeCollateral(amount_, destination_), "L:RC:FAILED");
+        require(msg.sender == _borrower,                  "ML:RC:NOT_BORROWER");
+        require(_removeCollateral(amount_, destination_), "ML:RC:FAILED");
 
         emit CollateralRemoved(amount_);
     }
@@ -78,14 +88,14 @@ contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
     function lend(address lender_) external override returns (uint256 amount_) {
         bool success;
         ( success, amount_ ) = _lend(lender_);
-        require(success, "L:L:FAILED");
+        require(success, "ML:L:FAILED");
 
         emit Funded(lender_, _nextPaymentDueDate);
     }
 
     function claimFunds(uint256 amount_, address destination_) external override {
-        require(msg.sender == _lender,              "L:CF:NOT_LENDER");
-        require(_claimFunds(amount_, destination_), "L:CF:FAILED");
+        require(msg.sender == _lender,              "ML:CF:NOT_LENDER");
+        require(_claimFunds(amount_, destination_), "ML:CF:FAILED");
 
         emit FundsClaimed(amount_);
     }
@@ -94,8 +104,8 @@ contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
         external override
         returns (uint256 collateralAssetAmount_, uint256 fundsAssetAmount_)
     {
-        require(msg.sender == _lender, "L:R:NOT_LENDER");
-        require(_repossess(),          "L:R:FAILED");
+        require(msg.sender == _lender, "ML:R:NOT_LENDER");
+        require(_repossess(),          "ML:R:FAILED");
 
         ( , collateralAssetAmount_ ) = _skim(_collateralAsset, collateralAssetDestination_);
         ( , fundsAssetAmount_ ) =      _skim(_fundsAsset, fundsAssetDestination_);
@@ -110,7 +120,7 @@ contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
     function skim(address asset_, address destination_) external override returns (uint256 amount_) {
         bool success;
         ( success, amount_ ) = _skim(asset_, destination_);
-        require(success, "L:S:FAILED");
+        require(success, "ML:S:FAILED");
 
         emit Skimmed(asset_, destination_, amount_);
     }
@@ -118,6 +128,10 @@ contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
     /************************/
     /*** Getter Functions ***/
     /************************/
+
+    function factory() public view override returns (address factory_) {
+        return _factory();
+    }
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments_)
         external view override
@@ -134,6 +148,10 @@ contract MapleLoan is Proxied, IMapleLoan, LoanPrimitive {
             _paymentsRemaining,
             _lateFeeRate
         );
+    }
+
+    function implementation() public view override returns (address implementation_) {
+        return _implementation();
     }
 
     /***************************************/
