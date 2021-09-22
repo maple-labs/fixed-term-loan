@@ -32,7 +32,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    10_000);
         assertEq(totalLateFees,        0);
     }
@@ -49,7 +49,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    10_000);
         assertEq(totalLateFees,        0);
     }
@@ -66,7 +66,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    20_000);
         assertEq(totalLateFees,        83);
     }
@@ -83,7 +83,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    30_000);
         assertEq(totalLateFees,        166);
     }
@@ -100,7 +100,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    40_000);
         assertEq(totalLateFees,        250);
     }
@@ -117,7 +117,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    50_000);
         assertEq(totalLateFees,        333);
     }
@@ -135,7 +135,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    10_000);
         assertEq(totalLateFees,        0);
     }
@@ -153,7 +153,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 158_489);
+        assertEq(totalPrincipalAmount, 158_487);
         assertEq(totalInterestFees,    19_211);
         assertEq(totalLateFees,        0);
     }
@@ -171,7 +171,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    10_000);
         assertEq(totalLateFees,        0);
     }
@@ -189,7 +189,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 158_489);
+        assertEq(totalPrincipalAmount, 158_487);
         assertEq(totalInterestFees,    19_211);
         assertEq(totalLateFees,        0);
     }
@@ -207,7 +207,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    20_000);
         assertEq(totalLateFees,        83);
     }
@@ -225,7 +225,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 158_489);
+        assertEq(totalPrincipalAmount, 158_487);
         assertEq(totalInterestFees,    29_211);
         assertEq(totalLateFees,        83);
     }
@@ -243,7 +243,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 78_850);
+        assertEq(totalPrincipalAmount, 78_849);
         assertEq(totalInterestFees,    30_000);
         assertEq(totalLateFees,        166);
     }
@@ -261,7 +261,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
             100_000
         );
 
-        assertEq(totalPrincipalAmount, 158_489);
+        assertEq(totalPrincipalAmount, 158_487);
         assertEq(totalInterestFees,    48_422);
         assertEq(totalLateFees,        242);
     }
@@ -300,7 +300,7 @@ contract LoanPrimitiveInstallmentTest is DSTest {
     function test_getInstallment() external {
         ( uint256 principalAmount, uint256 interestAmount ) = loan.getInstallment(1_000_000, 0, 120_000, 365 days / 12, 12);
 
-        assertEq(principalAmount, 78_850);
+        assertEq(principalAmount, 78_849);
         assertEq(interestAmount,  10_000);
     }
 
@@ -314,7 +314,7 @@ contract LoanPrimitiveScaledExponentTest is DSTest {
         loan = new LoanPrimitiveHarness();
     }
 
-    function test_scaledExponent() external {
+    function test_scaledExponent_setOne() external {
         assertEq(loan.scaledExponent(10_000, 0, 10_000), 10_000);
         assertEq(loan.scaledExponent(10_000, 1, 10_000), 10_000);
         assertEq(loan.scaledExponent(10_000, 2, 10_000), 10_000);
@@ -329,6 +329,20 @@ contract LoanPrimitiveScaledExponentTest is DSTest {
         assertEq(loan.scaledExponent(10_100, 1, 10_000), 10_100);
         assertEq(loan.scaledExponent(10_100, 2, 10_000), 10_201);
         assertEq(loan.scaledExponent(10_100, 3, 10_000), 10_303);
+    }
+
+    function test_scaledExponent_setTwo() external {
+        assertEq(loan.scaledExponent(12340, 18, 10), 440223147468745562613840184469885558370587691142634536960);
+        assertEq(loan.scaledExponent(12340, 19, 10), 543235363976432024265478787635838779029305210870011018608640);
+
+        assertEq(loan.scaledExponent(uint256(2 * 10_000 * 100), 100, uint256(10_000 * 100)), uint256(1267650600228229401496703205376 * 10_000 * 100));
+        assertEq(loan.scaledExponent(uint256(2 * 10_000 * 100), 120, uint256(10_000 * 100)), uint256(1329227995784915872903807060280344576 * 10_000 * 100));
+        assertEq(loan.scaledExponent(uint256(2 * 10_000 * 100), 140, uint256(10_000 * 100)), uint256(1393796574908163946345982392040522594123776 * 10_000 * 100));
+        assertEq(loan.scaledExponent(uint256(2 * 10_000 * 100), 160, uint256(10_000 * 100)), uint256(1461501637330902918203684832716283019655932542976 * 10_000 * 100));
+        assertEq(loan.scaledExponent(uint256(2 * 10_000 * 100), 168, uint256(10_000 * 100)), uint256(374144419156711147060143317175368453031918731001856 * 10_000 * 100));
+        assertEq(loan.scaledExponent(uint256(2 * 10_000 * 100), 180, uint256(10_000 * 100)), uint256(1532495540865888858358347027150309183618739122183602176 * 10_000 * 100));
+        assertEq(loan.scaledExponent(uint256(2 * 10_000 * 100), 200, uint256(10_000 * 100)), uint256(1606938044258990275541962092341162602522202993782792835301376 * 10_000 * 100));
+        assertEq(loan.scaledExponent(uint256(2 * 10_000 * 100), 216, uint256(10_000 * 100)), uint256(105312291668557186697918027683670432318895095400549111254310977536 * 10_000 * 100));
     }
 
 }
@@ -728,7 +742,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 }
 
 contract LoanPrimitiveDrawdownTest is DSTest {
-    
+
     LoanPrimitiveHarness loan;
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
@@ -907,7 +921,7 @@ contract LoanPrimitiveRepossessTest is DSTest {
     uint256 MAX_TIME = 10_000 * 365 days;  // Assumed reasonable upper limit for payment intervals and grace periods
 
     function setUp() external {
-        hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))); 
+        hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
 
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 0);
@@ -961,14 +975,14 @@ contract LoanPrimitiveRepossessTest is DSTest {
         /********************/
 
         ( uint256 principal, uint256 interest, uint256 lateFees ) = loan.getPaymentsBreakdown(
-            1, 
-            block.timestamp, 
-            loan.nextPaymentDueDate(), 
-            loan.paymentInterval(), 
-            loan.principal(), 
-            loan.endingPrincipal(), 
-            loan.interestRate(), 
-            loan.paymentsRemaining(), 
+            1,
+            block.timestamp,
+            loan.nextPaymentDueDate(),
+            loan.paymentInterval(),
+            loan.principal(),
+            loan.endingPrincipal(),
+            loan.interestRate(),
+            loan.paymentsRemaining(),
             loan.lateFeeRate()
         );
 
@@ -984,12 +998,12 @@ contract LoanPrimitiveRepossessTest is DSTest {
         /*** Repossess ***/
         /*****************/
 
-        assertEq(loan.drawableFunds(),      600_000);      
-        assertEq(loan.claimableFunds(),     totalPayment);     
-        assertEq(loan.collateral(),         300_000);         
+        assertEq(loan.drawableFunds(),      600_000);
+        assertEq(loan.claimableFunds(),     totalPayment);
+        assertEq(loan.collateral(),         300_000);
         assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 2);  // Made a payment, so paymentInterval moved
-        assertEq(loan.principal(),          1_000_000);          
-        assertEq(loan.paymentsRemaining(),  5);  
+        assertEq(loan.principal(),          1_000_000);
+        assertEq(loan.paymentsRemaining(),  5);
 
         assertTrue(!loan.repossess(), "Should fail: not past grace period");
 
@@ -1001,12 +1015,12 @@ contract LoanPrimitiveRepossessTest is DSTest {
 
         assertTrue(loan.repossess(), "Should pass: past grace period");
 
-        assertEq(loan.drawableFunds(),      0);      
-        assertEq(loan.claimableFunds(),     0);     
-        assertEq(loan.collateral(),         0);         
+        assertEq(loan.drawableFunds(),      0);
+        assertEq(loan.claimableFunds(),     0);
+        assertEq(loan.collateral(),         0);
         assertEq(loan.nextPaymentDueDate(), 0);
-        assertEq(loan.principal(),          0);          
-        assertEq(loan.paymentsRemaining(),  0);  
+        assertEq(loan.principal(),          0);
+        assertEq(loan.paymentsRemaining(),  0);
     }
 
 }

@@ -186,7 +186,7 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _getPeriodicFeeRate(feeRate_, interval_);
     }
 
-    function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 scaledExponent_) {
+    function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 result_) {
         return _scaledExponent(base_, exponent_, one_);
     }
 

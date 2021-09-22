@@ -42,18 +42,18 @@ contract LoanPrimitive {
     /**
      *  @dev   Initializes the loan.
      *  @param borrower_   The address of the borrower.
-     *  @param assets_     Array of asset addresses. 
-     *                         [0]: collateralAsset, 
+     *  @param assets_     Array of asset addresses.
+     *                         [0]: collateralAsset,
      *                         [1]: fundsAsset.
-     *  @param parameters_ Array of loan parameters: 
-     *                         [0]: endingPrincipal, 
-     *                         [1]: gracePeriod, 
-     *                         [2]: interestRate, 
-     *                         [3]: lateFeeRate, 
-     *                         [4]: paymentInterval, 
+     *  @param parameters_ Array of loan parameters:
+     *                         [0]: endingPrincipal,
+     *                         [1]: gracePeriod,
+     *                         [2]: interestRate,
+     *                         [3]: lateFeeRate,
+     *                         [4]: paymentInterval,
      *                         [5]: paymentsRemaining.
-     *  @param amounts_   Requested amounts: 
-     *                         [0]: collateralRequired, 
+     *  @param amounts_   Requested amounts:
+     *                         [0]: collateralRequired,
      *                         [1]: principalRequested.
      */
     function _initialize(
@@ -96,7 +96,8 @@ contract LoanPrimitive {
     }
 
     /// @dev Registers the delivery of an amount of funds to make `numberOfPayments_` payments.
-    function _makePayments(uint256 numberOfPayments_) internal virtual
+    function _makePayments(uint256 numberOfPayments_)
+        internal virtual
         returns (
             uint256 totalPrincipal_,
             uint256 totalInterest_,
@@ -318,11 +319,39 @@ contract LoanPrimitive {
         return (feeRate_ * interval_) / uint256(365 days);
     }
 
-    /// @dev Returns exponentiation of a scaled base value.
-    function _scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) internal pure returns (uint256 scaledExponent_) {
-        return exponent_ == uint256(0)
-            ? one_
-            : (base_ * _scaledExponent(base_, exponent_ - uint256(1), one_)) / one_;
+    /**
+     *  @dev Returns exponentiation of a scaled base value.
+     *
+     *       Walk through example:
+     *           base_         |  exponent_  |  one_  |  result_
+     *           3_00          |  18         |  1_00  |  0_00
+     *       A   3_00          |  18         |  1_00  |  1_00
+     *       B   3_00          |  9          |  1_00  |  1_00
+     *       C   9_00          |  9          |  1_00  |  1_00
+     *       D   9_00          |  9          |  1_00  |  9_00
+     *       B   9_00          |  4          |  1_00  |  9_00
+     *       C   81_00         |  4          |  1_00  |  9_00
+     *       B   81_00         |  2          |  1_00  |  9_00
+     *       C   6_561_00      |  2          |  1_00  |  9_00
+     *       B   6_561_00      |  1          |  1_00  |  9_00
+     *       C   43_046_721_00 |  1          |  1_00  |  9_00
+     *       D   43_046_721_00 |  1          |  1_00  |  387_420_489_00
+     *       B   43_046_721_00 |  0          |  1_00  |  387_420_489_00
+     */
+    function _scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) internal pure returns (uint256 result_) {
+        // If exponent_ is odd, set result_ to base_, else set to one_
+        result_ = exponent_ & uint256(1) != uint256(0) ? base_ : one_;       // A
+
+        // Divide exponent_ by 2 (overwriting itself) and proceed if not zero
+        while ((exponent_ >>= uint256(1)) != uint256(0)) {                   // B
+            base_ = (base_ * base_) / one_;                                  // C
+
+            // If exponent_ is even, go back to top
+            if (exponent_ & uint256(1) == uint256(0)) continue;
+
+            // If exponent_ is odd, multiply result_ is multiplied by base_
+            result_ = (result_ * base_) / one_;                              // D
+        }
     }
 
 }

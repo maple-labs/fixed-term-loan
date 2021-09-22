@@ -55,13 +55,14 @@ contract MapleLoanTest is DSTest {
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, requests);
 
         lender.erc20_transfer(address(token), address(loan), 1_000_000);
+
         assertTrue(lender.try_loan_lend(address(loan), address(lender)), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 
         borrower.erc20_transfer(address(token), address(loan), 300_000);
-        assertTrue(borrower.try_loan_postCollateral(address(loan)), "Cannot post");
 
+        assertTrue(borrower.try_loan_postCollateral(address(loan)),                              "Cannot post");
         assertTrue(borrower.try_loan_drawdownFunds(address(loan), 1_000_000, address(borrower)), "Cannot drawdown");
 
         assertEq(loan.drawableFunds(), 0, "Different drawable funds");
@@ -69,7 +70,7 @@ contract MapleLoanTest is DSTest {
         // Check details for upcoming payment #1
         ( uint256 principalPortion, uint256 interestPortion, uint256 lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
-        assertEq(principalPortion,         158_527,   "Different principal");
+        assertEq(principalPortion,         158_526,   "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
         assertEq(lateFeesPortion,          0,         "Different late fees");
         assertEq(loan.paymentsRemaining(), 6,         "Different payments remaining");
@@ -79,7 +80,8 @@ contract MapleLoanTest is DSTest {
         hevm.warp(loan.nextPaymentDueDate() - 1);
 
         // Make payment #1
-        borrower.erc20_transfer(address(token), address(loan), 178_527);
+        borrower.erc20_transfer(address(token), address(loan), 178_526);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #2
@@ -89,13 +91,14 @@ contract MapleLoanTest is DSTest {
         assertEq(interestPortion,          16_829,  "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 5,       "Different payments remaining");
-        assertEq(loan.principal(),         841_473, "Different payments remaining");
+        assertEq(loan.principal(),         841_474, "Different payments remaining");
 
         // Warp to 1 second before payment #2 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
 
         // Make payment #2
         borrower.erc20_transfer(address(token), address(loan), 178_526);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #3
@@ -105,18 +108,20 @@ contract MapleLoanTest is DSTest {
         assertEq(interestPortion,          13_595,  "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 4,       "Different payments remaining");
-        assertEq(loan.principal(),         679_776, "Different payments remaining");
+        assertEq(loan.principal(),         679_777, "Different payments remaining");
 
         // Warp to 1 second before payment #3 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
 
         // Make payment #3
         borrower.erc20_transfer(address(token), address(loan), 178_525);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Remove some collateral
-        assertTrue(borrower.try_loan_removeCollateral(address(loan), 145_546, address(borrower)), "Cannot remove collateral");
-        assertEq(loan.collateral(), 154_454, "Different collateral");
+        assertTrue(borrower.try_loan_removeCollateral(address(loan), 145_545, address(borrower)), "Cannot remove collateral");
+
+        assertEq(loan.collateral(), 154_455, "Different collateral");
 
         // Check details for upcoming payment #4
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -125,39 +130,45 @@ contract MapleLoanTest is DSTest {
         assertEq(interestPortion,          10_296,  "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 3,       "Different payments remaining");
-        assertEq(loan.principal(),         514_846, "Different payments remaining");
+        assertEq(loan.principal(),         514_847, "Different payments remaining");
 
         // Warp to 1 second before payment #4 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
 
         // Make payment #4
         borrower.erc20_transfer(address(token), address(loan), 178_525);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Return some funds and remove some collateral
         borrower.erc20_transfer(address(token), address(loan), 150_000);
+
         assertTrue(borrower.try_loan_returnFunds(address(loan)), "Cannot return funds");
+
         assertEq(loan.drawableFunds(), 150_000, "Different drawable funds");
+
         assertTrue(borrower.try_loan_removeCollateral(address(loan), 85_059, address(borrower)), "Cannot remove collateral");
-        assertEq(loan.collateral(), 69_395, "Different collateral");
+
+        assertEq(loan.collateral(), 69_396, "Different collateral");
 
         // Claim loan proceeds thus far
-        assertTrue(lender.try_loan_claimFunds(address(loan), 714103, address(lender)), "Cannot claim funds");
+        assertTrue(lender.try_loan_claimFunds(address(loan), 714_102, address(lender)), "Cannot claim funds");
 
         // Check details for upcoming payment #5
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
-        assertEq(principalPortion,         171_592, "Different principal");
+        assertEq(principalPortion,         171_593, "Different principal");
         assertEq(interestPortion,          6_932,   "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 2,       "Different payments remaining");
-        assertEq(loan.principal(),         346_617, "Different payments remaining");
+        assertEq(loan.principal(),         346_618, "Different payments remaining");
 
         // Warp to 1 second before payment #5 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
 
         // Make payment #5
-        borrower.erc20_transfer(address(token), address(loan), 178_524);
+        borrower.erc20_transfer(address(token), address(loan), 178_525);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #6
@@ -174,6 +185,7 @@ contract MapleLoanTest is DSTest {
 
         // Make payment #6
         borrower.erc20_transfer(address(token), address(loan), 178_525);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment which should not be necessary
@@ -181,8 +193,9 @@ contract MapleLoanTest is DSTest {
         assertEq(loan.principal(),         0, "Different payments remaining");
 
         // Remove rest of available funds and collateral
-        assertTrue(borrower.try_loan_drawdownFunds(address(loan), 150_000, address(borrower)), "Cannot drawdown");
-        assertTrue(borrower.try_loan_removeCollateral(address(loan), 69_395, address(borrower)), "Cannot remove collateral");
+        assertTrue(borrower.try_loan_drawdownFunds(address(loan), 150_000, address(borrower)),   "Cannot drawdown");
+        assertTrue(borrower.try_loan_removeCollateral(address(loan), 69_396, address(borrower)), "Cannot remove collateral");
+
         assertEq(loan.collateral(), 0, "Different collateral");
 
         // Claim remaining loan proceeds
@@ -213,13 +226,14 @@ contract MapleLoanTest is DSTest {
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, requests);
 
         lender.erc20_transfer(address(token), address(loan), 1_000_000);
+
         assertTrue(lender.try_loan_lend(address(loan), address(lender)), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 
         borrower.erc20_transfer(address(token), address(loan), 300_000);
-        assertTrue(borrower.try_loan_postCollateral(address(loan)), "Cannot post");
 
+        assertTrue(borrower.try_loan_postCollateral(address(loan)),                              "Cannot post");
         assertTrue(borrower.try_loan_drawdownFunds(address(loan), 1_000_000, address(borrower)), "Cannot drawdown");
 
         assertEq(loan.drawableFunds(), 0, "Different drawable funds");
@@ -238,6 +252,7 @@ contract MapleLoanTest is DSTest {
 
         // Make payment #1
         borrower.erc20_transfer(address(token), address(loan), 20_000);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #2
@@ -254,6 +269,7 @@ contract MapleLoanTest is DSTest {
 
         // Make payment #2
         borrower.erc20_transfer(address(token), address(loan), 20_000);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #3
@@ -270,6 +286,7 @@ contract MapleLoanTest is DSTest {
 
         // Make payment #3
         borrower.erc20_transfer(address(token), address(loan), 20_000);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #4
@@ -286,13 +303,18 @@ contract MapleLoanTest is DSTest {
 
         // Make payment #4
         borrower.erc20_transfer(address(token), address(loan), 20_000);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Return some funds and remove some collateral
         borrower.erc20_transfer(address(token), address(loan), 500_000);
+
         assertTrue(borrower.try_loan_returnFunds(address(loan)), "Cannot return funds");
+
         assertEq(loan.drawableFunds(), 500_000, "Different drawable funds");
+
         assertTrue(borrower.try_loan_removeCollateral(address(loan), 150_000, address(borrower)), "Cannot remove collateral");
+
         assertEq(loan.collateral(), 150_000, "Different collateral");
 
         // Claim loan proceeds thus far
@@ -312,6 +334,7 @@ contract MapleLoanTest is DSTest {
 
         // Make payment #5
         borrower.erc20_transfer(address(token), address(loan), 20_000);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment #6
@@ -328,6 +351,7 @@ contract MapleLoanTest is DSTest {
 
         // Make payment #6
         borrower.erc20_transfer(address(token), address(loan), 1_020_000);
+
         assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
 
         // Check details for upcoming payment which should not be necessary
@@ -335,8 +359,9 @@ contract MapleLoanTest is DSTest {
         assertEq(loan.principal(),         0, "Different payments remaining");
 
         // Remove rest of available funds and collateral
-        assertTrue(borrower.try_loan_drawdownFunds(address(loan), 150_000, address(borrower)), "Cannot drawdown");
+        assertTrue(borrower.try_loan_drawdownFunds(address(loan), 150_000, address(borrower)),    "Cannot drawdown");
         assertTrue(borrower.try_loan_removeCollateral(address(loan), 150_000, address(borrower)), "Cannot remove collateral");
+
         assertEq(loan.collateral(), 0, "Different collateral");
 
         // Claim remaining loan proceeds
