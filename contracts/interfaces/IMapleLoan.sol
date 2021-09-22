@@ -190,9 +190,9 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
      */
     function upgrade(uint256 toVersion_, bytes calldata arguments_) external;
 
-    /**************************/
-    /*** Readonly Functions ***/
-    /**************************/
+    /**********************/
+    /*** View Functions ***/
+    /**********************/
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.

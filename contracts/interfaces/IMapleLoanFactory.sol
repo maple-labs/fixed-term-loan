@@ -147,9 +147,9 @@ interface IMapleLoanFactory {
      */
     function upgradeLoan(uint256 toVersion_, bytes calldata arguments_) external;
 
-    /**************************/
-    /*** Readonly Functions ***/
-    /**************************/
+    /**********************/
+    /*** View Functions ***/
+    /**********************/
 
     /**
      *  @dev   Returns the address of a MapleLoan implementation version.

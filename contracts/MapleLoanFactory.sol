@@ -91,9 +91,9 @@ contract MapleLoanFactory is IMapleLoanFactory, ProxyFactory {
         emit LoanUpgraded(msg.sender, fromVersion_, toVersion_, arguments_);
     }
 
-    /************************/
-    /*** Getter Functions ***/
-    /************************/
+    /**********************/
+    /*** View Functions ***/
+    /**********************/
 
     function implementationOf(uint256 version_) override external view returns (address implementation_) {
         return _implementationOf[version_];

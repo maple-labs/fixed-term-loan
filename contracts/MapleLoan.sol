@@ -46,28 +46,14 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         emit FundsDrawnDown(amount_);
     }
 
-    function makePayment()
-        external override
-        returns (
-            uint256 totalPrincipalAmount_,
-            uint256 totalInterestFees_,
-            uint256 totalLateFees_
-        )
-    {
-        ( totalPrincipalAmount_, totalInterestFees_, totalLateFees_ ) = _makePayments(uint256(1));
-        emit PaymentsMade(uint256(1), totalPrincipalAmount_, totalInterestFees_, totalLateFees_);
+    function makePayment() external override returns (uint256 principal_, uint256 interest_, uint256 lateFees) {
+        ( principal_, interest_, lateFees ) = _makePayments(uint256(1));
+        emit PaymentsMade(uint256(1), principal_, interest_, lateFees);
     }
 
-    function makePayments(uint256 numberOfPayments_)
-        external override
-        returns (
-            uint256 totalPrincipalAmount_,
-            uint256 totalInterestFees_,
-            uint256 totalLateFees_
-        )
-    {
-        ( totalPrincipalAmount_, totalInterestFees_, totalLateFees_ ) = _makePayments(numberOfPayments_);
-        emit PaymentsMade(numberOfPayments_, totalPrincipalAmount_, totalInterestFees_, totalLateFees_);
+    function makePayments(uint256 numberOfPayments_) external override returns (uint256 principal_, uint256 interest_, uint256 lateFees) {
+        ( principal_, interest_, lateFees ) = _makePayments(numberOfPayments_);
+        emit PaymentsMade(numberOfPayments_, principal_, interest_, lateFees);
     }
 
     function removeCollateral(uint256 amount_, address destination_) external override {
@@ -108,7 +94,7 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         require(_repossess(),          "ML:R:FAILED");
 
         ( , collateralAssetAmount_ ) = _skim(_collateralAsset, collateralAssetDestination_);
-        ( , fundsAssetAmount_ ) =      _skim(_fundsAsset, fundsAssetDestination_);
+        ( , fundsAssetAmount_ )      = _skim(_fundsAsset,      fundsAssetDestination_);
 
         emit Repossessed(collateralAssetAmount_, fundsAssetAmount_);
     }
@@ -125,17 +111,17 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         emit Skimmed(asset_, destination_, amount_);
     }
 
-    /************************/
-    /*** Getter Functions ***/
-    /************************/
+    /**********************/
+    /*** View Functions ***/
+    /**********************/
 
     function factory() public view override returns (address factory_) {
         return _factory();
     }
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments_)
-        external view override
-        returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_, uint256 totalLateFees_)
+        external view override 
+        returns (uint256 principal_, uint256 interest_, uint256 lateFees_)
     {
         return _getPaymentsBreakdown(
             numberOfPayments_,
@@ -154,9 +140,9 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         return _implementation();
     }
 
-    /***************************************/
-    /*** State Variable Getter Functions ***/
-    /***************************************/
+    /*************************************/
+    /*** State Variable View Functions ***/
+    /*************************************/
 
     function borrower() external view override returns (address borrower_) {
         return _borrower;

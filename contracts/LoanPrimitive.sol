@@ -96,15 +96,14 @@ contract LoanPrimitive {
     }
 
     /// @dev Registers the delivery of an amount of funds to make `numberOfPayments_` payments.
-    function _makePayments(uint256 numberOfPayments_) 
-        internal virtual
+    function _makePayments(uint256 numberOfPayments_) internal virtual
         returns (
-            uint256 totalPrincipalAmount_,
-            uint256 totalInterestFees_,
+            uint256 totalPrincipal_,
+            uint256 totalInterest_,
             uint256 totalLateFees_
         )
     {
-        ( totalPrincipalAmount_, totalInterestFees_, totalLateFees_ ) = _getPaymentsBreakdown(
+        ( totalPrincipal_, totalInterest_, totalLateFees_ ) = _getPaymentsBreakdown(
             numberOfPayments_,
             block.timestamp,
             _nextPaymentDueDate,
@@ -116,14 +115,14 @@ contract LoanPrimitive {
             _lateFeeRate
         );
 
-        uint256 totalAmountPaid = totalPrincipalAmount_ + totalInterestFees_ + totalLateFees_;
+        uint256 totalPaid = totalPrincipal_ + totalInterest_ + totalLateFees_;
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment
-        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalAmountPaid;
+        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid;
 
-        _claimableFunds     += totalAmountPaid;
+        _claimableFunds     += totalPaid;
         _nextPaymentDueDate += _paymentInterval;
-        _principal          -= totalPrincipalAmount_;
+        _principal          -= totalPrincipal_;
         _paymentsRemaining  -= numberOfPayments_;
     }
 
