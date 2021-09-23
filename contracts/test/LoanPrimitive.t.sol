@@ -56,7 +56,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
 
     function test_getPaymentBreakdown_onePeriodLate() external {
         ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 + (1 * (365 days / 12)),  // current time is 2 periods after next payment date
+            10_000_000 + (1 * (365 days / 12)),  // Current time is 2 periods after next payment date
             10_000_000,
             365 days / 12,
             1_000_000,
@@ -73,7 +73,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
 
     function test_getPaymentBreakdown_twoPeriodsLate() external {
         ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 + (2 * (365 days / 12)),  // current time is 2 periods after next payment date
+            10_000_000 + (2 * (365 days / 12)),  // Current time is 2 periods after next payment date
             10_000_000,
             365 days / 12,
             1_000_000,
@@ -90,7 +90,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
 
     function test_getPaymentBreakdown_threePeriodsLate() external {
         ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 + (3 * (365 days / 12)),  // current time is 2 periods after next payment date
+            10_000_000 + (3 * (365 days / 12)),  // Current time is 2 periods after next payment date
             10_000_000,
             365 days / 12,
             1_000_000,
@@ -107,7 +107,7 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
 
     function test_getPaymentBreakdown_fourPeriodsLate() external {
         ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 + (4 * (365 days / 12)),  // current time is 2 periods after next payment date
+            10_000_000 + (4 * (365 days / 12)),  // Current time is 2 periods after next payment date
             10_000_000,
             365 days / 12,
             1_000_000,
@@ -511,7 +511,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
         loan            = new LoanPrimitiveHarness();
     }
 
-    function _initializeLoanWithCollateralRequested(uint256 collateralRequested_) internal {
+    function _initializeLoanWithCollateralRequired(uint256 collateralRequired_) internal {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
@@ -523,7 +523,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
             uint256(6)
         ];
 
-        uint256[2] memory requests = [uint256(collateralRequested_), uint256(1_000_000)];
+        uint256[2] memory requests = [uint256(collateralRequired_), uint256(1_000_000)];
 
         loan.initialize(address(1), assets, parameters, requests);
     }
@@ -533,7 +533,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     /***********************/
 
     function test_postCollateral_initialState(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         assertEq(loan.collateral(), 0);
     }
@@ -543,7 +543,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_postCollateral_exactAmount(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
@@ -555,7 +555,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
     function test_postCollateral_lessThanRequired(uint256 collateralAmount_) external {
         collateralAmount_ = collateralAmount_ == 0 ? 1 : collateralAmount_;
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_ - 1);
 
@@ -567,7 +567,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
     function test_postCollateral_moreThanRequired(uint256 collateralAmount_) external {
         collateralAmount_ = collateralAmount_ == type(uint256).max ? type(uint256).max - 1 : collateralAmount_;
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_ + 1);
 
@@ -578,7 +578,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_postCollateral_zeroAmount() external {
-        _initializeLoanWithCollateralRequested(0);
+        _initializeLoanWithCollateralRequired(0);
 
         uint256 amount = loan.postCollateral();
 
@@ -587,7 +587,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_postCollateral_withUnaccountedFundsAsset(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         // Send funds asset to Loan
         fundsAsset.mint(address(loan), loan.principalRequested());
@@ -600,7 +600,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_postCollateral_doesNotCountOtherAssets(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         // Send funds asset to Loan
         fundsAsset.mint(address(loan), collateralAmount_);
@@ -648,7 +648,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     /*************************/
 
     function test_removeCollateral_fullAmount(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
@@ -668,7 +668,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
     function test_removeCollateral_partialAmount(uint256 collateralAmount_) external {
         collateralAmount_ = collateralAmount_ == 0 ? 1 : collateralAmount_;
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
@@ -687,7 +687,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_removeCollateral_moreThanAmount(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequested(collateralAmount_);
+        _initializeLoanWithCollateralRequired(collateralAmount_);
 
         collateralAmount_ = collateralAmount_ == type(uint256).max ? type(uint256).max - 1 : collateralAmount_;
         collateralAsset.mint(address(loan), collateralAmount_);
@@ -743,11 +743,12 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
 contract LoanPrimitiveDrawdownTest is DSTest {
 
+
+    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+
     LoanPrimitiveHarness loan;
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
-
-    uint256 MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
     function setUp() external {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
@@ -910,6 +911,8 @@ contract LoanPrimitiveDrawdownTest is DSTest {
 
 contract LoanPrimitiveRepossessTest is DSTest {
 
+    uint256 constant MAX_TIME = 10_000 * 365 days;  // Assumed reasonable upper limit for payment intervals and grace periods
+
     Hevm hevm;
 
     LoanPrimitiveHarness loan;
@@ -917,8 +920,6 @@ contract LoanPrimitiveRepossessTest is DSTest {
     MockERC20            fundsAsset;
 
     uint256 start;
-
-    uint256 MAX_TIME = 10_000 * 365 days;  // Assumed reasonable upper limit for payment intervals and grace periods
 
     function setUp() external {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
@@ -1181,6 +1182,143 @@ contract LoanPrimitiveClaimFundsTest is DSTest {
         assertEq(fundsAsset.balanceOf(address(loan)), 10_000);
 
         loan.claimFunds(5_001, address(this));
+    }
+
+}
+
+contract LoanPrimitiveMakePaymentTest is DSTest {
+
+    uint256 constant MAX_TIME         = 365 days;         // Assumed reasonable upper limit for payment intervals and grace periods
+    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+
+    Hevm hevm;
+
+    LoanPrimitiveHarness loan;
+    MockERC20            collateralAsset;
+    MockERC20            fundsAsset;
+
+    function setUp() external {
+        hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
+
+        collateralAsset = new MockERC20("CollateralAsset", "CA", 0);
+        fundsAsset      = new MockERC20("FundsAsset",      "FA", 0);
+        loan            = new LoanPrimitiveHarness();
+    }
+
+    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
+        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
+    }
+
+    function _initializeLoanWithPaymentsRemaining(uint256 paymentsRemaining_) internal {
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(10 days),
+            uint256(1_200 * 100),
+            uint256(1_100 * 100),
+            uint256(365 days / 6),
+            paymentsRemaining_
+        ];
+
+        uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
+
+        loan.initialize(address(1), assets, parameters, requests);
+    }
+
+    function test_makePayments(
+        uint256 principalRequested_,
+        uint256 collateralRequired_,
+        uint256 endingPrincipal_, 
+        uint256 interestRate_, 
+        uint256 lateFeeRate_, 
+        uint256 paymentInterval_, 
+        uint256 paymentsRemaining_,
+        uint256 numberOfPayments_
+    ) 
+        external 
+    {
+        principalRequested_ = _constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
+        collateralRequired_ = _constrictToRange(collateralRequired_, 0,   MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = _constrictToRange(endingPrincipal_,    0,   principalRequested_); 
+        interestRate_       = _constrictToRange(interestRate_,       0,   10_000 * 100); 
+        lateFeeRate_        = _constrictToRange(lateFeeRate_,        0,   10_000 * 100); 
+        paymentInterval_    = _constrictToRange(paymentInterval_,    100, MAX_TIME); 
+        paymentsRemaining_  = _constrictToRange(paymentsRemaining_,  1,   120);
+        numberOfPayments_   = _constrictToRange(numberOfPayments_,   1,   paymentsRemaining_);
+
+        uint256[6] memory parameters = [
+            endingPrincipal_,
+            0,
+            interestRate_,
+            lateFeeRate_,
+            paymentInterval_,
+            paymentsRemaining_
+        ];
+
+        loan.initialize(
+            address(1),
+            [address(collateralAsset), address(fundsAsset)],
+            parameters,
+            [collateralRequired_, principalRequested_]
+        );
+
+        /*************************/
+        /*** Lend and Drawdown ***/
+        /*************************/
+
+        fundsAsset.mint(address(loan), principalRequested_);
+        loan.lend(address(this));
+
+        collateralAsset.mint(address(loan), collateralRequired_);
+        loan.postCollateral();
+
+        loan.drawdownFunds(principalRequested_, address(this));
+
+        /********************/
+        /*** Make Payment ***/
+        /********************/
+
+        assertEq(loan.drawableFunds(),  0);
+        assertEq(loan.claimableFunds(), 0);
+        assertEq(loan.principal(),      principalRequested_);
+        
+        ( uint256 principal, uint256 interest, uint256 lateFees ) = loan.getPaymentsBreakdown(
+            numberOfPayments_, 
+            block.timestamp, 
+            loan.nextPaymentDueDate(), 
+            loan.paymentInterval(), 
+            loan.principal(), 
+            loan.endingPrincipal(), 
+            loan.interestRate(), 
+            loan.paymentsRemaining(), 
+            loan.lateFeeRate()
+        );
+
+        uint256 totalPayment = principal + interest + lateFees;
+
+        fundsAsset.mint(address(loan), totalPayment);
+
+        loan.makePayments(numberOfPayments_);
+
+        assertEq(loan.drawableFunds(),      0);      
+        assertEq(loan.claimableFunds(),     totalPayment);             
+        assertEq(loan.nextPaymentDueDate(), block.timestamp + paymentInterval_ * (numberOfPayments_ + 1));  // Made a payment, so paymentInterval moved
+        assertEq(loan.principal(),          principalRequested_ - principal);          
+        assertEq(loan.paymentsRemaining(),  paymentsRemaining_ - numberOfPayments_);  
+    }
+
+    function test_makePayment_morePaymentsThanRemaining(uint256 paymentsRemaining_) external {
+        paymentsRemaining_ = _constrictToRange(paymentsRemaining_, 1, 120);
+
+        _initializeLoanWithPaymentsRemaining(paymentsRemaining_);
+
+        hevm.warp(loan.nextPaymentDueDate());
+
+        // Provide more than enough tokens
+        fundsAsset.mint(address(loan), MAX_TOKEN_AMOUNT);
+
+        try loan.makePayments(paymentsRemaining_ + 1) { assertTrue(false); } catch { }
     }
 
 }

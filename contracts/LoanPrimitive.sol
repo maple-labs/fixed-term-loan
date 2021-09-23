@@ -120,9 +120,8 @@ contract LoanPrimitive {
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment
         _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid;
-
         _claimableFunds     += totalPaid;
-        _nextPaymentDueDate += _paymentInterval;
+        _nextPaymentDueDate += _paymentInterval * numberOfPayments_;
         _principal          -= totalPrincipal_;
         _paymentsRemaining  -= numberOfPayments_;
     }
