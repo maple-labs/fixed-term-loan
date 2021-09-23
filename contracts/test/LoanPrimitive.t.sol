@@ -293,15 +293,55 @@ contract LoanPrimitiveInstallmentTest is DSTest {
 
     LoanPrimitiveHarness loan;
 
+    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 1e18;
+    uint256 constant MIN_TOKEN_AMOUNT = 1;
+
     function setUp() external {
         loan = new LoanPrimitiveHarness();
     }
 
-    function test_getInstallment() external {
+    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
+        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
+    }
+
+    function test_getInstallment_withFixtures() external {
         ( uint256 principalAmount, uint256 interestAmount ) = loan.getInstallment(1_000_000, 0, 120_000, 365 days / 12, 12);
 
         assertEq(principalAmount, 78_849);
         assertEq(interestAmount,  10_000);
+    }
+
+    function test_getInstallment_genericFuzzing(
+        uint256 principal_,
+        uint256 endingPrincipal_,
+        uint256 interestRate_,
+        uint256 paymentInterval_,
+        uint256 totalPayments_
+    ) external view {
+        principal_       = _constrictToRange(principal_,       MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
+        endingPrincipal_ = _constrictToRange(endingPrincipal_, 0,                principal_);
+        interestRate_    = _constrictToRange(interestRate_,    0,                10_000 * 100);  // 0% - 100% APY (10,000 basis points scaled by 100)
+        paymentInterval_ = _constrictToRange(paymentInterval_, 1 hours,          365 days);
+        totalPayments_   = _constrictToRange(totalPayments_,   1,                100);
+
+        loan.getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
+    }
+
+    function test_getInstallment_edgeCases() external {
+        uint256 principalAmount_;
+        uint256 interestAmount_;
+
+        // 100000% APY (10,000,000 basis points scaled by 100) charged all at once in one payment
+        (principalAmount_, interestAmount_) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 10_000_000 * 100, 365 days, 1);
+
+        assertEq(principalAmount_, 1000000000000000000000000000000);
+        assertEq(interestAmount_,  1000000000000000000000000000000000);
+
+        // A payment a day for 30 years (10950 payments) at 100% APY (10,000 basis points scaled by 100)
+        (principalAmount_, interestAmount_) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 10_000 * 100, 1 days, 10950);
+
+        assertEq(principalAmount_, 270119039097232);
+        assertEq(interestAmount_,  2739000000000000000000000000);
     }
 
 }
