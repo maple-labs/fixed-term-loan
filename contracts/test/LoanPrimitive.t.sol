@@ -1322,3 +1322,139 @@ contract LoanPrimitiveMakePaymentTest is DSTest {
     }
 
 }
+
+contract LoanPrimitiveSkimTest is DSTest {
+
+    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+    address constant DESTINATION      = address(999);
+
+    LoanPrimitiveHarness loan;
+    MockERC20            collateralAsset;
+    MockERC20            fundsAsset;
+
+    function setUp() external {
+        collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        fundsAsset      = new MockERC20("Funds Asset",      "FA", 0);
+        loan            = new LoanPrimitiveHarness();
+    }
+
+    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
+        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
+    }
+
+    function _initializeLoanWithRequestAmount(uint256 requestedAmount_) internal {
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(0),
+            uint256(10 days),
+            uint256(1_200 * 100),
+            uint256(1_100 * 100),
+            uint256(365 days / 6),
+            uint256(6)
+        ];
+
+        uint256[2] memory requests = [uint256(300_000), requestedAmount_];
+
+        loan.initialize(address(1), assets, parameters, requests);
+    }
+
+    function test_skim_assetIsGeneric(uint256 amount_) external {
+        amount_ = _constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
+
+        MockERC20 anyAsset = new MockERC20("Any Asset", "AA", 0);
+
+        // Mint some funds of any ERC20 token to loan to claim it again.
+        anyAsset.mint(address(loan), amount_);
+
+        // Initialize the loan.
+        _initializeLoanWithRequestAmount(800_000);
+
+        assertEq(anyAsset.balanceOf(address(loan)), amount_);
+        assertEq(anyAsset.balanceOf(DESTINATION),   0);
+
+        ( bool success, uint256 amountTransferred ) = loan.skim(address(anyAsset), DESTINATION);
+
+        assertTrue(success, "Not able to transfer unaccounted funds to given destination");
+
+        assertEq(amountTransferred, amount_);
+
+        assertEq(anyAsset.balanceOf(address(loan)), 0);
+        assertEq(anyAsset.balanceOf(DESTINATION),   amount_);
+    }
+
+    function test_skim_assetIsCollateralAsset(uint256 amount_) external {
+        amount_ = _constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
+
+        // Initialize the loan.
+        _initializeLoanWithRequestAmount(800_000);
+
+        // Mint some collateral asset to loan
+        collateralAsset.mint(address(loan), 5000);
+
+        // Call postCollateral to make it accountable as collateral.
+        loan.postCollateral();
+
+        assertEq(collateralAsset.balanceOf(address(loan)), 5000);
+        assertEq(collateralAsset.balanceOf(DESTINATION),   0);
+
+        ( bool success, uint256 amountTransferred ) = loan.skim(address(collateralAsset), DESTINATION);
+
+        assertTrue(success, "Not able to transfer unaccounted funds to given destination");
+
+        assertEq(collateralAsset.balanceOf(address(loan)), 5000);
+        assertEq(amountTransferred,                        0);
+        assertEq(collateralAsset.balanceOf(DESTINATION),   0);
+
+        // Mint some more collateral asset to loan to skim those
+        collateralAsset.mint(address(loan), amount_);
+
+        assertEq(collateralAsset.balanceOf(address(loan)), 5000 + amount_);
+
+        ( success, amountTransferred ) = loan.skim(address(collateralAsset), DESTINATION);
+
+        assertTrue(success, "Not able to transfer unaccounted funds to given destination");
+
+        assertEq(amountTransferred,                        amount_);
+        assertEq(collateralAsset.balanceOf(DESTINATION),   amount_);
+        assertEq(collateralAsset.balanceOf(address(loan)), 5000);
+    }
+
+    function test_skim_assetIsFundingAsset(uint256 amount_) external {
+        amount_ = _constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
+
+        // Initialize the loan.
+        _initializeLoanWithRequestAmount(800_000);
+
+        // Mint some funding asset to loan
+        fundsAsset.mint(address(loan), 5000);
+
+        // Call returnFunds to make it accountable as claimable funds.
+        loan.returnFunds();
+
+        assertEq(fundsAsset.balanceOf(address(loan)), 5000);
+        assertEq(fundsAsset.balanceOf(DESTINATION),   0);
+
+        ( bool success, uint256 amountTransferred ) = loan.skim(address(fundsAsset), DESTINATION);
+
+        assertTrue(success, "Not able to transfer unaccounted funds to given destination");
+
+        assertEq(fundsAsset.balanceOf(address(loan)), 5000);
+        assertEq(amountTransferred,                   0);
+        assertEq(fundsAsset.balanceOf(DESTINATION),   0);
+
+        // Mint some more funds asset to loan to skim those
+        fundsAsset.mint(address(loan), amount_);
+
+        assertEq(fundsAsset.balanceOf(address(loan)), 5000 + amount_);
+
+        (success, amountTransferred) = loan.skim(address(fundsAsset), DESTINATION);
+
+        assertTrue(success, "Not able to transfer unaccounted funds to given destination");
+
+        assertEq(amountTransferred,                   amount_);
+        assertEq(fundsAsset.balanceOf(DESTINATION),   amount_);
+        assertEq(fundsAsset.balanceOf(address(loan)), 5000);
+    }
+
+}
