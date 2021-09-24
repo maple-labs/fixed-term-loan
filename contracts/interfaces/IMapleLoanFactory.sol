@@ -64,18 +64,6 @@ interface IMapleLoanFactory {
     function defaultVersion() external view returns (uint256 defaultVersion_);
 
     /**
-     *  @dev The current number of loans created using the factory.
-     */
-    function loanCount() external view returns (uint256 loanCount_);
-
-    /**
-     *  @dev    The address of the `index`-th MapleLoan proxy contract.
-     *  @param  index_ The index of the MapleLoan.
-     *  @return loan_  The address of a MapleLoan proxy contract.
-     */
-    function loanAtIndex(uint256 index_) external view returns (address loan_);
-
-    /**
      *  @dev The address of the MapleGlobals contract.
      */
     function mapleGlobals() external view returns (address mapleGlobals_);
@@ -157,6 +145,13 @@ interface IMapleLoanFactory {
      *  @return implementation_ The address of a MapleLoan implementation.
      */
     function implementationOf(uint256 version_) external view returns (address implementation_);
+
+    /**
+     *  @dev    Returns whether a contract at an address is a MapleLoan.
+     *  @param  loan_   The address of a contract.
+     *  @return isLoan_ Whether a contract is a MapleLoan.
+     */
+    function isLoan(address loan_) external view returns (bool isLoan_);
 
     /**
      *  @dev    Returns the address of the MapleLoanMigrator contract for a migration path (from version to version).

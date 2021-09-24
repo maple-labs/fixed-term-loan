@@ -13,9 +13,7 @@ contract MapleLoanFactory is IMapleLoanFactory, ProxyFactory {
     address public override mapleGlobals;
 
     uint256 public override defaultVersion;
-    uint256 public override loanCount;
 
-    mapping(uint256 => address) public override loanAtIndex;
     mapping(address => uint256) public override nonceOf;
 
     mapping(uint256 => mapping(uint256 => bool)) public override upgradeEnabledForPath;
@@ -78,7 +76,7 @@ contract MapleLoanFactory is IMapleLoanFactory, ProxyFactory {
         ( success_, loan_ ) = _newInstanceWithSalt(defaultVersion, arguments_, keccak256(abi.encodePacked(msg.sender, nonceOf[msg.sender]++)));
         require(success_, "MLF:CL:FAILED");
 
-        emit LoanDeployed(defaultVersion, loanAtIndex[loanCount++] = loan_, arguments_);
+        emit LoanDeployed(defaultVersion, loan_, arguments_);
     }
 
     // NOTE: The MapleLoan implementation of MapleLoan proxy contract defines the access control logic for its own upgrade.
@@ -97,6 +95,10 @@ contract MapleLoanFactory is IMapleLoanFactory, ProxyFactory {
 
     function implementationOf(uint256 version_) override external view returns (address implementation_) {
         return _implementationOf[version_];
+    }
+
+    function isLoan(address loan_) override external view returns (bool isLoan_) {
+        return _isInstance(loan_);
     }
 
     function migratorForPath(uint256 oldVersion_, uint256 newVersion_) override external view returns (address migrator_) {

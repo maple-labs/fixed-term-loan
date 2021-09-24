@@ -96,21 +96,24 @@ contract MapleLoanFactoryTest is DSTest {
         governor.mapleLoanFactory_setDefaultVersion(address(factory), 1);
 
         assertTrue(!borrower.try_mapleLoanFactory_createLoan(address(factory), new bytes(0)), "Should fail: invalid arguments");
-        assertTrue( borrower.try_mapleLoanFactory_createLoan(address(factory), arguments),    "Should succeed");
 
-        assertEq(factory.loanCount(), 1);
+        MapleLoan loan1 = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
 
-        assertTrue(borrower.try_mapleLoanFactory_createLoan(address(factory), arguments), "Should succeed");
+        assertTrue(factory.isLoan(address(loan1)));
 
-        assertEq(factory.loanCount(), 2);
+        assertEq(loan1.factory(),                           address(factory));
+        assertEq(loan1.implementation(),                    address(mapleLoanV1));
+        assertEq(factory.versionOf(loan1.implementation()), 1);
 
-        assertTrue(factory.loanAtIndex(0) != factory.loanAtIndex(1), "Loans should have unique addresses");
+        MapleLoan loan2 = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
 
-        MapleLoan loan = MapleLoan(factory.loanAtIndex(0));
+        assertTrue(factory.isLoan(address(loan2)));
 
-        assertEq(loan.factory(),                           address(factory));
-        assertEq(loan.implementation(),                    address(mapleLoanV1));
-        assertEq(factory.versionOf(loan.implementation()), 1);
+        assertEq(loan2.factory(),                           address(factory));
+        assertEq(loan2.implementation(),                    address(mapleLoanV1));
+        assertEq(factory.versionOf(loan2.implementation()), 1);
+
+        assertTrue(address(loan1) != address(loan2), "Loans should have unique addresses");
     }
 
     function test_enableUpgradePath() external {
