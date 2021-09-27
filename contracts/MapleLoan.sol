@@ -96,6 +96,8 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         ( , collateralAssetAmount_ ) = _skim(_collateralAsset, collateralAssetDestination_);
         ( , fundsAssetAmount_ )      = _skim(_fundsAsset,      fundsAssetDestination_);
 
+        _lender = address(0);
+
         emit Repossessed(collateralAssetAmount_, fundsAssetAmount_);
     }
 
