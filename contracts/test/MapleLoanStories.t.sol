@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { DSTest }    from "../../modules/ds-test/src/test.sol";
-import { IERC20 }    from "../../modules/erc20/src/interfaces/IERC20.sol";
-import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
+import { TestUtils, Hevm, StateManipulations } from "../../modules/contract-test-utils/contracts/test.sol";
+import { IERC20 }                              from "../../modules/erc20/src/interfaces/IERC20.sol";
+import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { Lender }   from "./accounts/Lender.sol";
 
 import { MapleLoan } from "./../MapleLoan.sol";
-
-interface Hevm {
-    function warp(uint256) external;
-    function store(address,bytes32,bytes32) external;
-}
 
 contract ConstructableMapleLoan is MapleLoan {
 
@@ -23,13 +18,7 @@ contract ConstructableMapleLoan is MapleLoan {
 
 }
 
-contract MapleLoanTest is DSTest {
-
-    Hevm hevm;
-
-    constructor() {
-        hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
-    }
+contract MapleLoanTest is StateManipulations, TestUtils {
 
     function test_story_fullyAmortized() external {
         MockERC20 token    = new MockERC20("Test", "TST", 0);

@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { DSTest }    from "../../modules/ds-test/src/test.sol";
-import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
+import { TestUtils, Hevm, StateManipulations } from "../../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
 import { LoanPrimitiveHarness } from "./harnesses/LoanPrimitiveHarness.sol";
 
-interface Hevm {
-    function warp(uint256) external;
-}
+contract LoanPrimitivePaymentBreakDownTest is TestUtils {
 
-// TODO: user `contract-test-utils`
-
-contract LoanPrimitivePaymentBreakDownTest is DSTest {
-
-    LoanPrimitiveHarness loan;
+    LoanPrimitiveHarness internal loan;
 
     function setUp() external {
         loan = new LoanPrimitiveHarness();
@@ -268,9 +262,9 @@ contract LoanPrimitivePaymentBreakDownTest is DSTest {
 
 }
 
-contract LoanPrimitiveFeeTest is DSTest {
+contract LoanPrimitiveFeeTest is TestUtils {
 
-    LoanPrimitiveHarness loan;
+    LoanPrimitiveHarness internal loan;
 
     function setUp() external {
         loan = new LoanPrimitiveHarness();
@@ -281,7 +275,6 @@ contract LoanPrimitiveFeeTest is DSTest {
         assertEq(loan.getFee(10_000, 1_200_000, 365 days / 12), 1_000);    // 120% APY on 10k
     }
 
-
     function test_getPeriodicFeeRate() external {
         assertEq(loan.getPeriodicFeeRate(120_000, 365 days),      120_000);
         assertEq(loan.getPeriodicFeeRate(120_000, 365 days / 12), 10_000);
@@ -289,19 +282,15 @@ contract LoanPrimitiveFeeTest is DSTest {
 
 }
 
-contract LoanPrimitiveInstallmentTest is DSTest {
+contract LoanPrimitiveInstallmentTest is TestUtils {
 
-    LoanPrimitiveHarness loan;
+    LoanPrimitiveHarness internal loan;
 
-    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 1e18;
-    uint256 constant MIN_TOKEN_AMOUNT = 1;
+    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 1e18;
+    uint256 internal constant MIN_TOKEN_AMOUNT = 1;
 
     function setUp() external {
         loan = new LoanPrimitiveHarness();
-    }
-
-    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
-        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
     }
 
     function test_getInstallment_withFixtures() external {
@@ -318,11 +307,11 @@ contract LoanPrimitiveInstallmentTest is DSTest {
         uint256 paymentInterval_,
         uint256 totalPayments_
     ) external view {
-        principal_       = _constrictToRange(principal_,       MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
-        endingPrincipal_ = _constrictToRange(endingPrincipal_, 0,                principal_);
-        interestRate_    = _constrictToRange(interestRate_,    0,                10_000 * 100);  // 0% - 100% APY (10,000 basis points scaled by 100)
-        paymentInterval_ = _constrictToRange(paymentInterval_, 1 hours,          365 days);
-        totalPayments_   = _constrictToRange(totalPayments_,   1,                100);
+        principal_       = constrictToRange(principal_,       MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
+        endingPrincipal_ = constrictToRange(endingPrincipal_, 0,                principal_);
+        interestRate_    = constrictToRange(interestRate_,    0,                10_000 * 100);  // 0% - 100% APY (10,000 basis points scaled by 100)
+        paymentInterval_ = constrictToRange(paymentInterval_, 1 hours,          365 days);
+        totalPayments_   = constrictToRange(totalPayments_,   1,                100);
 
         loan.getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
     }
@@ -346,9 +335,9 @@ contract LoanPrimitiveInstallmentTest is DSTest {
 
 }
 
-contract LoanPrimitiveScaledExponentTest is DSTest {
+contract LoanPrimitiveScaledExponentTest is TestUtils {
 
-    LoanPrimitiveHarness loan;
+    LoanPrimitiveHarness internal loan;
 
     function setUp() external {
         loan = new LoanPrimitiveHarness();
@@ -387,22 +376,22 @@ contract LoanPrimitiveScaledExponentTest is DSTest {
 
 }
 
-contract LoanPrimitiveLendTest is DSTest {
+contract LoanPrimitiveLendTest is TestUtils {
 
-    uint256 constant MAX_REQUESTED_AMOUNT = type(uint256).max - 1;
-    uint256 constant MIN_REQUESTED_AMOUNT = 2;
+    uint256 internal constant MAX_REQUESTED_AMOUNT = type(uint256).max - 1;
+    uint256 internal constant MIN_REQUESTED_AMOUNT = 2;
 
-    LoanPrimitiveHarness loan;
-    MockERC20            token;
+    LoanPrimitiveHarness internal loan;
+    MockERC20            internal token;
 
-    address mockCollateralToken = address(9);
+    address internal mockCollateralToken = address(9);
 
     function setUp() external {
         loan  = new LoanPrimitiveHarness();
         token = new MockERC20("FundsAsset", "FA", 0);
     }
 
-    function _initializeLoanWithRequestAmount(uint256 requestedAmount_) internal {
+    function _initializeLoanWithRequestAmount(address loan_, uint256 requestedAmount_) internal {
         address[2] memory assets = [address(mockCollateralToken), address(token)];
 
         uint256[6] memory parameters = [
@@ -416,11 +405,7 @@ contract LoanPrimitiveLendTest is DSTest {
 
         uint256[2] memory requests = [uint256(300_000), requestedAmount_];
 
-        loan.initialize(address(1), assets, parameters, requests);
-    }
-
-    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
-        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
+        LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
 
     function test_lend_initialState() external {
@@ -441,16 +426,16 @@ contract LoanPrimitiveLendTest is DSTest {
     }
 
     function test_lend_withoutSendingAsset(uint256 requestedAmount_) external {
-        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
-        _initializeLoanWithRequestAmount(requestedAmount_);
+        requestedAmount_ = constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(address(loan), requestedAmount_);
 
         ( bool ok, ) = loan.lend(address(this));
         assertTrue(!ok, "lend should have failed");
     }
 
     function test_lend_fullLend(uint256 requestedAmount_) external {
-        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
-        _initializeLoanWithRequestAmount(requestedAmount_);
+        requestedAmount_ = constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(address(loan), requestedAmount_);
 
         token.mint(address(this), requestedAmount_);
         token.transfer(address(loan), requestedAmount_);
@@ -469,9 +454,8 @@ contract LoanPrimitiveLendTest is DSTest {
     }
 
     function test_lend_partialLend(uint256 requestedAmount_) external {
-        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
-
-        _initializeLoanWithRequestAmount(requestedAmount_);
+        requestedAmount_ = constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(address(loan), requestedAmount_);
 
         token.mint(address(this), requestedAmount_);
         token.transfer(address(loan), requestedAmount_ - 1);
@@ -482,10 +466,10 @@ contract LoanPrimitiveLendTest is DSTest {
     }
 
     function test_lend_failWithDoubleLend(uint256 requestedAmount_) external {
-        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        requestedAmount_ = constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
 
         // Dividing by two to make sure we can mint twice
-        _initializeLoanWithRequestAmount(requestedAmount_ / 2);
+        _initializeLoanWithRequestAmount(address(loan), requestedAmount_ / 2);
 
         token.mint(address(this), requestedAmount_);
         token.transfer(address(loan), requestedAmount_ / 2);
@@ -507,8 +491,8 @@ contract LoanPrimitiveLendTest is DSTest {
     }
 
     function test_lend_sendingExtra(uint256 requestedAmount_) external {
-        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
-        _initializeLoanWithRequestAmount(requestedAmount_);
+        requestedAmount_ = constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(address(loan), requestedAmount_);
 
         token.mint(address(this), requestedAmount_ + 1);
         token.transfer(address(loan), requestedAmount_ + 1);
@@ -518,8 +502,8 @@ contract LoanPrimitiveLendTest is DSTest {
     }
 
     function test_lend_claimImmediatelyAfterLend(uint256 requestedAmount_) external {
-        requestedAmount_ = _constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
-        _initializeLoanWithRequestAmount(requestedAmount_);
+        requestedAmount_ = constrictToRange(requestedAmount_, MIN_REQUESTED_AMOUNT, MAX_REQUESTED_AMOUNT);
+        _initializeLoanWithRequestAmount(address(loan), requestedAmount_);
 
         token.mint(address(this), requestedAmount_);
         token.transfer(address(loan), requestedAmount_);
@@ -539,11 +523,11 @@ contract LoanPrimitiveLendTest is DSTest {
 
 }
 
-contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
+contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
 
-    LoanPrimitiveHarness loan;
-    MockERC20            collateralAsset;
-    MockERC20            fundsAsset;
+    MockERC20            internal collateralAsset;
+    MockERC20            internal fundsAsset;
+    LoanPrimitiveHarness internal loan;
 
     function setUp() external {
         collateralAsset = new MockERC20("CollateralAsset", "CA", 0);
@@ -551,7 +535,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
         loan            = new LoanPrimitiveHarness();
     }
 
-    function _initializeLoanWithCollateralRequired(uint256 collateralRequired_) internal {
+    function _initializeLoanWithCollateralRequired(address loan_, uint256 collateralRequired_) internal {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
@@ -565,7 +549,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
         uint256[2] memory requests = [uint256(collateralRequired_), uint256(1_000_000)];
 
-        loan.initialize(address(1), assets, parameters, requests);
+        LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
 
     /***********************/
@@ -573,7 +557,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     /***********************/
 
     function test_postCollateral_initialState(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         assertEq(loan.collateral(), 0);
     }
@@ -583,7 +567,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_postCollateral_exactAmount(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
@@ -595,7 +579,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
     function test_postCollateral_lessThanRequired(uint256 collateralAmount_) external {
         collateralAmount_ = collateralAmount_ == 0 ? 1 : collateralAmount_;
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_ - 1);
 
@@ -607,7 +591,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
     function test_postCollateral_moreThanRequired(uint256 collateralAmount_) external {
         collateralAmount_ = collateralAmount_ == type(uint256).max ? type(uint256).max - 1 : collateralAmount_;
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_ + 1);
 
@@ -618,7 +602,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_postCollateral_zeroAmount() external {
-        _initializeLoanWithCollateralRequired(0);
+        _initializeLoanWithCollateralRequired(address(loan), 0);
 
         uint256 amount = loan.postCollateral();
 
@@ -627,7 +611,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_postCollateral_withUnaccountedFundsAsset(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         // Send funds asset to Loan
         fundsAsset.mint(address(loan), loan.principalRequested());
@@ -640,7 +624,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_postCollateral_doesNotCountOtherAssets(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         // Send funds asset to Loan
         fundsAsset.mint(address(loan), collateralAmount_);
@@ -688,7 +672,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     /*************************/
 
     function test_removeCollateral_fullAmount(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
@@ -708,7 +692,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
     function test_removeCollateral_partialAmount(uint256 collateralAmount_) external {
         collateralAmount_ = collateralAmount_ == 0 ? 1 : collateralAmount_;
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
@@ -727,7 +711,7 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
     }
 
     function test_removeCollateral_moreThanAmount(uint256 collateralAmount_) external {
-        _initializeLoanWithCollateralRequired(collateralAmount_);
+        _initializeLoanWithCollateralRequired(address(loan), collateralAmount_);
 
         collateralAmount_ = collateralAmount_ == type(uint256).max ? type(uint256).max - 1 : collateralAmount_;
         collateralAsset.mint(address(loan), collateralAmount_);
@@ -781,14 +765,13 @@ contract LendPrimitivePostAndRemoveCollateralTest is DSTest {
 
 }
 
-contract LoanPrimitiveDrawdownTest is DSTest {
+contract LoanPrimitiveDrawdownTest is TestUtils {
 
+    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
-    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
-
-    LoanPrimitiveHarness loan;
-    MockERC20            collateralAsset;
-    MockERC20            fundsAsset;
+    MockERC20            internal collateralAsset;
+    MockERC20            internal fundsAsset;
+    LoanPrimitiveHarness internal loan;
 
     function setUp() external {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
@@ -796,7 +779,7 @@ contract LoanPrimitiveDrawdownTest is DSTest {
         loan            = new LoanPrimitiveHarness();
     }
 
-    function _initializeLoanWithAmounts(uint256 collateralRequired_, uint256 principalRequested_) internal {
+    function _initializeLoanWithAmounts(address loan_, uint256 collateralRequired_, uint256 principalRequested_) internal {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
@@ -810,21 +793,18 @@ contract LoanPrimitiveDrawdownTest is DSTest {
 
         uint256[2] memory requests = [collateralRequired_, principalRequested_];
 
-        loan.initialize(address(1), assets, parameters, requests);
+        LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
 
-    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
-        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
-    }
+    function _initializeLoanAndLend(address loan_, uint256 collateralRequired_, uint256 principalRequested_) internal {
+        _initializeLoanWithAmounts(loan_, collateralRequired_, principalRequested_);
 
-    function _createLoanAndLend(uint256 collateralRequired_, uint256 principalRequested_) internal {
-        _initializeLoanWithAmounts(collateralRequired_, principalRequested_);
-
-        fundsAsset.mint(address(loan), principalRequested_);
-        loan.lend(address(this));
+        fundsAsset.mint(loan_, principalRequested_);
+        LoanPrimitiveHarness(loan_).lend(address(this));
     }
 
     function _setUpDrawdown(
+        address loan_,
         uint256 collateralRequired_,
         uint256 minCollateral_,
         uint256 maxCollateral_,
@@ -834,20 +814,17 @@ contract LoanPrimitiveDrawdownTest is DSTest {
     )
         internal returns (uint256 constrictedCollateralRequired_, uint256 constrictedPrincipalRequested_)
     {
-        constrictedCollateralRequired_ = _constrictToRange(collateralRequired_, minCollateral_, maxCollateral_);
-        constrictedPrincipalRequested_ = _constrictToRange(principalRequested_, minPrincipal_,  maxPrincipal_);
+        constrictedCollateralRequired_ = constrictToRange(collateralRequired_, minCollateral_, maxCollateral_);
+        constrictedPrincipalRequested_ = constrictToRange(principalRequested_, minPrincipal_,  maxPrincipal_);
 
-        _createLoanAndLend(constrictedCollateralRequired_, constrictedPrincipalRequested_);
+        _initializeLoanAndLend(loan_, constrictedCollateralRequired_, constrictedPrincipalRequested_);
 
-        collateralAsset.mint(address(loan), constrictedCollateralRequired_);
-        loan.postCollateral();
+        collateralAsset.mint(loan_, constrictedCollateralRequired_);
+        LoanPrimitiveHarness(loan_).postCollateral();
     }
 
     function test_drawdown_initialState(uint256 collateralRequired_, uint256 principalRequested_) external {
-        (
-            collateralRequired_,
-            principalRequested_
-        ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( collateralRequired_, principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
         assertEq(loan.principal(),          principalRequested_);
         assertEq(loan.drawableFunds(),      principalRequested_);
@@ -862,16 +839,16 @@ contract LoanPrimitiveDrawdownTest is DSTest {
 
     function test_drawdownFunds_withoutPostedCollateral(uint256 collateralRequired_, uint256 principalRequested_) external {
         // Must have non-zero collateral and principal amounts to cause failure
-        collateralRequired_ = _constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
-        principalRequested_ = _constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
+        principalRequested_ = constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
 
-        _createLoanAndLend(collateralRequired_, principalRequested_);
+        _initializeLoanAndLend(address(loan), collateralRequired_, principalRequested_);
 
         assertTrue(!loan.drawdownFunds(principalRequested_, address(this)));
     }
 
     function test_drawdownFunds_exactAmount(uint256 collateralRequired_, uint256 principalRequested_) external {
-        ( , principalRequested_ ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
         assertEq(loan.drawableFunds(),                principalRequested_);
         assertEq(fundsAsset.balanceOf(address(loan)), principalRequested_);
@@ -885,9 +862,9 @@ contract LoanPrimitiveDrawdownTest is DSTest {
     }
 
     function test_drawdownFunds_lessThanDrawableFunds(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
-        ( , principalRequested_ ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
-        drawdownAmount_ = _constrictToRange(drawdownAmount_, 0, principalRequested_);
+        drawdownAmount_ = constrictToRange(drawdownAmount_, 0, principalRequested_);
 
         assertEq(loan.drawableFunds(),                principalRequested_);
         assertEq(fundsAsset.balanceOf(address(loan)), principalRequested_);
@@ -901,15 +878,15 @@ contract LoanPrimitiveDrawdownTest is DSTest {
     }
 
     function test_drawdownFunds_greaterThanDrawableFunds(uint256 collateralRequired_, uint256 principalRequested_) external {
-        ( , principalRequested_ ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
         try loan.drawdownFunds(principalRequested_ + 1, address(this)) { assertTrue(false); } catch {}
     }
 
     function test_drawdownFunds_multipleDrawdowns(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
-        ( , principalRequested_ ) = _setUpDrawdown(collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
-        drawdownAmount_ = _constrictToRange(drawdownAmount_, 0, principalRequested_);
+        drawdownAmount_ = constrictToRange(drawdownAmount_, 0, principalRequested_);
 
         assertTrue(loan.drawdownFunds(drawdownAmount_, address(this)));
 
@@ -930,9 +907,10 @@ contract LoanPrimitiveDrawdownTest is DSTest {
     // TODO see if there is a way to make the transfer fail in drawdown due to lack of funds
 
     function testFail_drawdownFunds_collateralNotMaintained(uint256 collateralRequired_, uint256 principalRequested_) external {
-        collateralRequired_ = _constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
-        principalRequested_ = _constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
-        _createLoanAndLend(collateralRequired_, principalRequested_);
+        collateralRequired_ = constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
+        principalRequested_ = constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
+
+        _initializeLoanAndLend(address(loan), collateralRequired_, principalRequested_);
 
         collateralAsset.mint(address(loan), collateralRequired_ - 1);
         loan.postCollateral();
@@ -949,30 +927,18 @@ contract LoanPrimitiveDrawdownTest is DSTest {
 
 }
 
-contract LoanPrimitiveRepossessTest is DSTest {
+contract LoanPrimitiveRepossessTest is TestUtils, StateManipulations {
 
-    uint256 constant MAX_TIME = 10_000 * 365 days;  // Assumed reasonable upper limit for payment intervals and grace periods
+    uint256 internal constant MAX_TIME = 10_000 * 365 days;  // Assumed reasonable upper limit for payment intervals and grace periods
 
-    Hevm hevm;
-
-    LoanPrimitiveHarness loan;
-    MockERC20            collateralAsset;
-    MockERC20            fundsAsset;
-
-    uint256 start;
+    LoanPrimitiveHarness internal loan;
+    MockERC20            internal collateralAsset;
+    MockERC20            internal fundsAsset;
 
     function setUp() external {
-        hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
-
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 0);
         loan            = new LoanPrimitiveHarness();
-
-        start = block.timestamp;
-    }
-
-    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
-        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
     }
 
     function test_repossess(uint256 gracePeriod_, uint256 paymentInterval_) external {
@@ -988,14 +954,16 @@ contract LoanPrimitiveRepossessTest is DSTest {
 
         uint256[6] memory parameters = [
             principalRequested,
-            _constrictToRange(gracePeriod_, 0, MAX_TIME),
+            constrictToRange(gracePeriod_, 0, MAX_TIME),
             uint256(1_200 * 100),
             uint256(1_100 * 100),
-            _constrictToRange(paymentInterval_, 0, MAX_TIME),
+            constrictToRange(paymentInterval_, 0, MAX_TIME),
             uint256(6)
         ];
 
         uint256[2] memory requests = [collateralRequired, principalRequested];
+
+        uint256 start = block.timestamp;
 
         loan.initialize(address(1), assets, parameters, requests);
 
@@ -1066,14 +1034,10 @@ contract LoanPrimitiveRepossessTest is DSTest {
 
 }
 
-contract LoanPrimitiveReturnFundsTest is DSTest {
-
-    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
-        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
-    }
+contract LoanPrimitiveReturnFundsTest is TestUtils {
 
     function test_returnFunds(uint256 fundsToReturn_) external {
-        fundsToReturn_ = _constrictToRange(fundsToReturn_, 0, type(uint256).max >> 3);
+        fundsToReturn_ = constrictToRange(fundsToReturn_, 0, type(uint256).max >> 3);
 
         LoanPrimitiveHarness loan            = new LoanPrimitiveHarness();
         MockERC20            collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
@@ -1116,11 +1080,11 @@ contract LoanPrimitiveReturnFundsTest is DSTest {
 
 }
 
-contract LoanPrimitiveClaimFundsTest is DSTest {
+contract LoanPrimitiveClaimFundsTest is TestUtils {
 
-    LoanPrimitiveHarness loan;
-    MockERC20            collateralAsset;
-    MockERC20            fundsAsset;
+    LoanPrimitiveHarness internal loan;
+    MockERC20            internal collateralAsset;
+    MockERC20            internal fundsAsset;
 
     function setUp() external {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
@@ -1128,14 +1092,10 @@ contract LoanPrimitiveClaimFundsTest is DSTest {
         loan            = new LoanPrimitiveHarness();
     }
 
-    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
-        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
-    }
-
     function test_claimFunds(uint256 fundingAmount_, uint256 amountToClaim_) external {
         // `amountToClaim_` is constrict to half the constricted `fundingAmount_`
-        fundingAmount_ = _constrictToRange(fundingAmount_, 2, type(uint256).max >> 10);
-        amountToClaim_ = _constrictToRange(amountToClaim_, 1, fundingAmount_ / 2);
+        fundingAmount_ = constrictToRange(fundingAmount_, 2, type(uint256).max >> 10);
+        amountToClaim_ = constrictToRange(amountToClaim_, 1, fundingAmount_ / 2);
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
@@ -1226,30 +1186,22 @@ contract LoanPrimitiveClaimFundsTest is DSTest {
 
 }
 
-contract LoanPrimitiveMakePaymentTest is DSTest {
+contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
 
-    uint256 constant MAX_TIME         = 365 days;         // Assumed reasonable upper limit for payment intervals and grace periods
-    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+    uint256 internal constant MAX_TIME         = 365 days;         // Assumed reasonable upper limit for payment intervals and grace periods
+    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
-    Hevm hevm;
-
-    LoanPrimitiveHarness loan;
-    MockERC20            collateralAsset;
-    MockERC20            fundsAsset;
+    LoanPrimitiveHarness internal loan;
+    MockERC20            internal collateralAsset;
+    MockERC20            internal fundsAsset;
 
     function setUp() external {
-        hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
-
         collateralAsset = new MockERC20("CollateralAsset", "CA", 0);
         fundsAsset      = new MockERC20("FundsAsset",      "FA", 0);
         loan            = new LoanPrimitiveHarness();
     }
 
-    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
-        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
-    }
-
-    function _initializeLoanWithPaymentsRemaining(uint256 paymentsRemaining_) internal {
+    function _initializeLoanWithPaymentsRemaining(address loan_, uint256 paymentsRemaining_) internal {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
@@ -1263,7 +1215,7 @@ contract LoanPrimitiveMakePaymentTest is DSTest {
 
         uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
 
-        loan.initialize(address(1), assets, parameters, requests);
+        LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
 
     function test_makePayments(
@@ -1278,14 +1230,14 @@ contract LoanPrimitiveMakePaymentTest is DSTest {
     ) 
         external 
     {
-        principalRequested_ = _constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
-        collateralRequired_ = _constrictToRange(collateralRequired_, 0,   MAX_TOKEN_AMOUNT);
-        endingPrincipal_    = _constrictToRange(endingPrincipal_,    0,   principalRequested_); 
-        interestRate_       = _constrictToRange(interestRate_,       0,   10_000 * 100); 
-        lateFeeRate_        = _constrictToRange(lateFeeRate_,        0,   10_000 * 100); 
-        paymentInterval_    = _constrictToRange(paymentInterval_,    100, MAX_TIME); 
-        paymentsRemaining_  = _constrictToRange(paymentsRemaining_,  1,   120);
-        numberOfPayments_   = _constrictToRange(numberOfPayments_,   1,   paymentsRemaining_);
+        principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 0,   MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_); 
+        interestRate_       = constrictToRange(interestRate_,       0,   10_000 * 100); 
+        lateFeeRate_        = constrictToRange(lateFeeRate_,        0,   10_000 * 100); 
+        paymentInterval_    = constrictToRange(paymentInterval_,    100, MAX_TIME); 
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,   120);
+        numberOfPayments_   = constrictToRange(numberOfPayments_,   1,   paymentsRemaining_);
 
         uint256[6] memory parameters = [
             endingPrincipal_,
@@ -1349,9 +1301,9 @@ contract LoanPrimitiveMakePaymentTest is DSTest {
     }
 
     function test_makePayment_morePaymentsThanRemaining(uint256 paymentsRemaining_) external {
-        paymentsRemaining_ = _constrictToRange(paymentsRemaining_, 1, 120);
+        paymentsRemaining_ = constrictToRange(paymentsRemaining_, 1, 120);
 
-        _initializeLoanWithPaymentsRemaining(paymentsRemaining_);
+        _initializeLoanWithPaymentsRemaining(address(loan), paymentsRemaining_);
 
         hevm.warp(loan.nextPaymentDueDate());
 
@@ -1363,14 +1315,14 @@ contract LoanPrimitiveMakePaymentTest is DSTest {
 
 }
 
-contract LoanPrimitiveSkimTest is DSTest {
+contract LoanPrimitiveSkimTest is TestUtils {
 
-    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
-    address constant DESTINATION      = address(999);
+    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+    address internal constant DESTINATION      = address(999);
 
-    LoanPrimitiveHarness loan;
-    MockERC20            collateralAsset;
-    MockERC20            fundsAsset;
+    LoanPrimitiveHarness internal loan;
+    MockERC20            internal collateralAsset;
+    MockERC20            internal fundsAsset;
 
     function setUp() external {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
@@ -1378,11 +1330,7 @@ contract LoanPrimitiveSkimTest is DSTest {
         loan            = new LoanPrimitiveHarness();
     }
 
-    function _constrictToRange(uint256 input_, uint256 min_, uint256 max_) internal pure returns (uint256 output_) {
-        return min_ == max_ ? max_ : input_ % (max_ - min_) + min_;
-    }
-
-    function _initializeLoanWithRequestAmount(uint256 requestedAmount_) internal {
+    function _initializeLoanWithRequestAmount(address loan_, uint256 requestedAmount_) internal {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
@@ -1396,11 +1344,11 @@ contract LoanPrimitiveSkimTest is DSTest {
 
         uint256[2] memory requests = [uint256(300_000), requestedAmount_];
 
-        loan.initialize(address(1), assets, parameters, requests);
+        LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
 
     function test_skim_assetIsGeneric(uint256 amount_) external {
-        amount_ = _constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
+        amount_ = constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
 
         MockERC20 anyAsset = new MockERC20("Any Asset", "AA", 0);
 
@@ -1408,7 +1356,7 @@ contract LoanPrimitiveSkimTest is DSTest {
         anyAsset.mint(address(loan), amount_);
 
         // Initialize the loan.
-        _initializeLoanWithRequestAmount(800_000);
+        _initializeLoanWithRequestAmount(address(loan), 800_000);
 
         assertEq(anyAsset.balanceOf(address(loan)), amount_);
         assertEq(anyAsset.balanceOf(DESTINATION),   0);
@@ -1424,10 +1372,10 @@ contract LoanPrimitiveSkimTest is DSTest {
     }
 
     function test_skim_assetIsCollateralAsset(uint256 amount_) external {
-        amount_ = _constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
+        amount_ = constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
 
         // Initialize the loan.
-        _initializeLoanWithRequestAmount(800_000);
+        _initializeLoanWithRequestAmount(address(loan), 800_000);
 
         // Mint some collateral asset to loan
         collateralAsset.mint(address(loan), 5000);
@@ -1461,10 +1409,10 @@ contract LoanPrimitiveSkimTest is DSTest {
     }
 
     function test_skim_assetIsFundingAsset(uint256 amount_) external {
-        amount_ = _constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
+        amount_ = constrictToRange(amount_, 0, MAX_TOKEN_AMOUNT);
 
         // Initialize the loan.
-        _initializeLoanWithRequestAmount(800_000);
+        _initializeLoanWithRequestAmount(address(loan), 800_000);
 
         // Mint some funding asset to loan
         fundsAsset.mint(address(loan), 5000);

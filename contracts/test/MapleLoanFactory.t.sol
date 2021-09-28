@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { DSTest }               from "../../modules/ds-test/src/test.sol";
+import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
 
 import { MapleLoan }            from "../MapleLoan.sol";
 import { MapleLoanFactory }     from "../MapleLoanFactory.sol";
@@ -20,18 +20,18 @@ contract MapleGlobalsMock {
 
 }
 
-contract MapleLoanFactoryTest is DSTest {
+contract MapleLoanFactoryTest is TestUtils {
 
-    Borrower             borrower;
-    Borrower             notBorrower;
-    Governor             governor;
-    Governor             notGovernor;
-    MapleGlobalsMock     globals;
-    MapleLoan            mapleLoanV1;
-    MapleLoan            mapleLoanV2;
-    MapleLoanFactory     factory;
-    MapleLoanInitializer initializerV1;
-    MapleLoanInitializer initializerV2;
+    Borrower             internal borrower;
+    Borrower             internal notBorrower;
+    Governor             internal governor;
+    Governor             internal notGovernor;
+    MapleGlobalsMock     internal globals;
+    MapleLoan            internal mapleLoanV1;
+    MapleLoan            internal mapleLoanV2;
+    MapleLoanFactory     internal factory;
+    MapleLoanInitializer internal initializerV1;
+    MapleLoanInitializer internal initializerV2;
 
     function setUp() external {
         borrower      = new Borrower();
