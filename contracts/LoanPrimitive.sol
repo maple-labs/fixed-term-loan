@@ -92,7 +92,7 @@ contract LoanPrimitive {
     /// @dev Sends `amount_` of `_drawableFunds` to `destination_`.
     function _drawdownFunds(uint256 amount_, address destination_) internal virtual returns (bool success_) {
         _drawableFunds -= amount_;
-        return ERC20Helper.transfer(_fundsAsset, destination_, amount_) && _isCollateralMaintained();
+        return ERC20Helper.transfer(_fundsAsset, destination_, amount_) && _isCollateralMaintained(_principal, _collateral, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
     /// @dev Registers the delivery of an amount of funds to make `numberOfPayments_` payments.
@@ -135,7 +135,7 @@ contract LoanPrimitive {
     /// @dev Sends `amount_` of `_collateral` to `destination_`.
     function _removeCollateral(uint256 amount_, address destination_) internal virtual returns (bool success_) {
         _collateral -= amount_;
-        return ERC20Helper.transfer(_collateralAsset, destination_, amount_) && _isCollateralMaintained();
+        return ERC20Helper.transfer(_collateralAsset, destination_, amount_) && _isCollateralMaintained(_principal, _collateral, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
     /// @dev Registers the delivery of an amount of funds to be returned as `_drawableFunds`.
@@ -183,11 +183,19 @@ contract LoanPrimitive {
     /*******************************/
 
     /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
-    function _isCollateralMaintained() internal view returns (bool isMaintained_) {
+    function _isCollateralMaintained(
+        uint256 principal_,
+        uint256 collateral_,
+        uint256 drawableFunds_,
+        uint256 principalRequested_,
+        uint256 collateralRequired_
+    ) 
+        internal pure returns (bool isMaintained_) 
+    {
         // Whether the final collateral ratio is commensurate with the amount of outstanding principal
         // uint256 outstandingPrincipal = principal > drawableFunds ? principal - drawableFunds : 0;
         // return collateral / outstandingPrincipal >= collateralRequired / principalRequested;
-        return _collateral * _principalRequested >= _collateralRequired * (_principal > _drawableFunds ? _principal - _drawableFunds : uint256(0));
+        return collateral_ * principalRequested_ >= collateralRequired_ * (principal_ > drawableFunds_ ? principal_ - drawableFunds_ : uint256(0));
     }
 
     /// @dev Returns the amount a token at `asset_`, above what has been currently accounted for.

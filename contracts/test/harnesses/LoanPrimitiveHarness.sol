@@ -55,6 +55,18 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _collateral;
     }
 
+    function isCollateralMaintained(
+        uint256 principal_,
+        uint256 collateral_,
+        uint256 drawableFunds_,
+        uint256 principalRequested_,
+        uint256 collateralRequired_
+    ) 
+        external pure returns (bool isMaintained_) 
+    {
+        return _isCollateralMaintained(principal_, collateral_, drawableFunds_, principalRequested_, collateralRequired_);
+    }
+
     function gracePeriod() external view returns (uint256 gracePeriod_) {
         return _gracePeriod;
     }

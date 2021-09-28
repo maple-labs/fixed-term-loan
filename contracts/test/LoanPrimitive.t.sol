@@ -1446,3 +1446,103 @@ contract LoanPrimitiveSkimTest is TestUtils {
     }
 
 }
+
+contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
+
+    LoanPrimitiveHarness loan;
+    
+    function setUp() external {
+        loan = new LoanPrimitiveHarness();
+    }
+    
+    function test_collateralMaintained_collateralIsVariable() external {
+
+        // 1. Collateral is too high enough to attain ">" condition
+        // 1000000 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
+        // 4_000_000_000_000 >= 4_500_000_000 -> true
+        assertTrue(
+            loan.isCollateralMaintained(
+                10_000,
+                1_000_000,
+                1_000,
+                4_000_000,
+                500_000
+            ), 
+            "Fails to maintain collateral"
+        );
+
+        // 2. Collateral is high enough to meet `=` condition.
+        // 1125 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
+        // 4_500_000_000 >= 4_500_000_000 -> true
+        assertTrue(
+            loan.isCollateralMaintained(
+                10_000,
+                1125,
+                1_000,
+                4_000_000,
+                500_000
+            ), 
+            "Fails to maintain collateral"
+        );
+
+        // 3. Collateral is low enough to not respect `>=` condition anymore.
+        // 1124 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
+        // 4_496_000_000 >= 4_500_000_000 -> false
+        assertTrue(
+            !loan.isCollateralMaintained(
+                10_000,
+                1124,
+                1_000,
+                4_000_000,
+                500_000
+            ), 
+            "Collateral should not be maintained"
+        );
+    }
+
+    function test_collateralMaintained_drawableFundIsVariable() external {
+
+        // 1. Drawable funds are high enough to attain ">" condition
+        // 500_000 * 4_000_000 >= 500_000 * (10_000 > 500_000 ? 10_000 - 500_000: 0);
+        // 2000_000_000_000 >= 0 -> true
+        assertTrue(
+            loan.isCollateralMaintained(
+                10_000,
+                500_000,
+                500_000,
+                4_000_000,
+                500_000
+            ), 
+            "Fails to maintain collateral"
+        );
+
+        // 1. Drawable funds are high enough to attain "=" condition
+        // 500_000 * 4_000_000 >= 500_000 * (4_500_000 > 500_000 ? 4_500_000 - 500_000: 0);
+        // 2000_000_000_000 >= 2000_000_000_000 -> true
+        assertTrue(
+            loan.isCollateralMaintained(
+                4_500_000,
+                500_000,
+                500_000,
+                4_000_000,
+                500_000
+            ), 
+            "Fails to maintain collateral"
+        );
+
+        // 1. Drawable funds are low enough to invalidate ">=" condition
+        // 500_000 * 4_000_000 >= 500_000 * (4_500_000 > 499_999 ? 4_500_000 - 499_999: 0);
+        // 2000_000_000_000 >= 2000_000_500_000 -> false
+        assertTrue(
+            !loan.isCollateralMaintained(
+                4_500_000,
+                500_000,
+                499_999,
+                4_000_000,
+                500_000
+            ), 
+            "Collateral should not be maintained"
+        );
+    }
+
+}
