@@ -5,11 +5,17 @@ import { LoanPrimitive } from "../../LoanPrimitive.sol";
 
 contract LoanPrimitiveHarness is LoanPrimitive {
 
-    // TODO: Sort alphabetically
-
     /**************************/
     /*** Mutating Functions ***/
     /**************************/
+
+    function claimFunds(uint256 amount_, address destination_) external returns (bool success_) {
+        return _claimFunds(amount_, destination_);
+    }
+
+    function drawdownFunds(uint256 amount_, address destination_) external returns (bool success_) {
+        return _drawdownFunds(amount_, destination_);
+    }
 
     function initialize(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory requests_) external {
         _initialize(borrower_, assets_, parameters_, requests_) ;
@@ -19,8 +25,8 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _lend(lender_);
     }
 
-    function claimFunds(uint256 amount_, address destination_) external returns (bool success_) {
-        return _claimFunds(amount_, destination_);
+    function makePayments(uint256 numberOfPayments_) external returns (uint256 principal_, uint256 interest_, uint256 lateFees_) {
+        return _makePayments(numberOfPayments_);
     }
 
     function postCollateral() external returns (uint256 amount_) {
@@ -35,10 +41,6 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _skim(asset_, destination_);
     }
 
-    function makePayments(uint256 numberOfPayments_) external returns (uint256 principal_, uint256 interest_, uint256 lateFees_) {
-        return _makePayments(numberOfPayments_);
-    }
-
     function repossess() external returns (bool success_) {
         return _repossess();
     }
@@ -51,36 +53,32 @@ contract LoanPrimitiveHarness is LoanPrimitive {
     /*** View Functions ****/
     /***********************/
 
+    function claimableFunds() external view returns (uint256 claimableFunds_) {
+        return _claimableFunds;
+    }
+
     function collateral() external view returns (uint256 collateral_) {
         return _collateral;
-    }
-
-    function isCollateralMaintained(
-        uint256 principal_,
-        uint256 collateral_,
-        uint256 drawableFunds_,
-        uint256 principalRequested_,
-        uint256 collateralRequired_
-    ) 
-        external pure returns (bool isMaintained_) 
-    {
-        return _isCollateralMaintained(principal_, collateral_, drawableFunds_, principalRequested_, collateralRequired_);
-    }
-
-    function gracePeriod() external view returns (uint256 gracePeriod_) {
-        return _gracePeriod;
-    }
-
-    function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
-        return _getUnaccountedAmount(asset_);
     }
 
     function collateralRequired() external view returns (uint256 collateralRequired_) {
         return _collateralRequired;
     }
 
-    function claimableFunds() external view returns (uint256 claimableFunds_) {
-        return _claimableFunds;
+    function drawableFunds() external view returns (uint256 drawableFunds_) {
+        return _drawableFunds;
+    }
+
+    function endingPrincipal() external view returns (uint256 endingPrincipal_) {
+        return _endingPrincipal;
+    }
+
+    function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
+        return _getUnaccountedAmount(asset_);
+    }
+
+    function gracePeriod() external view returns (uint256 gracePeriod_) {
+        return _gracePeriod;
     }
 
     function interestRate() external view returns (uint256 interestRate_) {
@@ -91,16 +89,8 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _lateFeeRate;
     }
 
-    function getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) external pure returns (uint256 fee_) {
-        return _getFee(amount_, feeRate_, interval_);
-    }
-
     function lender() external view returns (address lender_) {
         return _lender;
-    }
-
-    function drawableFunds() external view returns (uint256 drawableFunds_) {
-        return _drawableFunds;
     }
 
     function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_) {
@@ -123,8 +113,12 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _principalRequested;
     }
 
-    function endingPrincipal() external view returns (uint256 endingPrincipal_) {
-        return _endingPrincipal;
+    /***********************/
+    /*** Pure Functions ****/
+    /***********************/
+
+    function getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) external pure returns (uint256 fee_) {
+        return _getFee(amount_, feeRate_, interval_);
     }
 
     function getInstallment(
@@ -198,12 +192,20 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _getPeriodicFeeRate(feeRate_, interval_);
     }
 
-    function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 result_) {
-        return _scaledExponent(base_, exponent_, one_);
+    function isCollateralMaintainedWith(
+        uint256 principal_,
+        uint256 collateral_,
+        uint256 drawableFunds_,
+        uint256 principalRequested_,
+        uint256 collateralRequired_
+    )
+        external pure returns (bool isMaintained_)
+    {
+        return _isCollateralMaintainedWith(principal_, collateral_, drawableFunds_, principalRequested_, collateralRequired_);
     }
 
-    function drawdownFunds(uint256 amount_, address destination_) external returns (bool success_) {
-        return _drawdownFunds(amount_, destination_);
+    function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 result_) {
+        return _scaledExponent(base_, exponent_, one_);
     }
 
 }

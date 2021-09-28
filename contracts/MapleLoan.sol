@@ -3,7 +3,7 @@ pragma solidity ^0.8.7;
 
 import { Proxied } from "../modules/proxy-factory/contracts/Proxied.sol";
 
-import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
+import { IMapleLoan }        from "./interfaces/IMapleLoan.sol";
 import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
 
 import { LoanPrimitive } from "./LoanPrimitive.sol";
@@ -122,7 +122,7 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
     }
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments_)
-        external view override 
+        external view override
         returns (uint256 principal_, uint256 interest_, uint256 lateFees_)
     {
         return _getPaymentsBreakdown(

@@ -1221,21 +1221,21 @@ contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
     function test_makePayments(
         uint256 principalRequested_,
         uint256 collateralRequired_,
-        uint256 endingPrincipal_, 
-        uint256 interestRate_, 
-        uint256 lateFeeRate_, 
-        uint256 paymentInterval_, 
+        uint256 endingPrincipal_,
+        uint256 interestRate_,
+        uint256 lateFeeRate_,
+        uint256 paymentInterval_,
         uint256 paymentsRemaining_,
         uint256 numberOfPayments_
-    ) 
-        external 
+    )
+        external
     {
         principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
         collateralRequired_ = constrictToRange(collateralRequired_, 0,   MAX_TOKEN_AMOUNT);
-        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_); 
-        interestRate_       = constrictToRange(interestRate_,       0,   10_000 * 100); 
-        lateFeeRate_        = constrictToRange(lateFeeRate_,        0,   10_000 * 100); 
-        paymentInterval_    = constrictToRange(paymentInterval_,    100, MAX_TIME); 
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
+        interestRate_       = constrictToRange(interestRate_,       0,   10_000 * 100);
+        lateFeeRate_        = constrictToRange(lateFeeRate_,        0,   10_000 * 100);
+        paymentInterval_    = constrictToRange(paymentInterval_,    100, MAX_TIME);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,   120);
         numberOfPayments_   = constrictToRange(numberOfPayments_,   1,   paymentsRemaining_);
 
@@ -1274,16 +1274,16 @@ contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
         assertEq(loan.drawableFunds(),  0);
         assertEq(loan.claimableFunds(), 0);
         assertEq(loan.principal(),      principalRequested_);
-        
+
         ( uint256 principal, uint256 interest, uint256 lateFees ) = loan.getPaymentsBreakdown(
-            numberOfPayments_, 
-            block.timestamp, 
-            loan.nextPaymentDueDate(), 
-            loan.paymentInterval(), 
-            loan.principal(), 
-            loan.endingPrincipal(), 
-            loan.interestRate(), 
-            loan.paymentsRemaining(), 
+            numberOfPayments_,
+            block.timestamp,
+            loan.nextPaymentDueDate(),
+            loan.paymentInterval(),
+            loan.principal(),
+            loan.endingPrincipal(),
+            loan.interestRate(),
+            loan.paymentsRemaining(),
             loan.lateFeeRate()
         );
 
@@ -1293,11 +1293,11 @@ contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
 
         loan.makePayments(numberOfPayments_);
 
-        assertEq(loan.drawableFunds(),      0);      
-        assertEq(loan.claimableFunds(),     totalPayment);             
+        assertEq(loan.drawableFunds(),      0);
+        assertEq(loan.claimableFunds(),     totalPayment);
         assertEq(loan.nextPaymentDueDate(), block.timestamp + paymentInterval_ * (numberOfPayments_ + 1));  // Made a payment, so paymentInterval moved
-        assertEq(loan.principal(),          principalRequested_ - principal);          
-        assertEq(loan.paymentsRemaining(),  paymentsRemaining_ - numberOfPayments_);  
+        assertEq(loan.principal(),          principalRequested_ - principal);
+        assertEq(loan.paymentsRemaining(),  paymentsRemaining_ - numberOfPayments_);
     }
 
     function test_makePayment_morePaymentsThanRemaining(uint256 paymentsRemaining_) external {
@@ -1450,24 +1450,24 @@ contract LoanPrimitiveSkimTest is TestUtils {
 contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
 
     LoanPrimitiveHarness loan;
-    
+
     function setUp() external {
         loan = new LoanPrimitiveHarness();
     }
-    
+
     function test_collateralMaintained_collateralIsVariable() external {
 
         // 1. Collateral is too high enough to attain ">" condition
         // 1000000 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
         // 4_000_000_000_000 >= 4_500_000_000 -> true
         assertTrue(
-            loan.isCollateralMaintained(
+            loan.isCollateralMaintainedWith(
                 10_000,
                 1_000_000,
                 1_000,
                 4_000_000,
                 500_000
-            ), 
+            ),
             "Fails to maintain collateral"
         );
 
@@ -1475,13 +1475,13 @@ contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
         // 1125 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
         // 4_500_000_000 >= 4_500_000_000 -> true
         assertTrue(
-            loan.isCollateralMaintained(
+            loan.isCollateralMaintainedWith(
                 10_000,
                 1125,
                 1_000,
                 4_000_000,
                 500_000
-            ), 
+            ),
             "Fails to maintain collateral"
         );
 
@@ -1489,13 +1489,13 @@ contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
         // 1124 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
         // 4_496_000_000 >= 4_500_000_000 -> false
         assertTrue(
-            !loan.isCollateralMaintained(
+            !loan.isCollateralMaintainedWith(
                 10_000,
                 1124,
                 1_000,
                 4_000_000,
                 500_000
-            ), 
+            ),
             "Collateral should not be maintained"
         );
     }
@@ -1506,13 +1506,13 @@ contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
         // 500_000 * 4_000_000 >= 500_000 * (10_000 > 500_000 ? 10_000 - 500_000: 0);
         // 2000_000_000_000 >= 0 -> true
         assertTrue(
-            loan.isCollateralMaintained(
+            loan.isCollateralMaintainedWith(
                 10_000,
                 500_000,
                 500_000,
                 4_000_000,
                 500_000
-            ), 
+            ),
             "Fails to maintain collateral"
         );
 
@@ -1520,13 +1520,13 @@ contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
         // 500_000 * 4_000_000 >= 500_000 * (4_500_000 > 500_000 ? 4_500_000 - 500_000: 0);
         // 2000_000_000_000 >= 2000_000_000_000 -> true
         assertTrue(
-            loan.isCollateralMaintained(
+            loan.isCollateralMaintainedWith(
                 4_500_000,
                 500_000,
                 500_000,
                 4_000_000,
                 500_000
-            ), 
+            ),
             "Fails to maintain collateral"
         );
 
@@ -1534,13 +1534,13 @@ contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
         // 500_000 * 4_000_000 >= 500_000 * (4_500_000 > 499_999 ? 4_500_000 - 499_999: 0);
         // 2000_000_000_000 >= 2000_000_500_000 -> false
         assertTrue(
-            !loan.isCollateralMaintained(
+            !loan.isCollateralMaintainedWith(
                 4_500_000,
                 500_000,
                 499_999,
                 4_000_000,
                 500_000
-            ), 
+            ),
             "Collateral should not be maintained"
         );
     }

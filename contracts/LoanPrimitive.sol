@@ -92,7 +92,7 @@ contract LoanPrimitive {
     /// @dev Sends `amount_` of `_drawableFunds` to `destination_`.
     function _drawdownFunds(uint256 amount_, address destination_) internal virtual returns (bool success_) {
         _drawableFunds -= amount_;
-        return ERC20Helper.transfer(_fundsAsset, destination_, amount_) && _isCollateralMaintained(_principal, _collateral, _drawableFunds, _principalRequested, _collateralRequired);
+        return ERC20Helper.transfer(_fundsAsset, destination_, amount_) && _isCollateralMaintained();
     }
 
     /// @dev Registers the delivery of an amount of funds to make `numberOfPayments_` payments.
@@ -135,7 +135,7 @@ contract LoanPrimitive {
     /// @dev Sends `amount_` of `_collateral` to `destination_`.
     function _removeCollateral(uint256 amount_, address destination_) internal virtual returns (bool success_) {
         _collateral -= amount_;
-        return ERC20Helper.transfer(_collateralAsset, destination_, amount_) && _isCollateralMaintained(_principal, _collateral, _drawableFunds, _principalRequested, _collateralRequired);
+        return ERC20Helper.transfer(_collateralAsset, destination_, amount_) && _isCollateralMaintained();
     }
 
     /// @dev Registers the delivery of an amount of funds to be returned as `_drawableFunds`.
@@ -182,27 +182,16 @@ contract LoanPrimitive {
     /*** Internal View Functions ***/
     /*******************************/
 
-    /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
-    function _isCollateralMaintained(
-        uint256 principal_,
-        uint256 collateral_,
-        uint256 drawableFunds_,
-        uint256 principalRequested_,
-        uint256 collateralRequired_
-    ) 
-        internal pure returns (bool isMaintained_) 
-    {
-        // Whether the final collateral ratio is commensurate with the amount of outstanding principal
-        // uint256 outstandingPrincipal = principal > drawableFunds ? principal - drawableFunds : 0;
-        // return collateral / outstandingPrincipal >= collateralRequired / principalRequested;
-        return collateral_ * principalRequested_ >= collateralRequired_ * (principal_ > drawableFunds_ ? principal_ - drawableFunds_ : uint256(0));
-    }
-
     /// @dev Returns the amount a token at `asset_`, above what has been currently accounted for.
     function _getUnaccountedAmount(address asset_) internal view virtual returns (uint256 amount_) {
         return IERC20(asset_).balanceOf(address(this))
             - (asset_ == _collateralAsset ? _collateral : uint256(0))
             - (asset_ == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));
+    }
+
+    /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
+    function _isCollateralMaintained() internal view returns (bool isMaintained_) {
+        return _isCollateralMaintainedWith(_principal, _collateral, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
     /*******************************/
@@ -325,6 +314,22 @@ contract LoanPrimitive {
     /// @dev Returns the fee rate over an interval, given an annualized fee rate.
     function _getPeriodicFeeRate(uint256 feeRate_, uint256 interval_) internal pure virtual returns (uint256 periodicFeeRate_) {
         return (feeRate_ * interval_) / uint256(365 days);
+    }
+
+    /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
+    function _isCollateralMaintainedWith(
+        uint256 principal_,
+        uint256 collateral_,
+        uint256 drawableFunds_,
+        uint256 principalRequested_,
+        uint256 collateralRequired_
+    )
+        internal pure returns (bool isMaintained_)
+    {
+        // Whether the final collateral ratio is commensurate with the amount of outstanding principal
+        // uint256 outstandingPrincipal = principal > drawableFunds ? principal - drawableFunds : 0;
+        // return collateral / outstandingPrincipal >= collateralRequired / principalRequested;
+        return collateral_ * principalRequested_ >= collateralRequired_ * (principal_ > drawableFunds_ ? principal_ - drawableFunds_ : uint256(0));
     }
 
     /**
