@@ -43,9 +43,11 @@ contract MapleLoanTest is StateManipulations, TestUtils {
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, requests);
 
-        lender.erc20_transfer(address(token), address(loan), 1_000_000);
+        // Fund via a 500k approval and a 500k transfer, totaling 1M
+        lender.erc20_transfer(address(token), address(loan), 500_000);
+        lender.erc20_approve(address(token), address(loan), 500_000);
 
-        assertTrue(lender.try_loan_lend(address(loan), address(lender)), "Cannot lend");
+        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 
@@ -214,9 +216,11 @@ contract MapleLoanTest is StateManipulations, TestUtils {
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, requests);
 
-        lender.erc20_transfer(address(token), address(loan), 1_000_000);
+        // Fund via a 500k approval and a 500k transfer, totaling 1M
+        lender.erc20_transfer(address(token), address(loan), 500_000);
+        lender.erc20_approve(address(token), address(loan), 500_000);
 
-        assertTrue(lender.try_loan_lend(address(loan), address(lender)), "Cannot lend");
+        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 

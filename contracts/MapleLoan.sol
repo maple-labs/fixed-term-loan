@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { Proxied } from "../modules/proxy-factory/contracts/Proxied.sol";
+import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
+import { Proxied }     from "../modules/proxy-factory/contracts/Proxied.sol";
 
 import { IMapleLoan }        from "./interfaces/IMapleLoan.sol";
 import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
@@ -71,9 +72,12 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
     /*** Lend Functions ***/
     /**********************/
 
-    function lend(address lender_) external override returns (uint256 amount_) {
+    function fundLoan(address lender_, uint256 amount_) external override returns (uint256 amountFunded_) {
+        // If `transfer` is performed before `fundLoan` instead, this will return false but not revert.
+        ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);  
+        
         bool success;
-        ( success, amount_ ) = _lend(lender_);
+        ( success, amountFunded_ ) = _lend(lender_);
         require(success, "ML:L:FAILED");
 
         emit Funded(lender_, _nextPaymentDueDate);
