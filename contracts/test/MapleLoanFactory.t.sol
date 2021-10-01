@@ -10,15 +10,7 @@ import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
 import { Borrower } from "./accounts/Borrower.sol";
 import { Governor } from "./accounts/Governor.sol";
 
-contract MapleGlobalsMock {
-
-    address public governor;
-
-    constructor (address governor_) {
-        governor = governor_;
-    }
-
-}
+import { MapleGlobalsMock } from "./mocks/Mocks.sol";
 
 contract MapleLoanFactoryTest is TestUtils {
 

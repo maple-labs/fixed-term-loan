@@ -8,6 +8,8 @@ import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 /// @title LoanPrimitive maintains all accounting and functionality related to generic loans.
 contract LoanPrimitive {
 
+    uint256 private constant ONE = 10 ** 18;
+
     // Roles
     address internal _borrower;  // The address of the borrower.
     address internal _lender;    // The address of the lender.
@@ -200,7 +202,7 @@ contract LoanPrimitive {
 
     /// @dev Returns a fee by applying an annualized and scaled fee rate, to an amount, over an interval of time.
     function _getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) internal pure virtual returns (uint256 fee_) {
-        return amount_ * _getPeriodicFeeRate(feeRate_, interval_) / uint256(10_000 * 100);
+        return amount_ * _getPeriodicFeeRate(feeRate_, interval_) / ONE;
     }
 
     /// @dev Returns principal and interest fee portions of a payment instalment, given generic, stateless loan parameters.
@@ -215,33 +217,22 @@ contract LoanPrimitive {
          * N = payments remaining      |     |  \                 /      |   |  | ( 1 + R ) ^ N | - 1  | *
          * E = ending principal target |      \                         /     \  \             /      /  *
          *                             |                                                                 *
-         *                             |-----------------------------------------------------------------*
+         *                             |---------------------------------------------------------------- *
          *                                                                                               *
-         * - where R is in basis points, scaled by 100, for a payment interval (`periodicRate`)          *
-         * - where (1 + R) ^ N is still in basis points and scaled by 100 (`raisedRate`)                 *
+         * - Where R           is `periodicRate`                                                         *
+         * - Where (1 + R) ^ N is `raisedRate`                                                           *
+         * - Both of these rates are scaled by 1e18 (e.g., 12% => 0.12 * 10 ** 18)                       *
          *************************************************************************************************/
 
         uint256 periodicRate = _getPeriodicFeeRate(interestRate_, paymentInterval_);
-        uint256 raisedRate   = _scaledExponent(uint256(10_000 * 100) + periodicRate, totalPayments_, uint256(10_000 * 100));
+        uint256 raisedRate   = _scaledExponent(ONE + periodicRate, totalPayments_, ONE);
 
-        if (raisedRate <= uint256(10_000 * 100)) return ((principal_ - endingPrincipal_) / totalPayments_, 0);
+        if (raisedRate <= ONE) return ((principal_ - endingPrincipal_) / totalPayments_, 0);
 
-        uint256 total =
-            (
-                (
-                    (
-                        (
-                            principal_ * raisedRate
-                        ) / uint256(10_000 * 100)    // go from basis points to absolute value, and descale by 100
-                    ) - endingPrincipal_
-                ) * periodicRate
-            )
-            /                                        // divide entire numerator above by entire denominator below
-            (
-                raisedRate - uint256(10_000 * 100)   // subtract `raisedRate` by 1 (which is 100%, in basis points, scaled by 100)
-            );
+        uint256 total = ((((principal_ * raisedRate) / ONE) - endingPrincipal_) * periodicRate) / (raisedRate - ONE);
 
-        principalAmount_ = total - (interestAmount_ = _getFee(principal_, interestRate_, paymentInterval_));
+        interestAmount_  = _getFee(principal_, interestRate_, paymentInterval_);
+        principalAmount_ = total >= interestAmount_ ? total - interestAmount_ : 0;
     }
 
     /// @dev Returns principal, interest fee, and late fee portions of a payment, given generic, stateless loan parameters and loan state.

@@ -21,12 +21,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    10_000);
         assertEq(totalLateFees,        0);
     }
@@ -38,12 +38,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    10_000);
         assertEq(totalLateFees,        0);
     }
@@ -55,12 +55,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    20_000);
         assertEq(totalLateFees,        83);
     }
@@ -72,12 +72,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    30_000);
         assertEq(totalLateFees,        166);
     }
@@ -89,12 +89,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    40_000);
         assertEq(totalLateFees,        250);
     }
@@ -106,12 +106,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    50_000);
         assertEq(totalLateFees,        333);
     }
@@ -124,12 +124,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    10_000);
         assertEq(totalLateFees,        0);
     }
@@ -142,12 +142,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 158_487);
+        assertEq(totalPrincipalAmount, 158_485);
         assertEq(totalInterestFees,    19_211);
         assertEq(totalLateFees,        0);
     }
@@ -160,12 +160,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    10_000);
         assertEq(totalLateFees,        0);
     }
@@ -178,12 +178,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 158_487);
+        assertEq(totalPrincipalAmount, 158_485);
         assertEq(totalInterestFees,    19_211);
         assertEq(totalLateFees,        0);
     }
@@ -196,12 +196,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    20_000);
         assertEq(totalLateFees,        83);
     }
@@ -214,12 +214,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 158_487);
+        assertEq(totalPrincipalAmount, 158_485);
         assertEq(totalInterestFees,    29_211);
         assertEq(totalLateFees,        83);
     }
@@ -232,12 +232,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 78_849);
+        assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    30_000);
         assertEq(totalLateFees,        166);
     }
@@ -250,12 +250,12 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
             365 days / 12,
             1_000_000,
             0,
-            120_000,
+            0.12 ether,
             12,
-            100_000
+            0.10 ether
         );
 
-        assertEq(totalPrincipalAmount, 158_487);
+        assertEq(totalPrincipalAmount, 158_485);
         assertEq(totalInterestFees,    48_422);
         assertEq(totalLateFees,        242);
     }
@@ -271,13 +271,13 @@ contract LoanPrimitiveFeeTest is TestUtils {
     }
 
     function test_getFee() external {
-        assertEq(loan.getFee(1_000_000, 120_000, 365 days / 12), 10_000);  // 12% APY on 1M
-        assertEq(loan.getFee(10_000, 1_200_000, 365 days / 12), 1_000);    // 120% APY on 10k
+        assertEq(loan.getFee(1_000_000, 0.12 ether, 365 days / 12), 10_000);  // 12% APY on 1M
+        assertEq(loan.getFee(10_000,    1.20 ether, 365 days / 12), 1_000);   // 120% APY on 10k
     }
 
     function test_getPeriodicFeeRate() external {
-        assertEq(loan.getPeriodicFeeRate(120_000, 365 days),      120_000);
-        assertEq(loan.getPeriodicFeeRate(120_000, 365 days / 12), 10_000);
+        assertEq(loan.getPeriodicFeeRate(0.12 ether, 365 days),      0.12 ether);  // 12%
+        assertEq(loan.getPeriodicFeeRate(0.12 ether, 365 days / 12), 0.01 ether);  // 1%
     }
 
 }
@@ -294,9 +294,9 @@ contract LoanPrimitiveInstallmentTest is TestUtils {
     }
 
     function test_getInstallment_withFixtures() external {
-        ( uint256 principalAmount, uint256 interestAmount ) = loan.getInstallment(1_000_000, 0, 120_000, 365 days / 12, 12);
+        ( uint256 principalAmount, uint256 interestAmount ) = loan.getInstallment(1_000_000, 0, 0.12 ether, 365 days / 12, 12);
 
-        assertEq(principalAmount, 78_849);
+        assertEq(principalAmount, 78_848);
         assertEq(interestAmount,  10_000);
     }
 
@@ -306,10 +306,10 @@ contract LoanPrimitiveInstallmentTest is TestUtils {
         uint256 interestRate_,
         uint256 paymentInterval_,
         uint256 totalPayments_
-    ) external view {
+    ) external {
         principal_       = constrictToRange(principal_,       MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
         endingPrincipal_ = constrictToRange(endingPrincipal_, 0,                principal_);
-        interestRate_    = constrictToRange(interestRate_,    0,                10_000 * 100);  // 0% - 100% APY (10,000 basis points scaled by 100)
+        interestRate_    = constrictToRange(interestRate_,    0,                1.00 ether);  // 0% - 100% APY
         paymentInterval_ = constrictToRange(paymentInterval_, 1 hours,          365 days);
         totalPayments_   = constrictToRange(totalPayments_,   1,                100);
 
@@ -320,17 +320,17 @@ contract LoanPrimitiveInstallmentTest is TestUtils {
         uint256 principalAmount_;
         uint256 interestAmount_;
 
-        // 100000% APY (10,000,000 basis points scaled by 100) charged all at once in one payment
-        (principalAmount_, interestAmount_) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 10_000_000 * 100, 365 days, 1);
+        // 100,000% APY charged all at once in one payment
+        (principalAmount_, interestAmount_) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 1000.00 ether, 365 days, 1);
 
         assertEq(principalAmount_, 1000000000000000000000000000000);
         assertEq(interestAmount_,  1000000000000000000000000000000000);
 
-        // A payment a day for 30 years (10950 payments) at 100% APY (10,000 basis points scaled by 100)
-        (principalAmount_, interestAmount_) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 10_000 * 100, 1 days, 10950);
+        // A payment a day for 30 years (10950 payments) at 100% APY
+        (principalAmount_, interestAmount_) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 1.00 ether, 1 days, 10950);
 
-        assertEq(principalAmount_, 270119039097232);
-        assertEq(interestAmount_,  2739000000000000000000000000);
+        assertEq(principalAmount_, 267108596355467);
+        assertEq(interestAmount_,  2739726027397260000000000000);
     }
 
 }

@@ -33,8 +33,8 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         uint256[6] memory parameters = [
             uint256(0),
             uint256(10 days),
-            uint256(120_000),
-            uint256(100_000),
+            uint256(0.12 ether),
+            uint256(0.10 ether),
             uint256(365 days / 6),
             uint256(6)
         ];
@@ -45,7 +45,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan), 500_000);
+        lender.erc20_approve(address(token), address(loan),  500_000);
 
         assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
 
@@ -61,7 +61,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Check details for upcoming payment #1
         ( uint256 principalPortion, uint256 interestPortion, uint256 lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
-        assertEq(principalPortion,         158_526,   "Different principal");
+        assertEq(principalPortion,         158_525,   "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
         assertEq(lateFeesPortion,          0,         "Different late fees");
         assertEq(loan.paymentsRemaining(), 6,         "Different payments remaining");
@@ -78,11 +78,11 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Check details for upcoming payment #2
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
-        assertEq(principalPortion,         161_697, "Different principal");
+        assertEq(principalPortion,         161_696, "Different principal");
         assertEq(interestPortion,          16_829,  "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 5,       "Different payments remaining");
-        assertEq(loan.principal(),         841_474, "Different payments remaining");
+        assertEq(loan.principal(),         841_475, "Different payments remaining");
 
         // Warp to 1 second before payment #2 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
@@ -99,7 +99,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         assertEq(interestPortion,          13_595,  "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 4,       "Different payments remaining");
-        assertEq(loan.principal(),         679_777, "Different payments remaining");
+        assertEq(loan.principal(),         679_779, "Different payments remaining");
 
         // Warp to 1 second before payment #3 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
@@ -117,11 +117,11 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Check details for upcoming payment #4
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
-        assertEq(principalPortion,         168_229, "Different principal");
+        assertEq(principalPortion,         168_230, "Different principal");
         assertEq(interestPortion,          10_296,  "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 3,       "Different payments remaining");
-        assertEq(loan.principal(),         514_847, "Different payments remaining");
+        assertEq(loan.principal(),         514_849, "Different payments remaining");
 
         // Warp to 1 second before payment #4 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
@@ -136,14 +136,14 @@ contract MapleLoanTest is StateManipulations, TestUtils {
 
         assertTrue(borrower.try_loan_returnFunds(address(loan)), "Cannot return funds");
 
-        assertEq(loan.drawableFunds(), 150_000, "Different drawable funds");
+        assertEq(loan.drawableFunds(), 150_001, "Different drawable funds");
 
         assertTrue(borrower.try_loan_removeCollateral(address(loan), 85_059, address(borrower)), "Cannot remove collateral");
 
         assertEq(loan.collateral(), 69_396, "Different collateral");
 
         // Claim loan proceeds thus far
-        assertTrue(lender.try_loan_claimFunds(address(loan), 714_102, address(lender)), "Cannot claim funds");
+        assertTrue(lender.try_loan_claimFunds(address(loan), 714_101, address(lender)), "Cannot claim funds");
 
         // Check details for upcoming payment #5
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -152,7 +152,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         assertEq(interestPortion,          6_932,   "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 2,       "Different payments remaining");
-        assertEq(loan.principal(),         346_618, "Different payments remaining");
+        assertEq(loan.principal(),         346_619, "Different payments remaining");
 
         // Warp to 1 second before payment #5 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
@@ -165,11 +165,11 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Check details for upcoming payment #6
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
 
-        assertEq(principalPortion,         175_025, "Different principal");
+        assertEq(principalPortion,         175_026, "Different principal");
         assertEq(interestPortion,          3_500,   "Different interest");
         assertEq(lateFeesPortion,          0,       "Different late fees");
         assertEq(loan.paymentsRemaining(), 1,       "Different payments remaining");
-        assertEq(loan.principal(),         175_025, "Different payments remaining");
+        assertEq(loan.principal(),         175_026, "Different payments remaining");
 
         // Warp to 1 second before payment #6 becomes late
         hevm.warp(loan.nextPaymentDueDate() - 1);
@@ -206,8 +206,8 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         uint256[6] memory parameters = [
             uint256(1_000_000),
             uint256(10 days),
-            uint256(120_000),
-            uint256(100_000),
+            uint256(0.12 ether),
+            uint256(0.10 ether),
             uint256(365 days / 6),
             uint256(6)
         ];
@@ -218,7 +218,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan), 500_000);
+        lender.erc20_approve(address(token), address(loan),  500_000);
 
         assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
 
