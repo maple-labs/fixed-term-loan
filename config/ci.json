@@ -10,8 +10,14 @@
         "contracts/MapleLoanInitializer.sol": {
             "urls": ["contracts/MapleLoanInitializer.sol"]
         },
+        "contracts/Refinancer.sol": {
+            "urls": ["contracts/Refinancer.sol"]
+        },
         "contracts/test/LoanPrimitive.t.sol": {
             "urls": ["contracts/test/LoanPrimitive.t.sol"]
+        },
+        "contracts/test/Refinancer.t.sol": {
+            "urls": ["contracts/test/Refinancer.t.sol"]
         },
         "contracts/test/MapleLoanFactory.t.sol": {
             "urls": ["contracts/test/MapleLoanFactory.t.sol"]

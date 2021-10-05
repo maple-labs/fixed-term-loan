@@ -5,18 +5,12 @@ import { TestUtils, Hevm, StateManipulations } from "../../modules/contract-test
 import { IERC20 }                              from "../../modules/erc20/src/interfaces/IERC20.sol";
 import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
+import { ConstructableMapleLoan }              from "./mocks/Mocks.sol";
+
 import { Borrower } from "./accounts/Borrower.sol";
 import { Lender }   from "./accounts/Lender.sol";
 
 import { MapleLoan } from "./../MapleLoan.sol";
-
-contract ConstructableMapleLoan is MapleLoan {
-
-    constructor(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory amounts_) {
-        _initialize(borrower_, assets_, parameters_, amounts_);
-    }
-
-}
 
 contract MapleLoanTest is StateManipulations, TestUtils {
 

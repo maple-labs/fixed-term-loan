@@ -103,6 +103,13 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     /********************************/
 
     /**
+     *  @dev   Accept the proposed terms ans trigger refinance execution
+     *  @param refinancer_ The address of the refinancer contract.
+     *  @param calls_  The encoded arguments to be passed to refinancer.
+     */
+    function acceptNewTerms(address refinancer_, bytes[] calldata calls_) external;
+
+    /**
      *  @dev   Claim funds that have been paid (principal, interest, and late fees).
      *  @param amount_      The amount to be claimed.
      *  @param destination_ The address to send the funds.
@@ -150,6 +157,13 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
      *  @return amount_ The amount posted.
      */
     function postCollateral() external returns (uint256 amount_);
+
+    /**
+     *  @dev   Propose new terms for refinance
+     *  @param refinancer_ The address of the refinancer contract.
+     *  @param calls_  The encoded arguments to be passed to refinancer.
+     */
+    function proposeNewTerms(address refinancer_, bytes[] calldata calls_) external;
 
     /**
      *  @dev   Remove collateral from the loan (opposite of posting collateral).

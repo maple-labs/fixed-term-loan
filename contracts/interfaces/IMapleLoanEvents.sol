@@ -70,6 +70,22 @@ interface IMapleLoanEvents {
     event PaymentsMade(uint256 numberOfPayments_, uint256 principalPaid_, uint256 interestPaid_, uint256 lateFeesPaid_);
 
     /**
+     *  @dev  A refinance was proposed.
+     *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
+     *  @param refinancer_           The address that will execute the refinance.
+     *  @param calls_               The individual calls for the refinancer contract.
+     */
+    event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, bytes[] calls_);
+
+    /**
+     *  @dev  A refinance was proposed.
+     *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
+     *  @param refinancer_           The address that will execute the refinance.
+     *  @param calls_               The individual calls for the refinancer contract.
+     */
+    event NewTermsProposed(bytes32 refinanceCommitment_, address refinancer_, bytes[] calls_);
+
+    /**
      *  @dev   The loan was in default and funds and collateral was repossessed by the lender.
      *  @param collateralAssetAmount_ The amount of collateral asset repossessed.
      *  @param fundsAssetAmount_      The amount of funds asset repossessed.

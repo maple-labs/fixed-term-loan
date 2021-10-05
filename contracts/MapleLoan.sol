@@ -12,6 +12,8 @@ import { LoanPrimitive } from "./LoanPrimitive.sol";
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
 
+    bytes32 refinanceCommitment;
+
     /********************************/
     /*** Administrative Functions ***/
     /********************************/
@@ -103,6 +105,34 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         _lender = address(0);
 
         emit Repossessed(collateralAssetAmount_, fundsAssetAmount_);
+    }
+
+    /***************************/
+    /*** Refinance Functions ***/
+    /***************************/
+
+    function proposeNewTerms(address refinancer_, bytes[] calldata calls_) external override {
+        require(msg.sender == _borrower, "ML:PNT:NOT_BORROWER");
+
+        refinanceCommitment = keccak256(abi.encode(refinancer_, calls_));
+
+        emit NewTermsProposed(refinanceCommitment, refinancer_, calls_);
+    }
+
+    function acceptNewTerms(address refinancer_, bytes[] calldata calls_) external override {
+        require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
+
+        bytes32 refinanceCommitment_ = keccak256(abi.encode(refinancer_, calls_));
+        require(refinanceCommitment_ == refinanceCommitment, "ML:ANT:INVALID_ARGS");
+        
+        for (uint256 i; i < calls_.length; ++i) {
+            ( bool success, ) = refinancer_.delegatecall(calls_[i]);
+            require(success, "ML:ANT:FAILED");
+        }
+
+        require(_isCollateralMaintained(), "ML:ANT:COLLATERAL_NOT_MAINTAINED");
+
+        emit NewTermsAccepted(refinanceCommitment_, refinancer_, calls_);
     }
 
     /*************************/
