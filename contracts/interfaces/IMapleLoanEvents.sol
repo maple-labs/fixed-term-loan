@@ -48,17 +48,18 @@ interface IMapleLoanEvents {
      *                         [0]: collateralAsset,
      *                         [1]: fundsAsset.
      *  @param parameters_ Array of loan parameters:
-     *                         [0]: endingPrincipal,
-     *                         [1]: gracePeriod,
-     *                         [2]: interestRate,
-     *                         [3]: lateFeeRate,
-     *                         [4]: paymentInterval,
-     *                         [5]: paymentsRemaining.
-     *  @param amounts_    Requested amounts:
+     *                         [0]: gracePeriod,
+     *                         [1]: paymentInterval,
+     *                         [2]: payments,
+     *                         [3]: interestRate,
+     *                         [4]: earlyInterestRateDiscount,
+     *                         [5]: lateInterestRatePremium.
+     *  @param amounts_   Requested amounts:
      *                         [0]: collateralRequired,
-     *                         [1]: principalRequested.
+     *                         [1]: principalRequested,
+     *                         [2]: endingPrincipal.
      */
-    event Initialized(address indexed borrower_, address[2] assets_, uint256[6] parameters_, uint256[2] amounts_);
+    event Initialized(address indexed borrower_, address[2] assets_, uint256[6] parameters_, uint256[3] amounts_);
 
     /**
      *  @dev   Payments were made.

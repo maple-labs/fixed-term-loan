@@ -4,7 +4,7 @@ pragma solidity ^0.8.7;
 import { TestUtils, StateManipulations } from "../../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }                     from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
-import { ConstructableMapleLoan } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, DebtLockerMock } from "./mocks/Mocks.sol";
 
 import { Refinancer } from "../Refinancer.sol";
 
@@ -21,8 +21,10 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
     ConstructableMapleLoan loan;
     MockERC20              token;
     Refinancer             refinancer;
+    DebtLockerMock         debtLocker;
 
     function setUp() external {
+        debtLocker = new DebtLockerMock();
         refinancer = new Refinancer();
     }
 
@@ -43,17 +45,19 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
         address[2] memory assets = [address(token), address(token)];
 
         uint256[6] memory parameters = [
-            endingPrincipal_,
             gracePeriod_,
-            interestRate_,
-            lateFeeRate_,
             paymentInterval_,
-            paymentsRemaining_
+            paymentsRemaining_,
+            interestRate_,
+            0,
+            0
         ];
 
-        uint256[2] memory requests = [collateralRequired_, principalRequested_];
+        uint256[4] memory fees = [uint256(15_000), uint256(0.10 ether), uint256(20_000), uint256(0.15 ether)];
 
-        loan = new ConstructableMapleLoan(address(this), assets, parameters, requests);
+        uint256[3] memory requests = [collateralRequired_, principalRequested_, endingPrincipal_];
+
+        loan = new ConstructableMapleLoan(address(debtLocker), address(this), assets, parameters, requests, fees);
 
         token.mint(address(this),    principalRequested_);
         token.approve(address(loan), principalRequested_);

@@ -34,7 +34,7 @@ contract LoanUser is ERC20User {
     }
 
     function loan_fundLoan(address loan_, address lender_, uint256 amount_) external returns (uint256 amountFunded_) {
-        IMapleLoan(loan_).fundLoan(lender_, amount_);
+        return IMapleLoan(loan_).fundLoan(lender_, amount_);
     }
 
     function loan_skim(address loan_, address asset_, address destination_) external returns (uint256 amount_) {

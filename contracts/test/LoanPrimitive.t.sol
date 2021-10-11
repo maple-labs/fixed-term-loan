@@ -14,250 +14,138 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
         loan = new LoanPrimitiveHarness();
     }
 
-    function test_getPaymentBreakdown_onePeriodBeforeDue() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 - (1 * (365 days / 12)),
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
+    function _getPaymentsBreakdownWith(
+        uint256 numberOfPayments_,
+        uint256 currentTime_,
+        uint256 nextPaymentDueDate_
+    )
+        internal view
+        returns (
+            uint256 totalPrincipalAmount,
+            uint256 totalInterestFees
+        )
+    {
+        ( totalPrincipalAmount, totalInterestFees ) = loan.getPaymentsBreakdown(
+            numberOfPayments_,
+            currentTime_,
+            nextPaymentDueDate_,
+            365 days / 12,        // Interval such that there are 12 payments in a year
+            1_000_000,            // Principal
+            0,                    // Ending principal
+            12,                   // 12 payments
+            0.12e18,              // 12% interest
+            0.04e18               // 4% late premium interest
         );
-
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    10_000);
-        assertEq(totalLateFees,        0);
-    }
-
-    function test_getPaymentBreakdown_oneSecondBeforeDue() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 - 1,
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
-        );
-
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    10_000);
-        assertEq(totalLateFees,        0);
-    }
-
-    function test_getPaymentBreakdown_onePeriodLate() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 + (1 * (365 days / 12)),  // Current time is 2 periods after next payment date
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
-        );
-
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    20_000);
-        assertEq(totalLateFees,        83);
-    }
-
-    function test_getPaymentBreakdown_twoPeriodsLate() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 + (2 * (365 days / 12)),  // Current time is 2 periods after next payment date
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
-        );
-
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    30_000);
-        assertEq(totalLateFees,        166);
-    }
-
-    function test_getPaymentBreakdown_threePeriodsLate() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 + (3 * (365 days / 12)),  // Current time is 2 periods after next payment date
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
-        );
-
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    40_000);
-        assertEq(totalLateFees,        250);
-    }
-
-    function test_getPaymentBreakdown_fourPeriodsLate() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentBreakdown(
-            10_000_000 + (4 * (365 days / 12)),  // Current time is 2 periods after next payment date
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
-        );
-
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    50_000);
-        assertEq(totalLateFees,        333);
     }
 
     function test_getPaymentsBreakdown_onePaymentOnePeriodBeforeDue() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
             1,
             10_000_000 - (1 * (365 days / 12)),
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
+            10_000_000
         );
 
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    10_000);
-        assertEq(totalLateFees,        0);
-    }
-
-    function test_getPaymentsBreakdown_twoPaymentsOnePeriodBeforeDue() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
-            2,
-            10_000_000 - (1 * (365 days / 12)),
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
-        );
-
-        assertEq(totalPrincipalAmount, 158_485);
-        assertEq(totalInterestFees,    19_211);
-        assertEq(totalLateFees,        0);
+        assertEq(principalAmount, 78_848);
+        assertEq(interestFees,    10_000);
     }
 
     function test_getPaymentsBreakdown_onePaymentOneSecondBeforeDue() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
+        ( uint256 totalPrincipalAmount, uint256 totalInterestFees ) = _getPaymentsBreakdownWith(
             1,
             10_000_000 - 1,
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
+            10_000_000
         );
 
         assertEq(totalPrincipalAmount, 78_848);
         assertEq(totalInterestFees,    10_000);
-        assertEq(totalLateFees,        0);
-    }
-
-    function test_getPaymentsBreakdown_twoPaymentsOneSecondBeforeDue() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
-            2,
-            10_000_000 - 1,
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
-        );
-
-        assertEq(totalPrincipalAmount, 158_485);
-        assertEq(totalInterestFees,    19_211);
-        assertEq(totalLateFees,        0);
     }
 
     function test_getPaymentsBreakdown_onePaymentOnePeriodLate() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
             1,
             10_000_000 + (1 * (365 days / 12)),
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
+            10_000_000
         );
 
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    20_000);
-        assertEq(totalLateFees,        83);
-    }
-
-    function test_getPaymentsBreakdown_twoPaymentsOnePeriodLate() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
-            2,
-            10_000_000 + (1 * (365 days / 12)),
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
-        );
-
-        assertEq(totalPrincipalAmount, 158_485);
-        assertEq(totalInterestFees,    29_211);
-        assertEq(totalLateFees,        83);
+        assertEq(principalAmount, 78_848);
+        assertEq(interestFees,    16_666);
     }
 
     function test_getPaymentsBreakdown_onePaymentTwoPeriodsLate() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
             1,
             10_000_000 + (2 * (365 days / 12)),
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
+            10_000_000
         );
 
-        assertEq(totalPrincipalAmount, 78_848);
-        assertEq(totalInterestFees,    30_000);
-        assertEq(totalLateFees,        166);
+        assertEq(principalAmount, 78_848);
+        assertEq(interestFees,    20_000);
+    }
+
+    function test_getPaymentsBreakdown_onePaymentThreePeriodsLate() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+            1,
+            10_000_000 + (3 * (365 days / 12)),
+            10_000_000
+        );
+
+        assertEq(principalAmount, 78_848);
+        assertEq(interestFees,    23_333);
+    }
+
+    function test_getPaymentsBreakdown_onePaymentFourPeriodsLate() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+            1,
+            10_000_000 + (4 * (365 days / 12)),
+            10_000_000
+        );
+
+        assertEq(principalAmount, 78_848);
+        assertEq(interestFees,    26_666);
+    }
+
+    function test_getPaymentsBreakdown_twoPaymentsOnePeriodBeforeDue() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+            2,
+            10_000_000 - (1 * (365 days / 12)),
+            10_000_000
+        );
+
+        assertEq(principalAmount, 158_485);
+        assertEq(interestFees,    19_211);
+    }
+
+    function test_getPaymentsBreakdown_twoPaymentsOneSecondBeforeDue() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+            2,
+            10_000_000 - 1,
+            10_000_000
+        );
+
+        assertEq(principalAmount, 158_485);
+        assertEq(interestFees,    19_211);
+    }
+
+    function test_getPaymentsBreakdown_twoPaymentsOnePeriodLate() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+            2,
+            10_000_000 + (1 * (365 days / 12)),
+            10_000_000
+        );
+
+        assertEq(principalAmount, 158_485);
+        assertEq(interestFees,    25_877);
     }
 
     function test_getPaymentsBreakdown_twoPaymentsTwoPeriodsLate() external {
-        ( uint256 totalPrincipalAmount, uint256 totalInterestFees, uint256 totalLateFees ) = loan.getPaymentsBreakdown(
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
             2,
             10_000_000 + (2 * (365 days / 12)),
-            10_000_000,
-            365 days / 12,
-            1_000_000,
-            0,
-            0.12 ether,
-            12,
-            0.10 ether
+            10_000_000
         );
 
-        assertEq(totalPrincipalAmount, 158_485);
-        assertEq(totalInterestFees,    48_422);
-        assertEq(totalLateFees,        242);
+        assertEq(principalAmount, 158_485);
+        assertEq(interestFees,    35_351);
     }
 
 }
@@ -270,14 +158,14 @@ contract LoanPrimitiveFeeTest is TestUtils {
         loan = new LoanPrimitiveHarness();
     }
 
-    function test_getFee() external {
-        assertEq(loan.getFee(1_000_000, 0.12 ether, 365 days / 12), 10_000);  // 12% APY on 1M
-        assertEq(loan.getFee(10_000,    1.20 ether, 365 days / 12), 1_000);   // 120% APY on 10k
+    function test_getInterest() external {
+        assertEq(loan.getInterest(1_000_000, 0.12e18, 365 days / 12), 10_000);  // 12% APY on 1M
+        assertEq(loan.getInterest(10_000,    1.20e18, 365 days / 12), 1_000);   // 120% APY on 10k
     }
 
-    function test_getPeriodicFeeRate() external {
-        assertEq(loan.getPeriodicFeeRate(0.12 ether, 365 days),      0.12 ether);  // 12%
-        assertEq(loan.getPeriodicFeeRate(0.12 ether, 365 days / 12), 0.01 ether);  // 1%
+    function test_getPeriodicInterestRate() external {
+        assertEq(loan.getPeriodicInterestRate(0.12 ether, 365 days),      0.12 ether);  // 12%
+        assertEq(loan.getPeriodicInterestRate(0.12 ether, 365 days / 12), 0.01 ether);  // 1%
     }
 
 }
@@ -314,6 +202,8 @@ contract LoanPrimitiveInstallmentTest is TestUtils {
         totalPayments_   = constrictToRange(totalPayments_,   1,                100);
 
         loan.getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
+
+        assertTrue(true);
     }
 
     function test_getInstallment_edgeCases() external {
@@ -321,13 +211,13 @@ contract LoanPrimitiveInstallmentTest is TestUtils {
         uint256 interestAmount_;
 
         // 100,000% APY charged all at once in one payment
-        (principalAmount_, interestAmount_) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 1000.00 ether, 365 days, 1);
+        ( principalAmount_, interestAmount_ ) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 1000.00 ether, 365 days, 1);
 
         assertEq(principalAmount_, 1000000000000000000000000000000);
         assertEq(interestAmount_,  1000000000000000000000000000000000);
 
         // A payment a day for 30 years (10950 payments) at 100% APY
-        (principalAmount_, interestAmount_) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 1.00 ether, 1 days, 10950);
+        ( principalAmount_, interestAmount_ ) = loan.getInstallment(MAX_TOKEN_AMOUNT, 0, 1.00 ether, 1 days, 10950);
 
         assertEq(principalAmount_, 267108596355467);
         assertEq(interestAmount_,  2739726027397260000000000000);
@@ -395,15 +285,15 @@ contract LoanPrimitiveLendTest is TestUtils {
         address[2] memory assets = [address(mockCollateralToken), address(token)];
 
         uint256[6] memory parameters = [
-            uint256(0),
-            uint256(10 days),
-            uint256(1_200 * 100),
-            uint256(1_100 * 100),
-            uint256(365 days / 6),
-            uint256(6)
+            uint256(10 days),       // Grace period.
+            uint256(365 days / 6),  // Payment interval given 6 payments in a year.
+            uint256(6),             // 6 payments.
+            uint256(0.12e18),       // 12% interest.
+            uint256(0.2e18),        // 2% early interest discount.
+            uint256(0.4e18)         // 4% late interest premium.
         ];
 
-        uint256[2] memory requests = [uint256(300_000), requestedAmount_];
+        uint256[3] memory requests = [uint256(300_000), requestedAmount_, uint256(0)];
 
         LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
@@ -539,15 +429,15 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
-            uint256(0),
-            uint256(10 days),
-            uint256(1_200 * 100),
-            uint256(1_100 * 100),
-            uint256(365 days / 6),
-            uint256(6)
+            uint256(10 days),       // Grace period.
+            uint256(365 days / 6),  // Payment interval given 6 payments in a year.
+            uint256(6),             // 6 payments.
+            uint256(0.12e18),       // 12% interest.
+            uint256(0.2e18),        // 2% early interest discount.
+            uint256(0.4e18)         // 4% late interest premium.
         ];
 
-        uint256[2] memory requests = [uint256(collateralRequired_), uint256(1_000_000)];
+        uint256[3] memory requests = [collateralRequired_, uint256(1_000_000), uint256(0)];
 
         LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
@@ -571,7 +461,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,            collateralAmount_);
         assertEq(loan.collateral(), collateralAmount_);
@@ -583,7 +475,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
 
         collateralAsset.mint(address(loan), collateralAmount_ - 1);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,            collateralAmount_ - 1);
         assertEq(loan.collateral(), amount);
@@ -595,7 +489,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
 
         collateralAsset.mint(address(loan), collateralAmount_ + 1);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,            collateralAmount_ + 1);
         assertEq(loan.collateral(), amount);
@@ -604,7 +500,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
     function test_postCollateral_zeroAmount() external {
         _initializeLoanWithCollateralRequired(address(loan), 0);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,            0);
         assertEq(loan.collateral(), 0);
@@ -617,7 +515,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
         fundsAsset.mint(address(loan), loan.principalRequested());
         collateralAsset.mint(address(loan), collateralAmount_);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,            collateralAmount_);
         assertEq(loan.collateral(), collateralAmount_);
@@ -629,7 +529,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
         // Send funds asset to Loan
         fundsAsset.mint(address(loan), collateralAmount_);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,            0);
         assertEq(loan.collateral(), 0);
@@ -642,15 +544,15 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
         address[2] memory assets = [address(collateralAsset), address(collateralAsset)];
 
         uint256[6] memory parameters = [
-            uint256(0),
             uint256(10 days),
-            uint256(1_200 * 100),
-            uint256(1_100 * 100),
             uint256(365 days / 6),
-            uint256(6)
+            uint256(6),
+            uint256(0.12e18),
+            uint256(0.2e18),
+            uint256(0.4e18)
         ];
 
-        uint256[2] memory requests = [uint256(collateralAmount_), uint256(1_000_000)];
+        uint256[3] memory requests = [uint256(collateralAmount_), uint256(1_000_000), uint256(0)];
 
         loan.initialize(address(1), assets, parameters, requests);
 
@@ -661,7 +563,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
         // Post collateral
         collateralAsset.mint(address(loan), collateralAmount_);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,            collateralAmount_);
         assertEq(loan.collateral(), collateralAmount_);
@@ -676,7 +580,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,                                   collateralAmount_);
         assertEq(loan.collateral(),                        collateralAmount_);
@@ -696,7 +602,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
 
         collateralAsset.mint(address(loan), collateralAmount_);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,                                   collateralAmount_);
         assertEq(loan.collateral(),                        collateralAmount_);
@@ -716,7 +624,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
         collateralAmount_ = collateralAmount_ == type(uint256).max ? type(uint256).max - 1 : collateralAmount_;
         collateralAsset.mint(address(loan), collateralAmount_);
 
-        uint256 amount =  loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,            collateralAmount_);
         assertEq(loan.collateral(), collateralAmount_);
@@ -731,15 +641,15 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
         address[2] memory assets = [address(collateralAsset), address(collateralAsset)];
 
         uint256[6] memory parameters = [
-            uint256(0),
             uint256(10 days),
-            uint256(1_200 * 100),
-            uint256(1_100 * 100),
             uint256(365 days / 6),
-            uint256(6)
+            uint256(6),
+            uint256(0.12e18),
+            uint256(0.2e18),
+            uint256(0.4e18)
         ];
 
-        uint256[2] memory requests = [uint256(collateralAmount_), uint256(1_000_000)];
+        uint256[3] memory requests = [uint256(collateralAmount_), uint256(1_000_000), uint256(0)];
 
         loan.initialize(address(1), assets, parameters, requests);
 
@@ -750,7 +660,9 @@ contract LendPrimitivePostAndRemoveCollateralTest is TestUtils {
         // Post collateral
         collateralAsset.mint(address(loan), collateralAmount_);
 
-        uint256 amount = loan.postCollateral();
+        ( bool success, uint256 amount ) = loan.postCollateral();
+
+        assertTrue(success);
 
         assertEq(amount,                                   collateralAmount_);
         assertEq(loan.collateral(),                        collateralAmount_);
@@ -783,15 +695,15 @@ contract LoanPrimitiveDrawdownTest is TestUtils {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
-            uint256(0),
-            uint256(10 days),
-            uint256(1_200 * 100),
-            uint256(1_100 * 100),
-            uint256(365 days / 6),
-            uint256(6)
+            uint256(10 days),       // Grace period.
+            uint256(365 days / 6),  // Payment interval given 6 payments in a year.
+            uint256(6),             // 6 payments.
+            uint256(0.12e18),       // 12% interest.
+            uint256(0.2e18),        // 2% early interest discount.
+            uint256(0.4e18)         // 4% late interest premium.
         ];
 
-        uint256[2] memory requests = [collateralRequired_, principalRequested_];
+        uint256[3] memory requests = [collateralRequired_, principalRequested_, uint256(0)];
 
         LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
@@ -823,7 +735,7 @@ contract LoanPrimitiveDrawdownTest is TestUtils {
         LoanPrimitiveHarness(loan_).postCollateral();
     }
 
-    function test_drawdown_initialState(uint256 collateralRequired_, uint256 principalRequested_) external {
+    function test_drawdownFunds_initialState(uint256 collateralRequired_, uint256 principalRequested_) external {
         ( collateralRequired_, principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
 
         assertEq(loan.principal(),          principalRequested_);
@@ -949,19 +861,21 @@ contract LoanPrimitiveRepossessTest is TestUtils, StateManipulations {
         // Not fuzzing since values are just set to zero
         uint256 collateralRequired =   300_000;
         uint256 principalRequested = 1_000_000;
+        paymentInterval_ = constrictToRange(paymentInterval_, 1, MAX_TIME);
+        gracePeriod_     = constrictToRange(gracePeriod_,     0, paymentInterval_ - 1);
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
-            principalRequested,
-            constrictToRange(gracePeriod_, 0, MAX_TIME),
-            uint256(1_200 * 100),
-            uint256(1_100 * 100),
-            constrictToRange(paymentInterval_, 0, MAX_TIME),
-            uint256(6)
+            gracePeriod_,
+            paymentInterval_,
+            uint256(6),        // 6 payments.
+            uint256(0.12e18),  // 12% interest.
+            uint256(0.02e18),  // 2% early interest discount.
+            uint256(0.04e18)   // 4% late interest premium.
         ];
 
-        uint256[2] memory requests = [collateralRequired, principalRequested];
+        uint256[3] memory requests = [collateralRequired, principalRequested, uint256(0)];
 
         uint256 start = block.timestamp;
 
@@ -983,25 +897,15 @@ contract LoanPrimitiveRepossessTest is TestUtils, StateManipulations {
         /*** Make Payment ***/
         /********************/
 
-        ( uint256 principal, uint256 interest, uint256 lateFees ) = loan.getPaymentsBreakdown(
-            1,
-            block.timestamp,
-            loan.nextPaymentDueDate(),
-            loan.paymentInterval(),
-            loan.principal(),
-            loan.endingPrincipal(),
-            loan.interestRate(),
-            loan.paymentsRemaining(),
-            loan.lateFeeRate()
-        );
+        ( uint256 principalPortion, uint256 interestPortion ) = loan.getCurrentPaymentsBreakdown(uint256(1));
 
-        uint256 totalPayment = principal + interest + lateFees;
+        uint256 totalPayment = principalPortion + interestPortion;
 
         fundsAsset.mint(address(loan), totalPayment);
 
         hevm.warp(loan.nextPaymentDueDate());
 
-        loan.makePayments(1);
+        loan.accountForPayments(1, totalPayment, principalPortion);
 
         /*****************/
         /*** Repossess ***/
@@ -1011,7 +915,7 @@ contract LoanPrimitiveRepossessTest is TestUtils, StateManipulations {
         assertEq(loan.claimableFunds(),     totalPayment);
         assertEq(loan.collateral(),         300_000);
         assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 2);  // Made a payment, so paymentInterval moved
-        assertEq(loan.principal(),          1_000_000);
+        assertEq(loan.principal(),          1_000_000 - principalPortion);
         assertEq(loan.paymentsRemaining(),  5);
 
         assertTrue(!loan.repossess(), "Should fail: not past grace period");
@@ -1054,27 +958,42 @@ contract LoanPrimitiveReturnFundsTest is TestUtils {
             uint256(1)
         ];
 
-        uint256[2] memory requests = [uint256(1), uint256(1)];
+        uint256[3] memory requests = [uint256(1), uint256(1), uint256(1)];
 
         loan.initialize(address(1), assets, parameters, requests);
 
-        assertEq(loan.returnFunds(), 0);
+        ( bool success, uint256 amount ) = loan.returnFunds();
 
+        assertTrue(success);
+
+        assertEq(amount,               uint256(0));
         assertEq(loan.drawableFunds(), uint256(0));
 
         fundsAsset.mint(address(loan), fundsToReturn_);
 
-        assertEq(loan.returnFunds(),   fundsToReturn_);
+        ( success, amount ) = loan.returnFunds();
+
+        assertTrue(success);
+
+        assertEq(amount,               fundsToReturn_);
         assertEq(loan.drawableFunds(), fundsToReturn_);
 
         fundsAsset.mint(address(loan), fundsToReturn_);
 
-        assertEq(loan.returnFunds(),   fundsToReturn_);
+        ( success, amount ) = loan.returnFunds();
+
+        assertTrue(success);
+
+        assertEq(amount,              fundsToReturn_);
         assertEq(loan.drawableFunds(), 2 * fundsToReturn_);
 
         collateralAsset.mint(address(loan), fundsToReturn_);
 
-        assertEq(loan.returnFunds(),   0);
+        ( success, amount ) = loan.returnFunds();
+
+        assertTrue(success);
+
+        assertEq(amount,               0);
         assertEq(loan.drawableFunds(), 2 * fundsToReturn_);
     }
 
@@ -1101,20 +1020,22 @@ contract LoanPrimitiveClaimFundsTest is TestUtils {
 
         // 0% interest loan with 2 payments, so half of principal paid in each installment
         uint256[6] memory parameters = [
-            uint256(0),
-            uint256(1),
-            uint256(0),
-            uint256(0),
-            uint256(100),
-            uint256(2)
+            uint256(1),  // Grace period.
+            uint256(0),  // Payment interval.
+            uint256(2),  // 2 payments.
+            uint256(0),  // 0% interest.
+            uint256(0),  // 0% early interest discount.
+            uint256(0)   // 0% late interest premium.
         ];
 
-        uint256[2] memory requests = [uint256(0), uint256(fundingAmount_)];
+        uint256[3] memory requests = [uint256(0), uint256(fundingAmount_), uint256(0)];
 
         loan.initialize(address(1), assets, parameters, requests);
         fundsAsset.mint(address(loan), fundingAmount_);
         loan.lend(address(this));
-        loan.makePayments(1);
+        
+        (uint256 principal, uint256 interest) = loan.getCurrentPaymentsBreakdown(1);
+        loan.accountForPayments(1, principal + interest, principal);
 
         // Half the `fundingAmount_` should be claimable, and all `fundingAmount_` should still be in the contract
         assertEq(loan.claimableFunds(),               fundingAmount_ / 2);
@@ -1139,15 +1060,15 @@ contract LoanPrimitiveClaimFundsTest is TestUtils {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
-            uint256(0),
-            uint256(1),
-            uint256(0),
-            uint256(0),
-            uint256(100),
-            uint256(2)
+            uint256(1),  // Grace period.
+            uint256(1),  // Payment interval.
+            uint256(2),  // 2 payments.
+            uint256(0),  // 0% interest.
+            uint256(0),  // 0% early interest discount.
+            uint256(0)   // 0% late interest premium.
         ];
 
-        uint256[2] memory requests = [uint256(0), uint256(10_000)];
+        uint256[3] memory requests = [uint256(0), uint256(10_000), uint256(0)];
 
         loan.initialize(address(1), assets, parameters, requests);
         fundsAsset.mint(address(loan), 10_000);
@@ -1163,20 +1084,22 @@ contract LoanPrimitiveClaimFundsTest is TestUtils {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
-            uint256(0),
-            uint256(1),
-            uint256(0),
-            uint256(0),
-            uint256(100),
-            uint256(2)
+            uint256(1),  // Grace period.
+            uint256(1),  // Payment interval.
+            uint256(2),  // 2 payments.
+            uint256(0),  // 0% interest.
+            uint256(0),  // 0% early interest discount.
+            uint256(0)   // 0% late interest premium.
         ];
 
-        uint256[2] memory requests = [uint256(0), uint256(10_000)];
+        uint256[3] memory requests = [uint256(0), uint256(10_000), uint256(0)];
 
         loan.initialize(address(1), assets, parameters, requests);
         fundsAsset.mint(address(loan), 10_000);
         loan.lend(address(this));
-        loan.makePayments(1);
+
+        (uint256 principal, uint256 interest) = loan.getCurrentPaymentsBreakdown(1);
+        loan.accountForPayments(1, principal + interest, principal);
 
         assertEq(loan.claimableFunds(), 5_000);
         assertEq(fundsAsset.balanceOf(address(loan)), 10_000);
@@ -1205,15 +1128,15 @@ contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
-            uint256(0),
-            uint256(10 days),
-            uint256(1_200 * 100),
-            uint256(1_100 * 100),
-            uint256(365 days / 6),
-            paymentsRemaining_
+            uint256(10 days),       // Grace period.
+            uint256(365 days / 6),  // Payment interval given 6 payments in a year.
+            paymentsRemaining_,
+            uint256(0.12e18),       // 12% interest.
+            uint256(0.02e18),       // 2% early interest discount.
+            uint256(0.04e18)        // 4% late interest premium.
         ];
 
-        uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
+        uint256[3] memory requests = [uint256(300_000), uint256(1_000_000), uint256(0)];
 
         LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
@@ -1240,19 +1163,19 @@ contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
         numberOfPayments_   = constrictToRange(numberOfPayments_,   1,   paymentsRemaining_);
 
         uint256[6] memory parameters = [
-            endingPrincipal_,
             0,
-            interestRate_,
-            lateFeeRate_,
             paymentInterval_,
-            paymentsRemaining_
+            paymentsRemaining_,
+            interestRate_,
+            0,
+            0
         ];
 
         loan.initialize(
             address(1),
             [address(collateralAsset), address(fundsAsset)],
             parameters,
-            [collateralRequired_, principalRequested_]
+            [collateralRequired_, principalRequested_, endingPrincipal_]
         );
 
         /*************************/
@@ -1275,23 +1198,13 @@ contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
         assertEq(loan.claimableFunds(), 0);
         assertEq(loan.principal(),      principalRequested_);
 
-        ( uint256 principal, uint256 interest, uint256 lateFees ) = loan.getPaymentsBreakdown(
-            numberOfPayments_,
-            block.timestamp,
-            loan.nextPaymentDueDate(),
-            loan.paymentInterval(),
-            loan.principal(),
-            loan.endingPrincipal(),
-            loan.interestRate(),
-            loan.paymentsRemaining(),
-            loan.lateFeeRate()
-        );
+        ( uint256 principal, uint256 interest ) = loan.getCurrentPaymentsBreakdown(numberOfPayments_);
 
-        uint256 totalPayment = principal + interest + lateFees;
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), totalPayment);
 
-        loan.makePayments(numberOfPayments_);
+        loan.accountForPayments(numberOfPayments_, totalPayment, principal);
 
         assertEq(loan.drawableFunds(),      0);
         assertEq(loan.claimableFunds(),     totalPayment);
@@ -1300,7 +1213,7 @@ contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
         assertEq(loan.paymentsRemaining(),  paymentsRemaining_ - numberOfPayments_);
     }
 
-    function test_makePayment_morePaymentsThanRemaining(uint256 paymentsRemaining_) external {
+    function test_makePayments_morePaymentsThanRemaining(uint256 paymentsRemaining_) external {
         paymentsRemaining_ = constrictToRange(paymentsRemaining_, 1, 120);
 
         _initializeLoanWithPaymentsRemaining(address(loan), paymentsRemaining_);
@@ -1310,7 +1223,7 @@ contract LoanPrimitiveMakePaymentTest is TestUtils, StateManipulations {
         // Provide more than enough tokens
         fundsAsset.mint(address(loan), MAX_TOKEN_AMOUNT);
 
-        try loan.makePayments(paymentsRemaining_ + 1) { assertTrue(false); } catch { }
+        try loan.getCurrentPaymentsBreakdown(paymentsRemaining_ + 1) { assertTrue(false); } catch { }
     }
 
 }
@@ -1334,15 +1247,15 @@ contract LoanPrimitiveSkimTest is TestUtils {
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
-            uint256(0),
-            uint256(10 days),
-            uint256(1_200 * 100),
-            uint256(1_100 * 100),
-            uint256(365 days / 6),
-            uint256(6)
+            uint256(10 days),       // Grace period.
+            uint256(365 days / 6),  // Payment interval given 6 payments in a year.
+            uint256(6),             // 6 payments.
+            uint256(0.12e18),       // 12% interest.
+            uint256(0.2e18),        // 2% early interest discount.
+            uint256(0.4e18)         // 4% late interest premium.
         ];
 
-        uint256[2] memory requests = [uint256(300_000), requestedAmount_];
+        uint256[3] memory requests = [uint256(300_000), requestedAmount_, uint256(0)];
 
         LoanPrimitiveHarness(loan_).initialize(address(1), assets, parameters, requests);
     }
@@ -1436,7 +1349,7 @@ contract LoanPrimitiveSkimTest is TestUtils {
 
         assertEq(fundsAsset.balanceOf(address(loan)), 5000 + amount_);
 
-        (success, amountTransferred) = loan.skim(address(fundsAsset), DESTINATION);
+        ( success, amountTransferred ) = loan.skim(address(fundsAsset), DESTINATION);
 
         assertTrue(success, "Not able to transfer unaccounted funds to given destination");
 
@@ -1449,7 +1362,7 @@ contract LoanPrimitiveSkimTest is TestUtils {
 
 contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
 
-    LoanPrimitiveHarness loan;
+    LoanPrimitiveHarness internal loan;
 
     function setUp() external {
         loan = new LoanPrimitiveHarness();

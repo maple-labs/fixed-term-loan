@@ -38,9 +38,29 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     function collateralRequired() external view returns (uint256 collateralRequired_);
 
     /**
+     *  @dev The address of the respective Debt Locker.
+     */
+    function debtLocker() external view returns (address debtLocker_);
+
+    /**
      *  @dev The amount of funds that have yet to be drawn down by the borrower.
      */
     function drawableFunds() external view returns (uint256 drawableFunds_);
+
+    /**
+     *  @dev The flat fee charged at early payments.
+     */
+    function earlyFee() external view returns (uint256 earlyFee_);
+
+    /**
+     *  @dev The rate charged at early payments.
+     */
+    function earlyFeeRate() external view returns (uint256 earlyFeeRate_);
+
+    /**
+     *  @dev The discount over the regular interest rate applied when paying early. 
+     */
+    function earlyInterestRateDiscount() external view returns (uint256 earlyInterestRateDiscount_);
 
     /**
      *  @dev The portion of principal to not be paid down as part of payment installments, which would need to be paid back upon final payment.
@@ -64,9 +84,19 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     function interestRate() external view returns (uint256 interestRate_);
 
     /**
-     *  @dev The annualized fee rate charged on interest for late payments, in basis points, scaled by 100 (i.e. 1% is 10_000).
+     *  @dev The flat fee charged at late payments.
+     */
+    function lateFee() external view returns (uint256 lateFee_);
+
+    /**
+     *  @dev The rate charged at late payments.
      */
     function lateFeeRate() external view returns (uint256 lateFeeRate_);
+
+    /**
+     *  @dev The premium over the regular interest rate applied when paying late.
+     */
+    function lateInterestRatePremium() external view returns (uint256 lateInterestRatePremium_);
 
     /**
      *  @dev The lender of the Loan.

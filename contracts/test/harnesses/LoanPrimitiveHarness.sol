@@ -9,6 +9,17 @@ contract LoanPrimitiveHarness is LoanPrimitive {
     /*** Mutating Functions ***/
     /**************************/
 
+    function initialize(
+        address borrower_,
+        address[2] memory assets_,
+        uint256[6] memory parameters_,
+        uint256[3] memory requests_
+    ) 
+        external returns (bool success_) 
+    {
+        return _initialize(borrower_, assets_, parameters_, requests_) ;
+    }
+
     function claimFunds(uint256 amount_, address destination_) external returns (bool success_) {
         return _claimFunds(amount_, destination_);
     }
@@ -17,19 +28,15 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _drawdownFunds(amount_, destination_);
     }
 
-    function initialize(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[2] memory requests_) external {
-        _initialize(borrower_, assets_, parameters_, requests_) ;
-    }
-
     function lend(address lender_) external returns (bool success, uint256 amount_) {
         return _lend(lender_);
     }
 
-    function makePayments(uint256 numberOfPayments_) external returns (uint256 principal_, uint256 interest_, uint256 lateFees_) {
-        return _makePayments(numberOfPayments_);
+    function accountForPayments(uint256 numberOfPayments_, uint256 totalPaid_, uint256 principalPaid_) external returns (bool success_) {
+        return _accountForPayments(numberOfPayments_, totalPaid_, principalPaid_);
     }
 
-    function postCollateral() external returns (uint256 amount_) {
+    function postCollateral() external returns (bool success_, uint256 amount_) {
         return _postCollateral();
     }
 
@@ -45,7 +52,7 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _repossess();
     }
 
-    function returnFunds() external returns (uint256 amount_) {
+    function returnFunds() external returns (bool success_, uint256 amount_) {
         return _returnFunds();
     }
 
@@ -53,12 +60,20 @@ contract LoanPrimitiveHarness is LoanPrimitive {
     /*** View Functions ****/
     /***********************/
 
+    function borrower() external view returns (address borrower_) {
+        return _borrower;
+    }
+
     function claimableFunds() external view returns (uint256 claimableFunds_) {
         return _claimableFunds;
     }
 
     function collateral() external view returns (uint256 collateral_) {
         return _collateral;
+    }
+
+    function collateralAsset() external view returns (address collateralAsset_) {
+        return _collateralAsset;
     }
 
     function collateralRequired() external view returns (uint256 collateralRequired_) {
@@ -69,8 +84,20 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _drawableFunds;
     }
 
+    function earlyInterestRateDiscount() external view returns (uint256 earlyInterestRateDiscount_) {
+        return _earlyInterestRateDiscount;
+    }
+
     function endingPrincipal() external view returns (uint256 endingPrincipal_) {
         return _endingPrincipal;
+    }
+
+    function fundsAsset() external view returns (address fundsAsset_) {
+        return _fundsAsset;
+    }
+
+    function getCurrentPaymentsBreakdown(uint256 numberOfPayments_) external view returns (uint256 totalPrincipal_, uint256 totalInterest_) {
+        return _getCurrentPaymentsBreakdown(numberOfPayments_);
     }
 
     function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
@@ -85,8 +112,12 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _interestRate;
     }
 
-    function lateFeeRate() external view returns (uint256 lateFeeRate_) {
-        return _lateFeeRate;
+    function isCollateralMaintained() external view returns (bool isMaintained_) {
+        return _isCollateralMaintained();
+    }
+
+    function lateInterestRatePremium() external view returns (uint256 lateInterestRatePremium_) {
+        return _lateInterestRatePremium;
     }
 
     function lender() external view returns (address lender_) {
@@ -117,8 +148,8 @@ contract LoanPrimitiveHarness is LoanPrimitive {
     /*** Pure Functions ****/
     /***********************/
 
-    function getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) external pure returns (uint256 fee_) {
-        return _getFee(amount_, feeRate_, interval_);
+    function getInterest(uint256 principal_, uint256 interestRate_, uint256 interval_) external pure returns (uint256 interest_) {
+        return _getInterest(principal_, interestRate_, interval_);
     }
 
     function getInstallment(
@@ -133,30 +164,6 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
     }
 
-    function getPaymentBreakdown(
-        uint256 paymentDate_,
-        uint256 nextPaymentDueDate_,
-        uint256 paymentInterval_,
-        uint256 principal_,
-        uint256 endingPrincipal_,
-        uint256 interestRate_,
-        uint256 paymentsRemaining_,
-        uint256 lateFeeRate_
-    )
-        external pure returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_, uint256 totalLateFees_)
-    {
-        return _getPaymentBreakdown(
-            paymentDate_,
-            nextPaymentDueDate_,
-            paymentInterval_,
-            principal_,
-            endingPrincipal_,
-            interestRate_,
-            paymentsRemaining_,
-            lateFeeRate_
-        );
-    }
-
     function getPaymentsBreakdown(
         uint256 numberOfPayments_,
         uint256 currentTime_,
@@ -164,15 +171,14 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         uint256 paymentInterval_,
         uint256 principal_,
         uint256 endingPrincipal_,
-        uint256 interestRate_,
         uint256 paymentsRemaining_,
-        uint256 lateFeeRate_
+        uint256 interestRate_,
+        uint256 lateInterestRatePremium_
     )
         external pure
         returns (
-            uint256 totalPrincipalAmount_,
-            uint256 totalInterestFees_,
-            uint256 totalLateFees_
+            uint256 principalAmount_,
+            uint256 interestAmount_
         )
     {
         return _getPaymentsBreakdown(
@@ -182,14 +188,14 @@ contract LoanPrimitiveHarness is LoanPrimitive {
             paymentInterval_,
             principal_,
             endingPrincipal_,
-            interestRate_,
             paymentsRemaining_,
-            lateFeeRate_
+            interestRate_,
+            lateInterestRatePremium_
         );
     }
 
-    function getPeriodicFeeRate(uint256 feeRate_, uint256 interval_) external pure returns (uint256 periodicFeeRate_) {
-        return _getPeriodicFeeRate(feeRate_, interval_);
+    function getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) external pure returns (uint256 periodicInterestRate_) {
+        return _getPeriodicInterestRate(interestRate_, interval_);
     }
 
     function isCollateralMaintainedWith(

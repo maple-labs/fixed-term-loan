@@ -19,19 +19,20 @@ contract LoanPrimitive {
     address internal _fundsAsset;       // The address of the asset used as funds.
 
     // Static Loan Parameters
-    uint256 internal _endingPrincipal;  // The principal to remain at end of loan.
-    uint256 internal _gracePeriod;      // The number of seconds a payment can be late.
-    uint256 internal _interestRate;     // The annualized interest rate of the loan.
-    uint256 internal _lateFeeRate;      // The annualized late fee rate of the loan.
-    uint256 internal _paymentInterval;  // The number of seconds between payments.
+    uint256 internal _earlyInterestRateDiscount;  // The amount to decrease the interest rate by calling a loan early.
+    uint256 internal _gracePeriod;                // The number of seconds a payment can be late.
+    uint256 internal _interestRate;               // The annualized interest rate of the loan.
+    uint256 internal _lateInterestRatePremium;    // The amount to increase the interest rate by for late payments.
+    uint256 internal _paymentInterval;            // The number of seconds between payments.
 
-    // Requests
+    // Requested Amounts
     uint256 internal _collateralRequired;  // The collateral the borrower is expected to put up to draw down all _principalRequested.
+    uint256 internal _endingPrincipal;     // The principal to remain at end of loan.
     uint256 internal _principalRequested;  // The funds the borrowers wants to borrower.
 
     // State
     uint256 internal _drawableFunds;       // The amount of funds that can be drawn down.
-    uint256 internal _claimableFunds;      // The amount of funds that the lender can claim (principal repayments, interest fees, and late fees).
+    uint256 internal _claimableFunds;      // The amount of funds that the lender can claim (principal repayments, interest, etc).
     uint256 internal _collateral;          // The amount of collateral, in collateral asset, that is currently posted.
     uint256 internal _nextPaymentDueDate;  // The timestamp of due date of next payment.
     uint256 internal _paymentsRemaining;   // The number of payment remaining.
@@ -48,38 +49,42 @@ contract LoanPrimitive {
      *                         [0]: collateralAsset,
      *                         [1]: fundsAsset.
      *  @param parameters_ Array of loan parameters:
-     *                         [0]: endingPrincipal,
-     *                         [1]: gracePeriod,
-     *                         [2]: interestRate,
-     *                         [3]: lateFeeRate,
-     *                         [4]: paymentInterval,
-     *                         [5]: paymentsRemaining.
+     *                         [0]: gracePeriod,
+     *                         [1]: paymentInterval,
+     *                         [2]: payments,
+     *                         [3]: interestRate,
+     *                         [4]: earlyInterestRateDiscount,
+     *                         [5]: lateInterestRatePremium.
      *  @param amounts_   Requested amounts:
      *                         [0]: collateralRequired,
-     *                         [1]: principalRequested.
+     *                         [1]: principalRequested,
+     *                         [2]: endingPrincipal.
      */
     function _initialize(
         address borrower_,
         address[2] memory assets_,
         uint256[6] memory parameters_,
-        uint256[2] memory amounts_
+        uint256[3] memory amounts_
     )
-        internal virtual
+        internal virtual returns (bool success_)
     {
         _borrower = borrower_;
 
         _collateralAsset = assets_[0];
         _fundsAsset      = assets_[1];
 
-        _endingPrincipal   = parameters_[0];
-        _gracePeriod       = parameters_[1];
-        _interestRate      = parameters_[2];
-        _lateFeeRate       = parameters_[3];
-        _paymentInterval   = parameters_[4];
-        _paymentsRemaining = parameters_[5];
+        _gracePeriod               = parameters_[0];
+        _paymentInterval           = parameters_[1];
+        _paymentsRemaining         = parameters_[2];
+        _interestRate              = parameters_[3];
+        _earlyInterestRateDiscount = parameters_[4];
+        _lateInterestRatePremium   = parameters_[5];
 
         _collateralRequired = amounts_[0];
         _principalRequested = amounts_[1];
+        _endingPrincipal    = amounts_[2];
+
+        success_ = true;
     }
 
     /// @dev Sends any unaccounted amount of token at `asset_` to `destination_`.
@@ -97,41 +102,24 @@ contract LoanPrimitive {
         return ERC20Helper.transfer(_fundsAsset, destination_, amount_) && _isCollateralMaintained();
     }
 
-    /// @dev Registers the delivery of an amount of funds to make `numberOfPayments_` payments.
-    function _makePayments(uint256 numberOfPayments_)
-        internal virtual
-        returns (
-            uint256 totalPrincipal_,
-            uint256 totalInterest_,
-            uint256 totalLateFees_
-        )
-    {
-        ( totalPrincipal_, totalInterest_, totalLateFees_ ) = _getPaymentsBreakdown(
-            numberOfPayments_,
-            block.timestamp,
-            _nextPaymentDueDate,
-            _paymentInterval,
-            _principal,
-            _endingPrincipal,
-            _interestRate,
-            _paymentsRemaining,
-            _lateFeeRate
-        );
+    /// @dev perform state changes to account for a payments made
+    function _accountForPayments(uint256 numberOfPayments_, uint256 totalPaid_, uint256 principalPaid_) internal virtual returns (bool success_) {
+        
+        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
+        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid_;
 
-        uint256 totalPaid = totalPrincipal_ + totalInterest_ + totalLateFees_;
-
-        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment
-        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid;
-
-        _claimableFunds     += totalPaid;
+        _claimableFunds     += totalPaid_;
         _nextPaymentDueDate += _paymentInterval * numberOfPayments_;
-        _principal          -= totalPrincipal_;
+        _principal          -= principalPaid_;
         _paymentsRemaining  -= numberOfPayments_;
+
+        success_ = true;
     }
 
     /// @dev Registers the delivery of an amount of collateral to be posted.
-    function _postCollateral() internal virtual returns (uint256 amount_) {
+    function _postCollateral() internal virtual returns (bool success_, uint256 amount_) {
         _collateral += (amount_ = _getUnaccountedAmount(_collateralAsset));
+        success_ = true;
     }
 
     /// @dev Sends `amount_` of `_collateral` to `destination_`.
@@ -141,8 +129,9 @@ contract LoanPrimitive {
     }
 
     /// @dev Registers the delivery of an amount of funds to be returned as `_drawableFunds`.
-    function _returnFunds() internal virtual returns (uint256 amount_) {
+    function _returnFunds() internal virtual returns (bool success_, uint256 amount_) {
         _drawableFunds += (amount_ = _getUnaccountedAmount(_fundsAsset));
+        success_ = true;
     }
 
     /************************************/
@@ -174,8 +163,8 @@ contract LoanPrimitive {
         _claimableFunds     = uint256(0);
         _collateral         = uint256(0);
         _nextPaymentDueDate = uint256(0);
-        _principal          = uint256(0);
         _paymentsRemaining  = uint256(0);
+        _principal          = uint256(0);
 
         return true;
     }
@@ -183,6 +172,24 @@ contract LoanPrimitive {
     /*******************************/
     /*** Internal View Functions ***/
     /*******************************/
+
+    /// @dev Returns total principal and interest portion of a number of payments, given current loan state.
+    function _getCurrentPaymentsBreakdown(uint256 numberOfPayments_) internal view virtual returns (uint256 totalPrincipal_, uint256 totalInterest_) {
+        uint256 paymentsRemaining = _paymentsRemaining;
+
+        // NOTE: Interest rate to use for all payments will be discounted if the entire loan is being paid off early.
+        ( totalPrincipal_, totalInterest_ ) = _getPaymentsBreakdown(
+            numberOfPayments_,
+            block.timestamp,
+            _nextPaymentDueDate,
+            _paymentInterval,
+            _principal,
+            _endingPrincipal,
+            _paymentsRemaining,
+            _interestRate - (paymentsRemaining > 1 && numberOfPayments_ == paymentsRemaining ? _earlyInterestRateDiscount : uint256(0)),
+            _lateInterestRatePremium
+        );
+    }
 
     /// @dev Returns the amount a token at `asset_`, above what has been currently accounted for.
     function _getUnaccountedAmount(address asset_) internal view virtual returns (uint256 amount_) {
@@ -200,12 +207,12 @@ contract LoanPrimitive {
     /*** Internal Pure Functions ***/
     /*******************************/
 
-    /// @dev Returns a fee by applying an annualized and scaled fee rate, to an amount, over an interval of time.
-    function _getFee(uint256 amount_, uint256 feeRate_, uint256 interval_) internal pure virtual returns (uint256 fee_) {
-        return amount_ * _getPeriodicFeeRate(feeRate_, interval_) / ONE;
+    /// @dev Returns an amount by applying an annualized and scaled interest rate, to a principal, over an interval of time.
+    function _getInterest(uint256 principal_, uint256 interestRate_, uint256 interval_) internal pure virtual returns (uint256 interest_) {
+        return principal_ * _getPeriodicInterestRate(interestRate_, interval_) / ONE;
     }
 
-    /// @dev Returns principal and interest fee portions of a payment instalment, given generic, stateless loan parameters.
+    /// @dev Returns principal and interest portions of a payment instalment, given generic, stateless loan parameters.
     function _getInstallment(uint256 principal_, uint256 endingPrincipal_, uint256 interestRate_, uint256 paymentInterval_, uint256 totalPayments_)
         internal pure virtual returns (uint256 principalAmount_, uint256 interestAmount_)
     {
@@ -224,46 +231,19 @@ contract LoanPrimitive {
          * - Both of these rates are scaled by 1e18 (e.g., 12% => 0.12 * 10 ** 18)                       *
          *************************************************************************************************/
 
-        uint256 periodicRate = _getPeriodicFeeRate(interestRate_, paymentInterval_);
+        uint256 periodicRate = _getPeriodicInterestRate(interestRate_, paymentInterval_);
         uint256 raisedRate   = _scaledExponent(ONE + periodicRate, totalPayments_, ONE);
 
         if (raisedRate <= ONE) return ((principal_ - endingPrincipal_) / totalPayments_, 0);
 
         uint256 total = ((((principal_ * raisedRate) / ONE) - endingPrincipal_) * periodicRate) / (raisedRate - ONE);
 
-        interestAmount_  = _getFee(principal_, interestRate_, paymentInterval_);
+        // TODO: Remove this function: `interestAmount_ = principal_ * periodicRate / ONE;`
+        interestAmount_  = _getInterest(principal_, interestRate_, paymentInterval_);  
         principalAmount_ = total >= interestAmount_ ? total - interestAmount_ : 0;
     }
 
-    /// @dev Returns principal, interest fee, and late fee portions of a payment, given generic, stateless loan parameters and loan state.
-    function _getPaymentBreakdown(
-        uint256 paymentDate_,
-        uint256 nextPaymentDueDate_,
-        uint256 paymentInterval_,
-        uint256 principal_,
-        uint256 endingPrincipal_,
-        uint256 interestRate_,
-        uint256 paymentsRemaining_,
-        uint256 lateFeeRate_
-    ) internal pure virtual returns (uint256 principalAmount_, uint256 interestFee_, uint256 lateFee_) {
-        // Get the expected principal and interest portions for the payment, as if it was on-time
-        ( principalAmount_, interestFee_ ) = _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, paymentsRemaining_);
-
-        if (paymentsRemaining_ == 1) {
-            principalAmount_ = principal_;
-        }
-
-        // Determine how late the payment is
-        uint256 secondsLate = paymentDate_ > nextPaymentDueDate_ ? paymentDate_ - nextPaymentDueDate_ : uint256(0);
-
-        // Accumulate the potential late fees incurred on the expected interest portion
-        lateFee_ = _getFee(interestFee_, lateFeeRate_, secondsLate);
-
-        // Accumulate the interest and potential additional interest incurred in the late period
-        interestFee_ += _getFee(principal_, interestRate_, secondsLate);
-    }
-
-    /// @dev Returns total principal, interest fee, and late fee portions of payments, given generic, stateless loan parameters and loan state.
+    /// @dev Returns total principal and interest portion of a number of payments, given generic, stateless loan parameters and loan state.
     function _getPaymentsBreakdown(
         uint256 numberOfPayments_,
         uint256 currentTime_,
@@ -271,40 +251,44 @@ contract LoanPrimitive {
         uint256 paymentInterval_,
         uint256 principal_,
         uint256 endingPrincipal_,
-        uint256 interestRate_,
         uint256 paymentsRemaining_,
-        uint256 lateFeeRate_
+        uint256 interestRate_,
+        uint256 lateInterestRatePremium_
     )
         internal pure virtual
-        returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_, uint256 totalLateFees_)
+        returns (uint256 principalAmount_, uint256 interestAmount_)
     {
-        // TODO: check deployment and runtime costs of principalAmount, interestFee, and lateFee declare outside for-loop
-
         // For each payments (current and late)
         for (; numberOfPayments_ > uint256(0); --numberOfPayments_) {
-            ( uint256 principalAmount, uint256 interestFee, uint256 lateFee ) = _getPaymentBreakdown(
-                currentTime_,
-                nextPaymentDueDate_,
-                paymentInterval_,
+            // Get the expected principal and interest portions for the payment.
+            ( uint256 principalAmount, uint256 interestAmount ) = _getInstallment(
                 principal_,
                 endingPrincipal_,
                 interestRate_,
-                paymentsRemaining_--,
-                lateFeeRate_
+                paymentInterval_,
+                paymentsRemaining_--
             );
 
+            // If payment is late, add interest premium given late interest rate premium and late time.
+            // TODO: Revisit this late fee mechanism when comparing to CSVs
+            if (currentTime_ > nextPaymentDueDate_) {
+                interestAmount +=
+                    (interestAmount * lateInterestRatePremium_ * (paymentInterval_ + currentTime_ - nextPaymentDueDate_)) /
+                    (interestRate_ * paymentInterval_);
+            }
+
             // Update local variables
-            totalPrincipalAmount_ += principalAmount;
-            totalInterestFees_    += interestFee;
-            totalLateFees_        += lateFee;
-            nextPaymentDueDate_   += paymentInterval_;
-            principal_            -= principalAmount;
+            // NOTE: The principal amount is overridden with the entire remaining principal, if this is the last payment.
+            interestAmount_     += interestAmount;
+            nextPaymentDueDate_ += paymentInterval_;
+            principalAmount_    += paymentsRemaining_ == 0 ? principal_ : principalAmount;
+            principal_          -= principalAmount;
         }
     }
 
-    /// @dev Returns the fee rate over an interval, given an annualized fee rate.
-    function _getPeriodicFeeRate(uint256 feeRate_, uint256 interval_) internal pure virtual returns (uint256 periodicFeeRate_) {
-        return (feeRate_ * interval_) / uint256(365 days);
+    /// @dev Returns the interest rate over an interval, given an annualized interest rate.
+    function _getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) internal pure virtual returns (uint256 periodicInterestRate_) {
+        return (interestRate_ * interval_) / uint256(365 days);
     }
 
     /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.

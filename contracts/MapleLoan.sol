@@ -4,15 +4,15 @@ pragma solidity ^0.8.7;
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { Proxied }     from "../modules/proxy-factory/contracts/Proxied.sol";
 
-import { IMapleLoan }        from "./interfaces/IMapleLoan.sol";
-import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
+import { IDebtLockerLike }       from "./interfaces/Interfaces.sol";
+import { IMapleLoan }            from "./interfaces/IMapleLoan.sol";
+import { IMapleLoanFactory }     from "./interfaces/IMapleLoanFactory.sol";
 
-import { LoanPrimitive } from "./LoanPrimitive.sol";
+import { MapleLoanInternals } from "./MapleLoanInternals.sol";
 
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
-contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
 
-    bytes32 refinanceCommitment;
+contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     /********************************/
     /*** Administrative Functions ***/
@@ -39,7 +39,11 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
     /************************/
 
     function postCollateral() external override returns (uint256 amount_) {
-        emit CollateralPosted(amount_ = _postCollateral());
+        bool success;
+        ( success, amount_ ) = _postCollateral();
+        require(success, "ML:PC:FAILED");
+
+        emit CollateralPosted(amount_);
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override {
@@ -49,14 +53,16 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         emit FundsDrawnDown(amount_);
     }
 
-    function makePayment() external override returns (uint256 principal_, uint256 interest_, uint256 lateFees) {
-        ( principal_, interest_, lateFees ) = _makePayments(uint256(1));
-        emit PaymentsMade(uint256(1), principal_, interest_, lateFees);
+    function makePayment() external override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+        ( principal_, interest_, fees_ ) = _makePaymentsWithFees(uint256(1));
+
+        emit PaymentsMade(uint256(1), principal_, interest_, fees_);
     }
 
-    function makePayments(uint256 numberOfPayments_) external override returns (uint256 principal_, uint256 interest_, uint256 lateFees) {
-        ( principal_, interest_, lateFees ) = _makePayments(numberOfPayments_);
-        emit PaymentsMade(numberOfPayments_, principal_, interest_, lateFees);
+    function makePayments(uint256 numberOfPayments_) external override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+        ( principal_, interest_, fees_ ) = _makePaymentsWithFees(numberOfPayments_);
+
+        emit PaymentsMade(numberOfPayments_, principal_, interest_, fees_);
     }
 
     function removeCollateral(uint256 amount_, address destination_) external override {
@@ -67,7 +73,11 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
     }
 
     function returnFunds() external override returns (uint256 amount_) {
-        emit FundsReturned(amount_ = _returnFunds());
+        bool success;
+        ( success, amount_ ) = _returnFunds();
+        require(success, "ML:RF:FAILED");
+
+        emit FundsReturned(amount_);
     }
 
     /**********************/
@@ -75,12 +85,22 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
     /**********************/
 
     function fundLoan(address lender_, uint256 amount_) external override returns (uint256 amountFunded_) {
-        // If `transfer` is performed before `fundLoan` instead, this will return false but not revert.
-        ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);  
-        
+        // If funds were transferred to this contract prior or calling this function, it is acceptable for this `transferFrom` to return false.
+        ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+
         bool success;
         ( success, amountFunded_ ) = _lend(lender_);
         require(success, "ML:L:FAILED");
+
+        // Transfer the annualized treasury fee, if any, to the Maple treasury, and decrement drawable funds.
+        uint256 treasuryFee = (amountFunded_ * IDebtLockerLike(_debtLocker).treasuryFee() * _paymentInterval * _paymentsRemaining) / (uint256(10_000) * uint256(365 days));
+        ERC20Helper.transfer(_fundsAsset, IDebtLockerLike(_debtLocker).mapleTreasury(), treasuryFee);
+        _drawableFunds -= treasuryFee;
+
+        // Transfer delegate fee, if any, to the pool delegate, and decrement drawable funds.
+        uint256 delegateFee = (amountFunded_ * IDebtLockerLike(_debtLocker).investorFee() * _paymentInterval * _paymentsRemaining) / (uint256(10_000) * uint256(365 days));
+        ERC20Helper.transfer(_fundsAsset, IDebtLockerLike(_debtLocker).poolDelegate(), delegateFee);
+        _drawableFunds -= delegateFee;
 
         emit Funded(lender_, _nextPaymentDueDate);
     }
@@ -114,16 +134,16 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
     function proposeNewTerms(address refinancer_, bytes[] calldata calls_) external override {
         require(msg.sender == _borrower, "ML:PNT:NOT_BORROWER");
 
-        refinanceCommitment = keccak256(abi.encode(refinancer_, calls_));
+        _refinanceCommitment = keccak256(abi.encode(refinancer_, calls_));
 
-        emit NewTermsProposed(refinanceCommitment, refinancer_, calls_);
+        emit NewTermsProposed(_refinanceCommitment, refinancer_, calls_);
     }
 
     function acceptNewTerms(address refinancer_, bytes[] calldata calls_) external override {
         require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
 
-        bytes32 refinanceCommitment_ = keccak256(abi.encode(refinancer_, calls_));
-        require(refinanceCommitment_ == refinanceCommitment, "ML:ANT:INVALID_ARGS");
+        bytes32 refinanceCommitment = keccak256(abi.encode(refinancer_, calls_));
+        require(refinanceCommitment == _refinanceCommitment, "ML:ANT:INVALID_ARGS");
         
         for (uint256 i; i < calls_.length; ++i) {
             ( bool success, ) = refinancer_.delegatecall(calls_[i]);
@@ -132,7 +152,7 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
 
         require(_isCollateralMaintained(), "ML:ANT:COLLATERAL_NOT_MAINTAINED");
 
-        emit NewTermsAccepted(refinanceCommitment_, refinancer_, calls_);
+        emit NewTermsAccepted(refinanceCommitment, refinancer_, calls_);
     }
 
     /*************************/
@@ -151,28 +171,27 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
     /*** View Functions ***/
     /**********************/
 
-    function factory() public view override returns (address factory_) {
+    function factory() external view override returns (address factory_) {
         return _factory();
     }
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments_)
         external view override
-        returns (uint256 principal_, uint256 interest_, uint256 lateFees_)
+        returns (uint256 principal_, uint256 interest_, uint256 fees_)
     {
-        return _getPaymentsBreakdown(
+        ( principal_, interest_ ) = _getCurrentPaymentsBreakdown(numberOfPayments_);
+
+        ( uint256 adminFee, uint256 serviceCharge ) = _getPaymentFees(
             numberOfPayments_,
-            block.timestamp,
-            _nextPaymentDueDate,
-            _paymentInterval,
-            _principal,
-            _endingPrincipal,
-            _interestRate,
             _paymentsRemaining,
-            _lateFeeRate
+            _nextPaymentDueDate,
+            principal_ + interest_
         );
+
+        fees_ = adminFee + serviceCharge;  // TODO: Revisit names for fees
     }
 
-    function implementation() public view override returns (address implementation_) {
+    function implementation() external view override returns (address implementation_) {
         return _implementation();
     }
 
@@ -200,8 +219,24 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         return _collateralRequired;
     }
 
+    function debtLocker() external view override returns (address debtLocker_) {
+        return _debtLocker;
+    }
+
     function drawableFunds() external view override returns (uint256 drawableFunds_) {
         return _drawableFunds;
+    }
+
+    function earlyFee() external view override returns (uint256 earlyFee_) {
+        return _earlyFee;
+    }
+
+    function earlyFeeRate() external view override returns (uint256 earlyFeeRate_) {
+        return _earlyFeeRate;
+    }
+
+    function earlyInterestRateDiscount() external view override returns (uint256 earlyInterestRateDiscount_) {
+        return _earlyInterestRateDiscount;
     }
 
     function endingPrincipal() external view override returns (uint256 endingPrincipal_) {
@@ -220,8 +255,16 @@ contract MapleLoan is IMapleLoan, Proxied, LoanPrimitive {
         return _interestRate;
     }
 
+    function lateFee() external view override returns (uint256 lateFee_) {
+        return _lateFee;
+    }
+
     function lateFeeRate() external view override returns (uint256 lateFeeRate_) {
         return _lateFeeRate;
+    }
+
+    function lateInterestRatePremium() external view override returns (uint256 lateInterestRatePremium_) {
+        return _lateInterestRatePremium;
     }
 
     function lender() external view override returns (address lender_) {

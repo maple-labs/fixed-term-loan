@@ -70,17 +70,19 @@ contract MapleLoanFactoryTest is TestUtils {
         address[2] memory assets = [address(4567), address(9876)];
 
         uint256[6] memory parameters = [
-            uint256(0),
             uint256(10 days),
-            uint256(120_000),
-            uint256(100_000),
             uint256(365 days / 6),
-            uint256(6)
+            uint256(6),
+            uint256(0.12e18),
+            uint256(0.10e18),
+            uint256(0.12e18)
         ];
 
-        uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
+        uint256[3] memory requests = [uint256(300_000), uint256(1_000_000), uint256(0)];
 
-        bytes memory arguments = initializerV1.encodeArguments(address(borrower), assets, parameters, requests);
+        uint256[4] memory fees = [uint256(100), uint256(0.10e18), uint256(100), uint256(10e18)];
+
+        bytes memory arguments = initializerV1.encodeArguments(address(3333), address(borrower), assets, parameters, requests, fees);
 
         assertTrue(!borrower.try_mapleLoanFactory_createLoan(address(factory), arguments), "Should fail: unregistered version");
 
@@ -149,17 +151,19 @@ contract MapleLoanFactoryTest is TestUtils {
         address[2] memory assets = [address(4567), address(9876)];
 
         uint256[6] memory parameters = [
-            uint256(0),
             uint256(10 days),
-            uint256(120_000),
-            uint256(100_000),
             uint256(365 days / 6),
-            uint256(6)
+            uint256(6),
+            uint256(0.12e18),
+            uint256(0.10e18),
+            uint256(0.12e18)
         ];
 
-        uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
+        uint256[3] memory requests = [uint256(300_000), uint256(1_000_000), uint256(0)];
 
-        bytes memory arguments = initializerV1.encodeArguments(address(borrower), assets, parameters, requests);
+        uint256[4] memory fees = [uint256(100), uint256(0.10e18), uint256(100), uint256(10e18)];
+
+        bytes memory arguments = initializerV1.encodeArguments(address(3333), address(borrower), assets, parameters, requests, fees);
 
         MapleLoan loan = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
 

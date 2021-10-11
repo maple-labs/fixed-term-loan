@@ -5,7 +5,7 @@ import { TestUtils, Hevm, StateManipulations } from "../../modules/contract-test
 import { IERC20 }                              from "../../modules/erc20/src/interfaces/IERC20.sol";
 import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
-import { ConstructableMapleLoan }              from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan , DebtLockerMock } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { Lender }   from "./accounts/Lender.sol";
@@ -15,9 +15,10 @@ import { MapleLoan } from "./../MapleLoan.sol";
 contract MapleLoanTest is StateManipulations, TestUtils {
 
     function test_story_fullyAmortized() external {
-        MockERC20 token    = new MockERC20("Test", "TST", 0);
-        Borrower  borrower = new Borrower();
-        Lender    lender   = new Lender();
+        MockERC20      token      = new MockERC20("Test", "TST", 0);
+        Borrower       borrower   = new Borrower();
+        Lender         lender     = new Lender();
+        DebtLockerMock debtLocker = new DebtLockerMock();
 
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
@@ -25,17 +26,18 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         address[2] memory assets = [address(token), address(token)];
 
         uint256[6] memory parameters = [
-            uint256(0),
             uint256(10 days),
+            uint256(365 days / 6),
+            uint256(6),
             uint256(0.12 ether),
             uint256(0.10 ether),
-            uint256(365 days / 6),
-            uint256(6)
+            uint256(0 ether)
         ];
 
-        uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
+        uint256[3] memory amounts = [uint256(300_000), uint256(1_000_000), uint256(0)];
+        uint256[4] memory fees    = [uint256(0), uint256(0), uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, requests);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(debtLocker), address(borrower), assets, parameters, amounts, fees);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
@@ -188,9 +190,11 @@ contract MapleLoanTest is StateManipulations, TestUtils {
     }
 
     function test_story_interestOnly() external {
-        MockERC20 token    = new MockERC20("Test", "TST", 0);
-        Borrower  borrower = new Borrower();
-        Lender    lender   = new Lender();
+        MockERC20      token      = new MockERC20("Test", "TST", 0);
+        Borrower       borrower   = new Borrower();
+        Lender         lender     = new Lender();
+        DebtLockerMock debtLocker = new DebtLockerMock();
+
 
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
@@ -198,17 +202,18 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         address[2] memory assets = [address(token), address(token)];
 
         uint256[6] memory parameters = [
-            uint256(1_000_000),
             uint256(10 days),
+            uint256(365 days / 6),
+            uint256(6),
             uint256(0.12 ether),
             uint256(0.10 ether),
-            uint256(365 days / 6),
-            uint256(6)
+            uint256(0 ether)
         ];
 
-        uint256[2] memory requests = [uint256(300_000), uint256(1_000_000)];
+        uint256[3] memory amounts = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
+        uint256[4] memory fees    = [uint256(0), uint256(0), uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, requests);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(debtLocker), address(borrower), assets, parameters, amounts, fees);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
