@@ -271,9 +271,7 @@ contract LoanPrimitive {
             // If payment is late, add interest premium given late interest rate premium and late time.
             // TODO: Revisit this late fee mechanism when comparing to CSVs
             if (currentTime_ > nextPaymentDueDate_) {
-                interestAmount +=
-                    (interestAmount * lateInterestRatePremium_ * (paymentInterval_ + currentTime_ - nextPaymentDueDate_)) /
-                    (interestRate_ * paymentInterval_);
+                interestAmount += _getInterest(principal_, interestRate_ + lateInterestRatePremium_, currentTime_ - nextPaymentDueDate_);
             }
 
             // Update local variables

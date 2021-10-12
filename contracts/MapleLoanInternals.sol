@@ -67,22 +67,22 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
     /*** Borrow Functions ***/
     /************************/
 
-    function _makePaymentsWithFees(uint256 numberOfPayments_) internal returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+    function _makePaymentsWithFees(uint256 numberOfPayments_) internal returns (uint256 principalPortion_, uint256 interestPortion_, uint256 feePortion_) {
         // Get principal and interest amounts, including discounted/premium rates for early/late payments.
-        ( principal_, interest_ ) = _getCurrentPaymentsBreakdown(numberOfPayments_);
+        ( principalPortion_, interestPortion_ ) = _getCurrentPaymentsBreakdown(numberOfPayments_);
 
         // Calculate flat rate and flat fee amounts for early/late payments.
         ( uint256 adminFee, uint256 serviceCharge ) = _getPaymentFees(
-            principal_ + interest_,
-            numberOfPayments_,
-            _getEarlyPayments(numberOfPayments_),  // Get number of payments made early
-            _getLatePayments(numberOfPayments_)    // Get number of payments made late
+            _principal,                            // Use current principal balance.
+            numberOfPayments_,                     // Number of payments being made.
+            _getEarlyPayments(numberOfPayments_),  // Get number of payments made early.
+            _getLatePayments(numberOfPayments_)    // Get number of payments made late.
         );
 
-        fees_ = adminFee + serviceCharge;
+        feePortion_ = adminFee + serviceCharge;
 
         // Update Loan accounting, with `totalPaid_` being principal, interest, and fees.
-        require(_accountForPayments(numberOfPayments_, principal_ + interest_ + fees_ , principal_), "ML:MPWF:ACCOUNTING");
+        require(_accountForPayments(numberOfPayments_, principalPortion_ + interestPortion_ + feePortion_ , principalPortion_), "ML:MPWF:ACCOUNTING");
 
         // Transfer admin fees, if any, to pool delegate, and decrement claimable funds.
         require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "ML:MPWF:PD_TRANSER");

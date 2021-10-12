@@ -68,7 +68,7 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
         );
 
         assertEq(principalAmount, 78_848);
-        assertEq(interestFees,    16_666);
+        assertEq(interestFees,    23_333);  // 10_000 + (1_000_000) * 0.16 * (1/12) = 10_000 + 13_333
     }
 
     function test_getPaymentsBreakdown_onePaymentTwoPeriodsLate() external {
@@ -79,7 +79,7 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
         );
 
         assertEq(principalAmount, 78_848);
-        assertEq(interestFees,    20_000);
+        assertEq(interestFees,    36_666);  // 10_000 + (1_000_000) * 0.16 * (2/12) = 10_000 + 26_666
     }
 
     function test_getPaymentsBreakdown_onePaymentThreePeriodsLate() external {
@@ -90,7 +90,7 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
         );
 
         assertEq(principalAmount, 78_848);
-        assertEq(interestFees,    23_333);
+        assertEq(interestFees,    50_000);  // 10_000 + (1_000_000) * 0.16 * (3/12) = 10_000 + 40_000
     }
 
     function test_getPaymentsBreakdown_onePaymentFourPeriodsLate() external {
@@ -101,7 +101,7 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
         );
 
         assertEq(principalAmount, 78_848);
-        assertEq(interestFees,    26_666);
+        assertEq(interestFees,    63_333);  // 10_000 + (1_000_000) * 0.16 * (4/12) = 10_000 + 53_333
     }
 
     function test_getPaymentsBreakdown_twoPaymentsOnePeriodBeforeDue() external {
@@ -134,7 +134,7 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
         );
 
         assertEq(principalAmount, 158_485);
-        assertEq(interestFees,    25_877);
+        assertEq(interestFees,    32_544);  // 10_000 + 9_211 + (1_000_000) * 0.16 * (1/12) = 10_000 + 9_211 + 13_333
     }
 
     function test_getPaymentsBreakdown_twoPaymentsTwoPeriodsLate() external {
@@ -145,7 +145,7 @@ contract LoanPrimitivePaymentBreakDownTest is TestUtils {
         );
 
         assertEq(principalAmount, 158_485);
-        assertEq(interestFees,    35_351);
+        assertEq(interestFees,    58_159);  // 10_000 + 9_211 + (1_000_000) * 0.16 * (2/12) + (921_152) * 0.16 * (1/12) = 10_000 + 9_211 + 26_666 + 12_282
     }
 
 }
