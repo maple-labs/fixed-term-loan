@@ -4,9 +4,9 @@ pragma solidity ^0.8.7;
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { Proxied }     from "../modules/proxy-factory/contracts/Proxied.sol";
 
-import { IDebtLockerLike }       from "./interfaces/Interfaces.sol";
-import { IMapleLoan }            from "./interfaces/IMapleLoan.sol";
-import { IMapleLoanFactory }     from "./interfaces/IMapleLoanFactory.sol";
+import { ILenderLike }       from "./interfaces/Interfaces.sol";
+import { IMapleLoan }        from "./interfaces/IMapleLoan.sol";
+import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
 
 import { MapleLoanInternals } from "./MapleLoanInternals.sol";
 
@@ -93,13 +93,13 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         require(success, "ML:L:FAILED");
 
         // Transfer the annualized treasury fee, if any, to the Maple treasury, and decrement drawable funds.
-        uint256 treasuryFee = (amountFunded_ * IDebtLockerLike(_debtLocker).treasuryFee() * _paymentInterval * _paymentsRemaining) / (uint256(10_000) * uint256(365 days));
-        ERC20Helper.transfer(_fundsAsset, IDebtLockerLike(_debtLocker).mapleTreasury(), treasuryFee);
+        uint256 treasuryFee = (amountFunded_ * ILenderLike(lender_).treasuryFee() * _paymentInterval * _paymentsRemaining) / (uint256(10_000) * uint256(365 days));
+        require(ERC20Helper.transfer(_fundsAsset, ILenderLike(lender_).mapleTreasury(), treasuryFee), "ML:FL:T_TRANSFER");
         _drawableFunds -= treasuryFee;
 
         // Transfer delegate fee, if any, to the pool delegate, and decrement drawable funds.
-        uint256 delegateFee = (amountFunded_ * IDebtLockerLike(_debtLocker).investorFee() * _paymentInterval * _paymentsRemaining) / (uint256(10_000) * uint256(365 days));
-        ERC20Helper.transfer(_fundsAsset, IDebtLockerLike(_debtLocker).poolDelegate(), delegateFee);
+        uint256 delegateFee = (amountFunded_ * ILenderLike(lender_).investorFee() * _paymentInterval * _paymentsRemaining) / (uint256(10_000) * uint256(365 days));
+        require(ERC20Helper.transfer(_fundsAsset, ILenderLike(lender_).poolDelegate(), delegateFee), "ML:FL:PD_TRANSFER");
         _drawableFunds -= delegateFee;
 
         emit Funded(lender_, _nextPaymentDueDate);
@@ -144,7 +144,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
         bytes32 refinanceCommitment = keccak256(abi.encode(refinancer_, calls_));
         require(refinanceCommitment == _refinanceCommitment, "ML:ANT:INVALID_ARGS");
-        
+
         for (uint256 i; i < calls_.length; ++i) {
             ( bool success, ) = refinancer_.delegatecall(calls_[i]);
             require(success, "ML:ANT:FAILED");
@@ -217,10 +217,6 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function collateralRequired() external view override returns (uint256 collateralRequired_) {
         return _collateralRequired;
-    }
-
-    function debtLocker() external view override returns (address debtLocker_) {
-        return _debtLocker;
     }
 
     function drawableFunds() external view override returns (uint256 drawableFunds_) {

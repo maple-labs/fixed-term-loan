@@ -82,7 +82,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
         uint256[4] memory fees = [uint256(100), uint256(0.10e18), uint256(100), uint256(10e18)];
 
-        bytes memory arguments = initializerV1.encodeArguments(address(3333), address(borrower), assets, parameters, requests, fees);
+        bytes memory arguments = initializerV1.encodeArguments(address(borrower), assets, parameters, requests, fees);
 
         assertTrue(!borrower.try_mapleLoanFactory_createLoan(address(factory), arguments), "Should fail: unregistered version");
 
@@ -163,7 +163,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
         uint256[4] memory fees = [uint256(100), uint256(0.10e18), uint256(100), uint256(10e18)];
 
-        bytes memory arguments = initializerV1.encodeArguments(address(3333), address(borrower), assets, parameters, requests, fees);
+        bytes memory arguments = initializerV1.encodeArguments(address(borrower), assets, parameters, requests, fees);
 
         MapleLoan loan = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
 

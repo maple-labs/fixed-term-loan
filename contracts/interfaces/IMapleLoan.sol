@@ -38,11 +38,6 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     function collateralRequired() external view returns (uint256 collateralRequired_);
 
     /**
-     *  @dev The address of the respective Debt Locker.
-     */
-    function debtLocker() external view returns (address debtLocker_);
-
-    /**
      *  @dev The amount of funds that have yet to be drawn down by the borrower.
      */
     function drawableFunds() external view returns (uint256 drawableFunds_);
@@ -58,7 +53,7 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     function earlyFeeRate() external view returns (uint256 earlyFeeRate_);
 
     /**
-     *  @dev The discount over the regular interest rate applied when paying early. 
+     *  @dev The discount over the regular interest rate applied when paying early.
      */
     function earlyInterestRateDiscount() external view returns (uint256 earlyInterestRateDiscount_);
 

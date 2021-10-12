@@ -10,8 +10,6 @@ import { ConstructableMapleLoan , DebtLockerMock } from "./mocks/Mocks.sol";
 import { Borrower } from "./accounts/Borrower.sol";
 import { Lender }   from "./accounts/Lender.sol";
 
-import { MapleLoan } from "./../MapleLoan.sol";
-
 contract MapleLoanTest is StateManipulations, TestUtils {
 
     function test_story_fullyAmortized() external {
@@ -37,13 +35,13 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         uint256[3] memory amounts = [uint256(300_000), uint256(1_000_000), uint256(0)];
         uint256[4] memory fees    = [uint256(0), uint256(0), uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(debtLocker), address(borrower), assets, parameters, amounts, fees);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, amounts, fees);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
         lender.erc20_approve(address(token), address(loan),  500_000);
 
-        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
+        assertTrue(lender.try_loan_fundLoan(address(loan), address(debtLocker), 500_000), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 
@@ -139,7 +137,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         assertEq(loan.collateral(), 69_396, "Different collateral");
 
         // Claim loan proceeds thus far
-        assertTrue(lender.try_loan_claimFunds(address(loan), 714_101, address(lender)), "Cannot claim funds");
+        assertTrue(debtLocker.try_loan_claimFunds(address(loan), 714_101, address(debtLocker)), "Cannot claim funds");
 
         // Check details for upcoming payment #5
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -186,7 +184,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         assertEq(loan.collateral(), 0, "Different collateral");
 
         // Claim remaining loan proceeds
-        assertTrue(lender.try_loan_claimFunds(address(loan), 357_049, address(lender)), "Cannot remove collateral");
+        assertTrue(debtLocker.try_loan_claimFunds(address(loan), 357_049, address(debtLocker)), "Cannot remove collateral");
     }
 
     function test_story_interestOnly() external {
@@ -194,7 +192,6 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         Borrower       borrower   = new Borrower();
         Lender         lender     = new Lender();
         DebtLockerMock debtLocker = new DebtLockerMock();
-
 
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
@@ -213,13 +210,13 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         uint256[3] memory amounts = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
         uint256[4] memory fees    = [uint256(0), uint256(0), uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(debtLocker), address(borrower), assets, parameters, amounts, fees);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, amounts, fees);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
         lender.erc20_approve(address(token), address(loan),  500_000);
 
-        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
+        assertTrue(lender.try_loan_fundLoan(address(loan), address(debtLocker), 500_000), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 
@@ -310,7 +307,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         assertEq(loan.collateral(), 150_000, "Different collateral");
 
         // Claim loan proceeds thus far
-        assertTrue(lender.try_loan_claimFunds(address(loan), 80000, address(lender)), "Cannot claim funds");
+        assertTrue(debtLocker.try_loan_claimFunds(address(loan), 80000, address(debtLocker)), "Cannot claim funds");
 
         // Check details for upcoming payment #5
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -357,7 +354,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         assertEq(loan.collateral(), 0, "Different collateral");
 
         // Claim remaining loan proceeds
-        assertTrue(lender.try_loan_claimFunds(address(loan), 1_040_000, address(lender)), "Cannot remove collateral");
+        assertTrue(debtLocker.try_loan_claimFunds(address(loan), 1_040_000, address(debtLocker)), "Cannot remove collateral");
     }
 
 }

@@ -1033,7 +1033,7 @@ contract LoanPrimitiveClaimFundsTest is TestUtils {
         loan.initialize(address(1), assets, parameters, requests);
         fundsAsset.mint(address(loan), fundingAmount_);
         loan.lend(address(this));
-        
+
         (uint256 principal, uint256 interest) = loan.getCurrentPaymentsBreakdown(1);
         loan.accountForPayments(1, principal + interest, principal);
 

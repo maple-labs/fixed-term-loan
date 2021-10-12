@@ -14,8 +14,8 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         address[2] memory assets_,
         uint256[6] memory parameters_,
         uint256[3] memory requests_
-    ) 
-        external returns (bool success_) 
+    )
+        external returns (bool success_)
     {
         return _initialize(borrower_, assets_, parameters_, requests_) ;
     }

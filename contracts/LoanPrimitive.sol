@@ -102,9 +102,8 @@ contract LoanPrimitive {
         return ERC20Helper.transfer(_fundsAsset, destination_, amount_) && _isCollateralMaintained();
     }
 
-    /// @dev perform state changes to account for a payments made
+    /// @dev Perform state changes to account for a payments made
     function _accountForPayments(uint256 numberOfPayments_, uint256 totalPaid_, uint256 principalPaid_) internal virtual returns (bool success_) {
-        
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid_;
 
@@ -239,7 +238,7 @@ contract LoanPrimitive {
         uint256 total = ((((principal_ * raisedRate) / ONE) - endingPrincipal_) * periodicRate) / (raisedRate - ONE);
 
         // TODO: Remove this function: `interestAmount_ = principal_ * periodicRate / ONE;`
-        interestAmount_  = _getInterest(principal_, interestRate_, paymentInterval_);  
+        interestAmount_  = _getInterest(principal_, interestRate_, paymentInterval_);
         principalAmount_ = total >= interestAmount_ ? total - interestAmount_ : 0;
     }
 

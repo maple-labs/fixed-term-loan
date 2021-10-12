@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-interface IDebtLockerLike {
+interface ILenderLike {
 
     function investorFee() external view returns (uint256 investorFee_);
 
