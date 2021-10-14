@@ -96,12 +96,6 @@ contract LoanPrimitive {
     /*** Internal Borrow-side Functions ***/
     /**************************************/
 
-    /// @dev Sends `amount_` of `_drawableFunds` to `destination_`.
-    function _drawdownFunds(uint256 amount_, address destination_) internal virtual returns (bool success_) {
-        _drawableFunds -= amount_;
-        return ERC20Helper.transfer(_fundsAsset, destination_, amount_) && _isCollateralMaintained();
-    }
-
     /// @dev Perform state changes to account for a payments made
     function _accountForPayments(uint256 numberOfPayments_, uint256 totalPaid_, uint256 principalPaid_) internal virtual returns (bool success_) {
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
@@ -113,6 +107,12 @@ contract LoanPrimitive {
         _paymentsRemaining  -= numberOfPayments_;
 
         success_ = true;
+    }
+
+    /// @dev Sends `amount_` of `_drawableFunds` to `destination_`.
+    function _drawdownFunds(uint256 amount_, address destination_) internal virtual returns (bool success_) {
+        _drawableFunds -= amount_;
+        return ERC20Helper.transfer(_fundsAsset, destination_, amount_) && _isCollateralMaintained();
     }
 
     /// @dev Registers the delivery of an amount of collateral to be posted.

@@ -9,6 +9,18 @@ contract LoanPrimitiveHarness is LoanPrimitive {
     /*** Mutating Functions ***/
     /**************************/
 
+    function accountForPayments(uint256 numberOfPayments_, uint256 totalPaid_, uint256 principalPaid_) external returns (bool success_) {
+        return _accountForPayments(numberOfPayments_, totalPaid_, principalPaid_);
+    }
+
+    function claimFunds(uint256 amount_, address destination_) external returns (bool success_) {
+        return _claimFunds(amount_, destination_);
+    }
+
+    function drawdownFunds(uint256 amount_, address destination_) external returns (bool success_) {
+        return _drawdownFunds(amount_, destination_);
+    }
+
     function initialize(
         address borrower_,
         address[2] memory assets_,
@@ -20,20 +32,8 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _initialize(borrower_, assets_, parameters_, requests_) ;
     }
 
-    function claimFunds(uint256 amount_, address destination_) external returns (bool success_) {
-        return _claimFunds(amount_, destination_);
-    }
-
-    function drawdownFunds(uint256 amount_, address destination_) external returns (bool success_) {
-        return _drawdownFunds(amount_, destination_);
-    }
-
     function lend(address lender_) external returns (bool success, uint256 amount_) {
         return _lend(lender_);
-    }
-
-    function accountForPayments(uint256 numberOfPayments_, uint256 totalPaid_, uint256 principalPaid_) external returns (bool success_) {
-        return _accountForPayments(numberOfPayments_, totalPaid_, principalPaid_);
     }
 
     function postCollateral() external returns (bool success_, uint256 amount_) {
@@ -44,16 +44,16 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _removeCollateral(amount_, destination_);
     }
 
-    function skim(address asset_, address destination_) external returns (bool success_, uint256 amount_) {
-        return _skim(asset_, destination_);
-    }
-
     function repossess() external returns (bool success_) {
         return _repossess();
     }
 
     function returnFunds() external returns (bool success_, uint256 amount_) {
         return _returnFunds();
+    }
+
+    function skim(address asset_, address destination_) external returns (bool success_, uint256 amount_) {
+        return _skim(asset_, destination_);
     }
 
     /***********************/
