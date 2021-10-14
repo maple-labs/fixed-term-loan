@@ -177,18 +177,18 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments_)
         external view override
-        returns (uint256 principal_, uint256 interest_, uint256 fees_)
+        returns (
+            uint256 principal_,
+            uint256 interest_,
+            uint256 fees_
+        )
     {
-        ( principal_, interest_ ) = _getCurrentPaymentsBreakdown(numberOfPayments_);
+        uint256 adminFee;
+        uint256 serviceFee;
 
-        ( uint256 adminFee, uint256 serviceCharge ) = _getPaymentFees(
-            numberOfPayments_,
-            _paymentsRemaining,
-            _nextPaymentDueDate,
-            principal_ + interest_
-        );
+        ( principal_, interest_, adminFee, serviceFee ) = _getNextPaymentsBreakDown(numberOfPayments_);
 
-        fees_ = adminFee + serviceCharge;  // TODO: Revisit names for fees
+        fees_ = adminFee + serviceFee;
     }
 
     function implementation() external view override returns (address implementation_) {

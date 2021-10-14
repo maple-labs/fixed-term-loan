@@ -67,26 +67,23 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
     /*** Borrow Functions ***/
     /************************/
 
-    function _makePaymentsWithFees(uint256 numberOfPayments_) internal returns (uint256 principalPortion_, uint256 interestPortion_, uint256 feePortion_) {
-        // Get principal and interest amounts, including discounted/premium rates for early/late payments.
-        ( principalPortion_, interestPortion_ ) = _getCurrentPaymentsBreakdown(numberOfPayments_);
+    function _makePaymentsWithFees(uint256 numberOfPayments_) internal returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+        uint256 adminFee;
+        uint256 serviceFee;
 
-        // Calculate flat rate and flat fee amounts for early/late payments.
-        ( uint256 adminFee, uint256 serviceCharge ) = _getPaymentFees(
-            _principal,                            // Use current principal balance.
-            numberOfPayments_,                     // Number of payments being made.
-            _getEarlyPayments(numberOfPayments_),  // Get number of payments made early.
-            _getLatePayments(numberOfPayments_)    // Get number of payments made late.
-        );
+        ( principal_, interest_, adminFee, serviceFee ) = _getNextPaymentsBreakDown(numberOfPayments_);
 
-        feePortion_ = adminFee + serviceCharge;
+        fees_ = adminFee + serviceFee;
 
         // Update Loan accounting, with `totalPaid_` being principal, interest, and fees.
-        require(_accountForPayments(numberOfPayments_, principalPortion_ + interestPortion_ + feePortion_ , principalPortion_), "ML:MPWF:ACCOUNTING");
+        require(_accountForPayments(numberOfPayments_, principal_ + interest_ + fees_ , principal_), "ML:MPWF:ACCOUNTING");
 
         // Transfer admin fees, if any, to pool delegate, and decrement claimable funds.
-        require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "ML:MPWF:PD_TRANSER");
-        _claimableFunds -= adminFee;
+        if (adminFee > uint256(0)) {
+            require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "ML:MPWF:PD_TRANSER");
+
+            _claimableFunds -= adminFee;
+        }
     }
 
     /**********************/
@@ -121,8 +118,30 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
         latePayments_ = numberOfPayments_ < latePayments_ ? numberOfPayments_ : latePayments_;
     }
 
+    function _getNextPaymentsBreakDown(uint256 numberOfPayments_)
+        internal view
+        returns (
+            uint256 principal_,
+            uint256 interest_,
+            uint256 adminFee_,
+            uint256 serviceFee_
+        )
+    {
+        // Get principal and interest amounts, including discounted/premium rates for early/late payments.
+        ( principal_, interest_ ) = _getCurrentPaymentsBreakdown(numberOfPayments_);
+
+        // Calculate flat rate and flat fee amounts for early/late payments.
+        // TODO: Revisit names for fees
+        ( adminFee_, serviceFee_ ) = _getPaymentFees(
+            _principal,                            // Use current principal balance.
+            numberOfPayments_,                     // Number of payments being made.
+            _getEarlyPayments(numberOfPayments_),  // Get number of payments made early.
+            _getLatePayments(numberOfPayments_)    // Get number of payments made late.
+        );
+    }
+
     function _getPaymentFees(
-        uint256 payment_,
+        uint256 amount_,
         uint256 numberOfPayments_,
         uint256 earlyPayments_,
         uint256 latePayments_
@@ -135,12 +154,12 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
     {
         if (earlyPayments_ > uint256(0) && _paymentsRemaining == uint256(0)) {
             adminFee_      += _earlyFee;
-            serviceCharge_ += _earlyFeeRate * payment_;
+            serviceCharge_ += _earlyFeeRate * amount_;
         }
 
         if (latePayments_ > uint256(0)) {
             adminFee_      += _lateFee * latePayments_;
-            serviceCharge_ += (_lateFeeRate * payment_ * latePayments_) / numberOfPayments_;
+            serviceCharge_ += (_lateFeeRate * amount_ * latePayments_) / numberOfPayments_;
         }
     }
 

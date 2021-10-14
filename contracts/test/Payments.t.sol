@@ -223,8 +223,6 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
         /*** Payment Amount per period 170,281
         /****************************************/
 
-        uint256 USD = 10 ** 6;  // All assertions are done to 5 decimals of accuracy (rounding on sixth decimal)
-
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
         uint256[6] memory parameters = [
