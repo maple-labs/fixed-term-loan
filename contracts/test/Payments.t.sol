@@ -11,9 +11,8 @@ import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { Governor } from "./accounts/Governor.sol";
-import { Lender }   from "./accounts/Lender.sol";
 
-import { MapleGlobalsMock, DebtLockerMock } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, LenderMock } from "./mocks/Mocks.sol";
 
 contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
 
@@ -24,27 +23,25 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
 
     Borrower             borrower;
     Governor             governor;
-    Lender               lender;
+    LenderMock           lender;
     MapleGlobalsMock     globals;
     MapleLoan            implementation;
     MapleLoanFactory     factory;
     MapleLoanInitializer initializer;
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
-    DebtLockerMock       debtLocker;
 
     function setUp() external {
         start = block.timestamp;
 
         borrower = new Borrower();
         governor = new Governor();
-        lender   = new Lender();  // i.e. LiquidityLocker
+        lender   = new LenderMock();
 
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
 
         globals    = new MapleGlobalsMock(address(governor));
-        debtLocker = new DebtLockerMock();
 
         factory        = new MapleLoanFactory(address(globals));
         implementation = new MapleLoan();
@@ -73,8 +70,8 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         loan = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
 
         // Approve and fund Loan
-        lender.erc20_approve(address(fundsAsset),  address(loan), requests[1]);
-        lender.loan_fundLoan(address(loan), address(debtLocker),  requests[1]);
+        lender.erc20_approve(address(fundsAsset), address(loan),   requests[1]);
+        lender.loan_fundLoan(address(loan),       address(lender), requests[1]);
 
         // Transfer and post collateral and drawdown
         borrower.erc20_transfer(address(collateralAsset), address(loan), requests[0]);
@@ -145,7 +142,7 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
         /****************************************/
         /*** Loan Terms:
         /*** Amount	                   1,000,000
-        /*** Ending Pricipal           0
+        /*** Ending Principal          0
         /*** Interest Rate	           10%
         /*** Payment Interval (days)   30
         /*** Term	                   180
@@ -214,7 +211,7 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
         /****************************************/
         /*** Loan Terms:
         /*** Amount	                   1,000,000
-        /*** Ending Pricipal           0
+        /*** Ending Principal          0
         /*** Interest Rate	           15%
         /*** Payment Interval (days)   15
         /*** Term	                   90
@@ -286,7 +283,7 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
         /****************************************/
         /*** Loan Terms:
         /*** Amount	                   1,000,000
-        /*** Ending Pricipal           800,000
+        /*** Ending Principal          800,000
         /*** Interest Rate	           10%
         /*** Payment Interval (days)   30
         /*** Term	                   180
@@ -355,7 +352,7 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
         /****************************************/
         /*** Loan Terms:
         /*** Amount	                   1,000,000
-        /*** Ending Pricipal           350,000
+        /*** Ending Principal          350,000
         /*** Interest Rate	           13%
         /*** Payment Interval (days)   15
         /*** Term	                   90
@@ -428,7 +425,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
         /****************************************/
         /*** Loan Terms:
         /*** Amount	                   1,000,000
-        /*** Ending Pricipal           1,000,000
+        /*** Ending Principal          1,000,000
         /*** Interest Rate	           10%
         /*** Payment Interval (days)   30
         /*** Term	                   180
@@ -495,7 +492,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
         /****************************************/
         /*** Loan Terms:
         /*** Amount	                   1,000,000
-        /*** Ending Pricipal           1,000,000
+        /*** Ending Principal          1,000,000
         /*** Interest Rate	           15%
         /*** Payment Interval (days)   15
         /*** Term	                   90

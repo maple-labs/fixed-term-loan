@@ -216,14 +216,6 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     );
 
     /**
-     *  @dev    Skims any amount, given an asset, which is unaccounted for (and thus not required).
-     *  @param  asset_       The address of the asset.
-     *  @param  destination_ The address where the amount of the asset is to be sent.
-     *  @return amount_      The amount of the asset skimmed.
-     */
-    function skim(address asset_, address destination_) external returns (uint256 amount_);
-
-    /**
      *  @dev    Upgrade the MapleLoan implementation used to a new version.
      *  @param  toVersion_ The MapleLoan version to upgrade to.
      *  @param  arguments_ The encoded arguments used for migration, if any.
@@ -233,6 +225,8 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     /**********************/
     /*** View Functions ***/
     /**********************/
+
+    function getAdditionalRequiredCollateral(uint256 drawdownAmount_) external view returns (uint256 additionalRequiredCollateral_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.
@@ -246,5 +240,7 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
         uint256 totalInterestFees_,
         uint256 totalLateFees_
     );
+
+    function getRemovableCollateral() external view returns (uint256 removableCollateral_);
 
 }

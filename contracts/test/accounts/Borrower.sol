@@ -16,6 +16,10 @@ contract Borrower is LoanUser {
         IMapleLoan(loan_).drawdownFunds(amount_, destination_);
     }
 
+    function loan_proposeNewTerms(address loan_, address refinancer_, bytes[] calldata calls_) external {
+        IMapleLoan(loan_).proposeNewTerms(refinancer_, calls_);
+    }
+
     function loan_removeCollateral(address loan_, uint256 amount_, address destination_) external {
         IMapleLoan(loan_).removeCollateral(amount_, destination_);
     }
@@ -34,6 +38,10 @@ contract Borrower is LoanUser {
 
     function try_loan_drawdownFunds(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.drawdownFunds.selector, amount_, destination_));
+    }
+
+    function try_loan_proposeNewTerms(address loan_, address refinancer_, bytes[] calldata calls_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.proposeNewTerms.selector, refinancer_, calls_));
     }
 
     function try_loan_removeCollateral(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {

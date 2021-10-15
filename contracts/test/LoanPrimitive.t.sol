@@ -736,7 +736,7 @@ contract LoanPrimitiveDrawdownTest is TestUtils {
     }
 
     function test_drawdownFunds_initialState(uint256 collateralRequired_, uint256 principalRequested_) external {
-        ( collateralRequired_, principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( collateralRequired_, principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 1, MAX_TOKEN_AMOUNT);
 
         assertEq(loan.principal(),          principalRequested_);
         assertEq(loan.drawableFunds(),      principalRequested_);
@@ -760,7 +760,7 @@ contract LoanPrimitiveDrawdownTest is TestUtils {
     }
 
     function test_drawdownFunds_exactAmount(uint256 collateralRequired_, uint256 principalRequested_) external {
-        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 1, MAX_TOKEN_AMOUNT);
 
         assertEq(loan.drawableFunds(),                principalRequested_);
         assertEq(fundsAsset.balanceOf(address(loan)), principalRequested_);
@@ -774,7 +774,7 @@ contract LoanPrimitiveDrawdownTest is TestUtils {
     }
 
     function test_drawdownFunds_lessThanDrawableFunds(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
-        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 1, MAX_TOKEN_AMOUNT);
 
         drawdownAmount_ = constrictToRange(drawdownAmount_, 0, principalRequested_);
 
@@ -790,13 +790,13 @@ contract LoanPrimitiveDrawdownTest is TestUtils {
     }
 
     function test_drawdownFunds_greaterThanDrawableFunds(uint256 collateralRequired_, uint256 principalRequested_) external {
-        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 1, MAX_TOKEN_AMOUNT);
 
         try loan.drawdownFunds(principalRequested_ + 1, address(this)) { assertTrue(false); } catch {}
     }
 
     function test_drawdownFunds_multipleDrawdowns(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
-        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 0, MAX_TOKEN_AMOUNT);
+        ( , principalRequested_ ) = _setUpDrawdown(address(loan), collateralRequired_, 0, MAX_TOKEN_AMOUNT, principalRequested_, 1, MAX_TOKEN_AMOUNT);
 
         drawdownAmount_ = constrictToRange(drawdownAmount_, 0, principalRequested_);
 
@@ -1360,7 +1360,7 @@ contract LoanPrimitiveSkimTest is TestUtils {
 
 }
 
-contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
+contract LoanPrimitiveGetCollateralForTest is TestUtils {
 
     LoanPrimitiveHarness internal loan;
 
@@ -1368,94 +1368,21 @@ contract LoanPrimitiveCollateralMaintainedTest is TestUtils {
         loan = new LoanPrimitiveHarness();
     }
 
-    function test_collateralMaintained_collateralIsVariable() external {
+    function test_getCollateralRequiredFor() external {
+        // No principal.
+        assertEq(loan.getCollateralRequiredFor(0, 10_000, 4_000_000, 500_000), 0);
 
-        // 1. Collateral is too high enough to attain ">" condition
-        // 1000000 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
-        // 4_000_000_000_000 >= 4_500_000_000 -> true
-        assertTrue(
-            loan.isCollateralMaintainedWith(
-                10_000,
-                1_000_000,
-                1_000,
-                4_000_000,
-                500_000
-            ),
-            "Fails to maintain collateral"
-        );
+        // No outstanding principal.
+        assertEq(loan.getCollateralRequiredFor(10_000, 10_000, 4_000_000, 500_000), 0);
 
-        // 2. Collateral is high enough to meet `=` condition.
-        // 1125 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
-        // 4_500_000_000 >= 4_500_000_000 -> true
-        assertTrue(
-            loan.isCollateralMaintainedWith(
-                10_000,
-                1125,
-                1_000,
-                4_000_000,
-                500_000
-            ),
-            "Fails to maintain collateral"
-        );
+        // No collateral required.
+        assertEq(loan.getCollateralRequiredFor(10_000, 1_000, 4_000_000, 0), 0);
 
-        // 3. Collateral is low enough to not respect `>=` condition anymore.
-        // 1124 * 4_000_000 >= 500_000 * (10_000 > 1_000 ? 10_000 - 1_000: 0);
-        // 4_496_000_000 >= 4_500_000_000 -> false
-        assertTrue(
-            !loan.isCollateralMaintainedWith(
-                10_000,
-                1124,
-                1_000,
-                4_000_000,
-                500_000
-            ),
-            "Collateral should not be maintained"
-        );
-    }
+        // 1125 = (500_000 * (10_000 > 1_000 ? 10_000 - 1_000 : 0)) / 4_000_000;
+        assertEq(loan.getCollateralRequiredFor(10_000, 1_000, 4_000_000, 500_000), 1125);
 
-    function test_collateralMaintained_drawableFundIsVariable() external {
-
-        // 1. Drawable funds are high enough to attain ">" condition
-        // 500_000 * 4_000_000 >= 500_000 * (10_000 > 500_000 ? 10_000 - 500_000: 0);
-        // 2000_000_000_000 >= 0 -> true
-        assertTrue(
-            loan.isCollateralMaintainedWith(
-                10_000,
-                500_000,
-                500_000,
-                4_000_000,
-                500_000
-            ),
-            "Fails to maintain collateral"
-        );
-
-        // 1. Drawable funds are high enough to attain "=" condition
-        // 500_000 * 4_000_000 >= 500_000 * (4_500_000 > 500_000 ? 4_500_000 - 500_000: 0);
-        // 2000_000_000_000 >= 2000_000_000_000 -> true
-        assertTrue(
-            loan.isCollateralMaintainedWith(
-                4_500_000,
-                500_000,
-                500_000,
-                4_000_000,
-                500_000
-            ),
-            "Fails to maintain collateral"
-        );
-
-        // 1. Drawable funds are low enough to invalidate ">=" condition
-        // 500_000 * 4_000_000 >= 500_000 * (4_500_000 > 499_999 ? 4_500_000 - 499_999: 0);
-        // 2000_000_000_000 >= 2000_000_500_000 -> false
-        assertTrue(
-            !loan.isCollateralMaintainedWith(
-                4_500_000,
-                500_000,
-                499_999,
-                4_000_000,
-                500_000
-            ),
-            "Collateral should not be maintained"
-        );
+        // 500_000 = (500_000 * (4_500_000 > 500_000 ? 4_500_000 - 500_000 : 0)) / 4_000_000;
+        assertEq(loan.getCollateralRequiredFor(4_500_000, 500_000, 4_000_000, 500_000), 500_000);
     }
 
 }

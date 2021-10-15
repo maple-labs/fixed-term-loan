@@ -25,20 +25,12 @@ contract ConstructableMapleLoan is MapleLoan {
 
 }
 
-contract DebtLockerMock is Lender {
+contract LenderMock is Lender {
 
-    uint256 public treasuryFee   = 0;
     uint256 public investorFee   = 0;
+    uint256 public treasuryFee   = 0;
 
-    address public poolDelegate  = address(8);
     address public mapleTreasury = address(9);
-
-    function acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_) external {
-        IMapleLoan(loan_).acceptNewTerms(refinancer_, calls_);
-    }
-
-    function try_acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptNewTerms.selector, refinancer_, calls_));
-    }
+    address public poolDelegate  = address(8);
 
 }

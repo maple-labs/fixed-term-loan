@@ -37,10 +37,6 @@ contract LoanUser is ERC20User {
         return IMapleLoan(loan_).fundLoan(lender_, amount_);
     }
 
-    function loan_skim(address loan_, address asset_, address destination_) external returns (uint256 amount_) {
-        return IMapleLoan(loan_).skim(asset_, destination_);
-    }
-
     /*********************/
     /*** Try Functions ***/
     /*********************/
@@ -63,10 +59,6 @@ contract LoanUser is ERC20User {
 
     function try_loan_fundLoan(address loan_, address lender_, uint256 amount_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.fundLoan.selector, lender_, amount_));
-    }
-
-    function try_loan_skim(address loan_, address asset_, address destination_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.skim.selector, asset_, destination_));
     }
 
 }

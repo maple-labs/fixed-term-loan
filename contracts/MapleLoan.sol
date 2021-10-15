@@ -155,24 +155,17 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit NewTermsAccepted(refinanceCommitment, refinancer_, calls_);
     }
 
-    /*************************/
-    /*** Utility Functions ***/
-    /*************************/
-
-    function skim(address asset_, address destination_) external override returns (uint256 amount_) {
-        bool success;
-        ( success, amount_ ) = _skim(asset_, destination_);
-        require(success, "ML:S:FAILED");
-
-        emit Skimmed(asset_, destination_, amount_);
-    }
-
     /**********************/
     /*** View Functions ***/
     /**********************/
 
     function factory() external view override returns (address factory_) {
         return _factory();
+    }
+
+    function getAdditionalRequiredCollateral(uint256 drawdownAmount_) external view override returns (uint256 additionalRequiredCollateral_) {
+        uint256 newCollateralRequired = _getCollateralRequiredFor(_principal, _drawableFunds - drawdownAmount_, _principalRequested, _collateralRequired);
+        return newCollateralRequired > _collateral ? newCollateralRequired - _collateral : uint256(0);
     }
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments_)
@@ -189,6 +182,11 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         ( principal_, interest_, adminFee, serviceFee ) = _getNextPaymentsBreakDown(numberOfPayments_);
 
         fees_ = adminFee + serviceFee;
+    }
+
+    function getRemovableCollateral() external view override returns (uint256 removableCollateral_) {
+        uint256 currentCollateralRequired = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
+        return _collateral > currentCollateralRequired ? _collateral - currentCollateralRequired : uint256(0);
     }
 
     function implementation() external view override returns (address implementation_) {

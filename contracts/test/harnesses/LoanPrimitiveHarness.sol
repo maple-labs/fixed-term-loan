@@ -96,7 +96,7 @@ contract LoanPrimitiveHarness is LoanPrimitive {
         return _fundsAsset;
     }
 
-    function getCurrentPaymentsBreakdown(uint256 numberOfPayments_) external view returns (uint256 totalPrincipal_, uint256 totalInterest_) {
+    function getCurrentPaymentsBreakdown(uint256 numberOfPayments_) external view returns (uint256 principal_, uint256 interest_) {
         return _getCurrentPaymentsBreakdown(numberOfPayments_);
     }
 
@@ -148,6 +148,17 @@ contract LoanPrimitiveHarness is LoanPrimitive {
     /*** Pure Functions ****/
     /***********************/
 
+    function getCollateralRequiredFor(
+        uint256 principal_,
+        uint256 drawableFunds_,
+        uint256 principalRequested_,
+        uint256 collateralRequired_
+    )
+        external pure returns (uint256 collateral_)
+    {
+        return _getCollateralRequiredFor(principal_, drawableFunds_, principalRequested_, collateralRequired_);
+    }
+
     function getInterest(uint256 principal_, uint256 interestRate_, uint256 interval_) external pure returns (uint256 interest_) {
         return _getInterest(principal_, interestRate_, interval_);
     }
@@ -196,18 +207,6 @@ contract LoanPrimitiveHarness is LoanPrimitive {
 
     function getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) external pure returns (uint256 periodicInterestRate_) {
         return _getPeriodicInterestRate(interestRate_, interval_);
-    }
-
-    function isCollateralMaintainedWith(
-        uint256 principal_,
-        uint256 collateral_,
-        uint256 drawableFunds_,
-        uint256 principalRequested_,
-        uint256 collateralRequired_
-    )
-        external pure returns (bool isMaintained_)
-    {
-        return _isCollateralMaintainedWith(principal_, collateral_, drawableFunds_, principalRequested_, collateralRequired_);
     }
 
     function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 result_) {

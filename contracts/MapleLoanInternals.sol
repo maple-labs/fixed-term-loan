@@ -55,7 +55,7 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
     )
         internal
     {
-        require(_initialize(borrower_, assets_, parameters_, amounts_), "ML_IL:FAILED");
+        require(_initialize(borrower_, assets_, parameters_, amounts_), "ML:IL:FAILED");
 
         _earlyFee     = fees_[0];
         _earlyFeeRate = fees_[1];
@@ -80,7 +80,7 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
 
         // Transfer admin fees, if any, to pool delegate, and decrement claimable funds.
         if (adminFee > uint256(0)) {
-            require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "ML:MPWF:PD_TRANSER");
+            require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "ML:MPWF:PD_TRANSFER");
 
             _claimableFunds -= adminFee;
         }

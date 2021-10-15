@@ -4,9 +4,9 @@ pragma solidity ^0.8.7;
 import { TestUtils, StateManipulations } from "../../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }                     from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
-import { ConstructableMapleLoan, DebtLockerMock } from "./mocks/Mocks.sol";
-
 import { Refinancer } from "../Refinancer.sol";
+
+import { ConstructableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
 
 // Helper contract with common functionality
 contract BaseRefinanceTest is TestUtils, StateManipulations {
@@ -19,12 +19,12 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
     uint256 internal constant MAX_PAYMENTS     = 20;
 
     ConstructableMapleLoan loan;
+    LenderMock             lender;
     MockERC20              token;
     Refinancer             refinancer;
-    DebtLockerMock         debtLocker;
 
     function setUp() external {
-        debtLocker = new DebtLockerMock();
+        lender     = new LenderMock();
         refinancer = new Refinancer();
     }
 
@@ -58,9 +58,9 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
 
         loan = new ConstructableMapleLoan(address(this), assets, parameters, requests, fees);
 
-        token.mint(address(this),          principalRequested_);
-        token.approve(address(loan),       principalRequested_);
-        loan.fundLoan(address(debtLocker), principalRequested_);
+        token.mint(address(this),      principalRequested_);
+        token.approve(address(loan),   principalRequested_);
+        loan.fundLoan(address(lender), principalRequested_);
 
         token.mint(address(loan), collateralRequired_);
         loan.postCollateral();
@@ -121,7 +121,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", newEndingPrincipal_);
 
         loan.proposeNewTerms(address(refinancer), data);
-        debtLocker.acceptNewTerms(address(loan), address(refinancer),  data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer),  data);
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
@@ -162,7 +162,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", newEndingPrincipal_);
 
         loan.proposeNewTerms(address(refinancer), data);
-        debtLocker.acceptNewTerms(address(loan), address(refinancer),  data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer),  data);
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
@@ -233,7 +233,7 @@ contract RefinancerGracePeriodTest is BaseRefinanceTest {
         bytes[] memory data = _encodeWithSignatureAndUint("setGracePeriod(uint256)", newGracePeriod_);
 
         loan.proposeNewTerms(address(refinancer), data);
-        debtLocker.acceptNewTerms(address(loan), address(refinancer),  data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer),  data);
 
         assertEq(loan.gracePeriod(), newGracePeriod_);
     }
@@ -272,7 +272,7 @@ contract RefinancerInterestRateTest is BaseRefinanceTest {
 
         // The new interest rate will be applied retroactively until the last payment made.
         loan.proposeNewTerms(address(refinancer), data);
-        debtLocker.acceptNewTerms(address(loan), address(refinancer),  data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer),  data);
 
         assertEq(loan.interestRate(), newInterestRate_);
     }
@@ -310,7 +310,7 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", newPaymentInterval_);
 
         loan.proposeNewTerms(address(refinancer), data);
-        debtLocker.acceptNewTerms(address(loan), address(refinancer),  data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer),  data);
 
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
@@ -360,7 +360,7 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
 
         // Executing refinance
         loan.proposeNewTerms(address(refinancer), data);
-        debtLocker.acceptNewTerms(address(loan), address(refinancer),  data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer),  data);
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
         assertEq(loan.gracePeriod(),     newGracePeriod_);
