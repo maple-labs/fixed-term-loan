@@ -23,6 +23,17 @@ contract ConstructableMapleLoan is MapleLoan {
         _initializeLoan(borrower_, assets_, parameters_, amounts_, fees_);
     }
 
+    function getCollateralRequiredFor(
+        uint256 principal_,
+        uint256 drawableFunds_,
+        uint256 principalRequested_,
+        uint256 collateralRequired_
+    )
+        external pure returns (uint256 collateral_)
+    {
+        return _getCollateralRequiredFor(principal_, drawableFunds_, principalRequested_, collateralRequired_);
+    }
+
 }
 
 contract LenderMock is Lender {
