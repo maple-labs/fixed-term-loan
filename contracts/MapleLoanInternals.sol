@@ -34,7 +34,7 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
      *                         [1]: paymentInterval,
      *                         [2]: payments,
      *                         [3]: interestRate,
-     *                         [4]: earlyInterestRateDiscount,
+     *                         [4]: earlyInterestRateDiscount,  // TODO: Refactor to use another rate instead of a discount
      *                         [5]: lateInterestRatePremium.
      *  @param amounts_   Requested amounts:
      *                         [0]: collateralRequired,
@@ -90,18 +90,16 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
     /*** View Functions ***/
     /**********************/
 
+    // TODO: Revisit equation to see if there is a more efficient way to do this mathematically
     function _getEarlyPayments(uint256 numberOfPayments_) internal view returns (uint256 earlyPayments_) {
-        // Timestamp after which a payment is not early.
-        uint256 cutoff = _nextPaymentDueDate - _paymentInterval;
+        uint256 excludedPayments = 
+            _nextPaymentDueDate < block.timestamp  // If yes you are late, exclude 2 payments (one late, one on time)
+                ? 2 + (block.timestamp - (_nextPaymentDueDate + 1)) / _paymentInterval  // 2 + extra late payments
+                : _nextPaymentDueDate - block.timestamp < _paymentInterval  // If youre on time, and not early
+                    ? 1 
+                    : 0;
 
-        // If the current timestamp is after the cutoff, there are no early payments here.
-        if (block.timestamp > cutoff) return uint256(0);
-
-        // Get the number of early payments and "round up".
-        earlyPayments_ = uint256(1) + ((cutoff - block.timestamp) / _paymentInterval);
-
-        // Number of early payments being made is fewer of earlyPayments_ or numberOfPayments_.
-        earlyPayments_ = numberOfPayments_ < earlyPayments_ ? numberOfPayments_ : earlyPayments_;
+        earlyPayments_ = excludedPayments < numberOfPayments_ ? numberOfPayments_ - excludedPayments : 0;
     }
 
     function _getLatePayments(uint256 numberOfPayments_) internal view returns (uint256 latePayments_) {
@@ -132,6 +130,7 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
 
         // Calculate flat rate and flat fee amounts for early/late payments.
         // TODO: Revisit names for fees
+        // TODO: Check if we should check for on time payments and reduce the cost for those for the premium calculation.
         ( adminFee_, serviceFee_ ) = _getPaymentFees(
             _principal,                            // Use current principal balance.
             numberOfPayments_,                     // Number of payments being made.
@@ -152,14 +151,14 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
             uint256 serviceCharge_
         )
     {
-        if (earlyPayments_ > uint256(0) && _paymentsRemaining == uint256(0)) {
+        if (earlyPayments_ > uint256(0) && _paymentsRemaining == numberOfPayments_) {
             adminFee_      += _earlyFee;
-            serviceCharge_ += _earlyFeeRate * amount_;
+            serviceCharge_ += _earlyFeeRate * amount_ / 10 ** 18;
         }
 
         if (latePayments_ > uint256(0)) {
             adminFee_      += _lateFee * latePayments_;
-            serviceCharge_ += (_lateFeeRate * amount_ * latePayments_) / numberOfPayments_;
+            serviceCharge_ += (_lateFeeRate * amount_ * latePayments_) / numberOfPayments_ / 10 ** 18;
         }
     }
 
