@@ -84,14 +84,16 @@ contract MapleLoanFactoryTest is TestUtils {
 
         bytes memory arguments = initializerV1.encodeArguments(address(borrower), assets, parameters, requests, fees);
 
-        assertTrue(!borrower.try_mapleLoanFactory_createLoan(address(factory), arguments), "Should fail: unregistered version");
+        // Should fail: unregistered version
+        try factory.createLoan(arguments) { assertTrue(false); } catch { }
 
         governor.mapleLoanFactory_registerImplementation(address(factory), 1, address(mapleLoanV1), address(initializerV1));
         governor.mapleLoanFactory_setDefaultVersion(address(factory), 1);
 
-        assertTrue(!borrower.try_mapleLoanFactory_createLoan(address(factory), new bytes(0)), "Should fail: invalid arguments");
+        // Should fail: invalid arguments
+        try factory.createLoan(new bytes(0)) { assertTrue(false); } catch { }
 
-        MapleLoan loan1 = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
+        MapleLoan loan1 = MapleLoan(factory.createLoan(arguments));
 
         assertTrue(factory.isLoan(address(loan1)));
 
@@ -99,7 +101,7 @@ contract MapleLoanFactoryTest is TestUtils {
         assertEq(loan1.implementation(),                    address(mapleLoanV1));
         assertEq(factory.versionOf(loan1.implementation()), 1);
 
-        MapleLoan loan2 = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
+        MapleLoan loan2 = MapleLoan(factory.createLoan(arguments));
 
         assertTrue(factory.isLoan(address(loan2)));
 
@@ -165,7 +167,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
         bytes memory arguments = initializerV1.encodeArguments(address(borrower), assets, parameters, requests, fees);
 
-        MapleLoan loan = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
+        MapleLoan loan = MapleLoan(factory.createLoan(arguments));
 
         assertEq(loan.implementation(),                    address(mapleLoanV1));
         assertEq(factory.versionOf(loan.implementation()), 1);

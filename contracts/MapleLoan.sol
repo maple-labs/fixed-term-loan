@@ -11,7 +11,6 @@ import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
 import { MapleLoanInternals } from "./MapleLoanInternals.sol";
 
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
-
 contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     /********************************/
@@ -53,14 +52,23 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit FundsDrawnDown(amount_);
     }
 
-    function makePayment() external override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        ( principal_, interest_, fees_ ) = _makePaymentsWithFees(uint256(1));
-
-        emit PaymentsMade(uint256(1), principal_, interest_, fees_);
-    }
-
     function makePayments(uint256 numberOfPayments_) external override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        ( principal_, interest_, fees_ ) = _makePaymentsWithFees(numberOfPayments_);
+        uint256 adminFee;
+        uint256 serviceFee;
+
+        ( principal_, interest_, adminFee, serviceFee ) = _getNextPaymentsBreakDown(numberOfPayments_);
+
+        fees_ = adminFee + serviceFee;
+
+        // Update Loan accounting, with `totalPaid_` being principal, interest, and fees.
+        require(_accountForPayments(numberOfPayments_, principal_ + interest_ + fees_ , principal_), "ML:MPWF:ACCOUNTING");
+
+        // Transfer admin fees, if any, to pool delegate, and decrement claimable funds.
+        if (adminFee > uint256(0)) {
+            require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "ML:MPWF:PD_TRANSFER");
+
+            _claimableFunds -= adminFee;
+        }
 
         emit PaymentsMade(numberOfPayments_, principal_, interest_, fees_);
     }
@@ -78,6 +86,12 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         require(success, "ML:RF:FAILED");
 
         emit FundsReturned(amount_);
+    }
+
+    function setBorrower(address borrower_) external override {
+        require(msg.sender == _borrower, "ML:TB:NOT_BORROWER");
+
+        emit BorrowerSet(_borrower = borrower_);
     }
 
     /**********************/
@@ -127,6 +141,12 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit Repossessed(collateralAssetAmount_, fundsAssetAmount_);
     }
 
+    function setLender(address lender_) external override {
+        require(msg.sender == _lender, "ML:TL:NOT_LENDER");
+
+        emit LenderSet(_lender = lender_);
+    }
+
     /***************************/
     /*** Refinance Functions ***/
     /***************************/
@@ -163,9 +183,9 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _factory();
     }
 
-    function getAdditionalRequiredCollateral(uint256 drawdownAmount_) external view override returns (uint256 additionalRequiredCollateral_) {
-        uint256 newCollateralRequired = _getCollateralRequiredFor(_principal, _drawableFunds - drawdownAmount_, _principalRequested, _collateralRequired);
-        return newCollateralRequired > _collateral ? newCollateralRequired - _collateral : uint256(0);
+    function getAdditionalCollateralRequiredFor(uint256 drawdownAmount_) external view override returns (uint256 collateral_) {
+        uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds - drawdownAmount_, _principalRequested, _collateralRequired);
+        return collateralNeeded > _collateral ? collateralNeeded - _collateral : uint256(0);
     }
 
     function getNextPaymentsBreakDown(uint256 numberOfPayments_)
@@ -185,8 +205,8 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     }
 
     function getRemovableCollateral() external view override returns (uint256 removableCollateral_) {
-        uint256 currentCollateralRequired = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
-        return _collateral > currentCollateralRequired ? _collateral - currentCollateralRequired : uint256(0);
+        uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
+        return _collateral > collateralNeeded ? _collateral - collateralNeeded : uint256(0);
     }
 
     function implementation() external view override returns (address implementation_) {

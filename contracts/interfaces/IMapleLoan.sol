@@ -157,25 +157,13 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     function fundLoan(address lender_, uint256 amount_) external returns (uint256 amountFunded_);
 
     /**
-     *  @dev    Make one installment payment to the loan.
-     *  @return totalPrincipalAmount_ The portion of the amount paid paying back principal.
-     *  @return totalInterestFees_    The portion of the amount paid paying interest fees.
-     *  @return totalLateFees_        The portion of the amount paid paying late fees.
-     */
-    function makePayment() external returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_, uint256 totalLateFees_);
-
-    /**
      *  @dev    Make several installment payments to the loan.
-     *  @param  numberOfPayments_     The number of payment installments to make.
-     *  @return totalPrincipalAmount_ The portion of the amount paid paying back principal.
-     *  @return totalInterestFees_    The portion of the amount paid paying interest fees.
-     *  @return totalLateFees_        The portion of the amount paid paying late fees.
+     *  @param  numberOfPayments_ The number of payment installments to make.
+     *  @return principal_        The portion of the amount paid paying back principal.
+     *  @return interest_         The portion of the amount paid paying interest fees.
+     *  @return fees_             The portion of the amount paid paying late fees.
      */
-    function makePayments(uint256 numberOfPayments_) external returns (
-        uint256 totalPrincipalAmount_,
-        uint256 totalInterestFees_,
-        uint256 totalLateFees_
-    );
+    function makePayments(uint256 numberOfPayments_) external returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
     /**
      *  @dev    Post collateral to the loan.
@@ -216,6 +204,18 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     );
 
     /**
+     *  @dev    Set the borrower to a new account.
+     *  @param  borrower_ The address of the new borrower.
+     */
+    function setBorrower(address borrower_) external;
+
+    /**
+     *  @dev    Set the lender to a new account.
+     *  @param  lender_ The address of the new lender.
+     */
+    function setLender(address lender_) external;
+
+    /**
      *  @dev    Upgrade the MapleLoan implementation used to a new version.
      *  @param  toVersion_ The MapleLoan version to upgrade to.
      *  @param  arguments_ The encoded arguments used for migration, if any.
@@ -226,7 +226,7 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     /*** View Functions ***/
     /**********************/
 
-    function getAdditionalRequiredCollateral(uint256 drawdownAmount_) external view returns (uint256 additionalRequiredCollateral_);
+    function getAdditionalCollateralRequiredFor(uint256 drawdownAmount_) external view returns (uint256 additionalCollateral_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.

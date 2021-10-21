@@ -45,3 +45,27 @@ contract LenderMock is Lender {
     address public poolDelegate  = address(8);
 
 }
+
+contract ManipulatableMapleLoan is MapleLoan {
+
+    function setCollateralRequired(uint256 collateralRequired_) external {
+        _collateralRequired = collateralRequired_;
+    }
+
+    function setPrincipalRequested(uint256 principalRequested_) external {
+        _principalRequested = principalRequested_;
+    }
+
+    function setPrincipal(uint256 principal_) external {
+        _principal = principal_;
+    }
+
+    function setCollateral(uint256 collateral_) external {
+        _collateral = collateral_;
+    }
+
+    function setDrawableFunds(uint256 drawableFunds_) external {
+        _drawableFunds = drawableFunds_;
+    }
+
+}

@@ -63,29 +63,6 @@ contract MapleLoanInternals is Proxied, LoanPrimitive {
         _lateFeeRate  = fees_[3];
     }
 
-    /************************/
-    /*** Borrow Functions ***/
-    /************************/
-
-    function _makePaymentsWithFees(uint256 numberOfPayments_) internal returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        uint256 adminFee;
-        uint256 serviceFee;
-
-        ( principal_, interest_, adminFee, serviceFee ) = _getNextPaymentsBreakDown(numberOfPayments_);
-
-        fees_ = adminFee + serviceFee;
-
-        // Update Loan accounting, with `totalPaid_` being principal, interest, and fees.
-        require(_accountForPayments(numberOfPayments_, principal_ + interest_ + fees_ , principal_), "ML:MPWF:ACCOUNTING");
-
-        // Transfer admin fees, if any, to pool delegate, and decrement claimable funds.
-        if (adminFee > uint256(0)) {
-            require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "ML:MPWF:PD_TRANSFER");
-
-            _claimableFunds -= adminFee;
-        }
-    }
-
     /**********************/
     /*** View Functions ***/
     /**********************/

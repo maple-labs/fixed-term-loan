@@ -11,10 +11,6 @@ contract LoanUser is ERC20User {
     /*** Direct Functions ***/
     /************************/
 
-    function loan_makePayment(address loan_) external returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_, uint256 totalLateFees_) {
-        return IMapleLoan(loan_).makePayment();
-    }
-
     function loan_makePayments(address loan_, uint256 numberOfPayments_)
         external returns (
             uint256 totalPrincipalAmount_,
@@ -40,10 +36,6 @@ contract LoanUser is ERC20User {
     /*********************/
     /*** Try Functions ***/
     /*********************/
-
-    function try_loan_makePayment(address loan_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.makePayment.selector));
-    }
 
     function try_loan_makePayments(address loan_, uint256 numberOfPayments_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.makePayments.selector, numberOfPayments_));

@@ -28,6 +28,10 @@ contract Lender is LoanUser {
         return IMapleLoan(loan_).repossess(collateralAssetDestination_, fundsAssetDestination_);
     }
 
+    function loan_setLender(address loan_, address lender_) external {
+        IMapleLoan(loan_).setLender(lender_);
+    }
+
     /*********************/
     /*** Try Functions ***/
     /*********************/
@@ -42,6 +46,10 @@ contract Lender is LoanUser {
 
     function try_loan_repossess(address loan_, address collateralAssetDestination_, address fundsAssetDestination_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.repossess.selector, collateralAssetDestination_, fundsAssetDestination_));
+    }
+
+    function try_loan_setLender(address loan_, address lender_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.setLender.selector, lender_));
     }
 
 }

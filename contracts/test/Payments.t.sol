@@ -66,7 +66,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         bytes memory arguments = initializer.encodeArguments(address(borrower), assets, parameters, requests, fees);
 
         // Create Loan
-        loan = MapleLoan(borrower.mapleLoanFactory_createLoan(address(factory), arguments));
+        loan = MapleLoan(factory.createLoan(arguments));
 
         // Approve and fund Loan
         lender.erc20_approve(address(fundsAsset), address(loan),   requests[1]);
@@ -103,7 +103,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         // Warp to when payment is due and make payment
         hevm.warp(loan.nextPaymentDueDate());
         borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_makePayment(address(loan));
+        borrower.loan_makePayments(address(loan), 1);
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 

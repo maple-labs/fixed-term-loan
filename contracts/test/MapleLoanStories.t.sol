@@ -9,7 +9,7 @@ import { ConstructableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 
-contract MapleLoanTest is StateManipulations, TestUtils {
+contract MapleLoanStoryTests is StateManipulations, TestUtils {
 
     function test_story_fullyAmortized() external {
         Borrower   borrower = new Borrower();
@@ -65,7 +65,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #1
         borrower.erc20_transfer(address(token), address(loan), 178_526);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment #2
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -82,7 +82,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #2
         borrower.erc20_transfer(address(token), address(loan), 178_526);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment #3
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -99,7 +99,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #3
         borrower.erc20_transfer(address(token), address(loan), 178_525);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Remove some collateral
         assertTrue(borrower.try_loan_removeCollateral(address(loan), 145_545, address(borrower)), "Cannot remove collateral");
@@ -121,7 +121,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #4
         borrower.erc20_transfer(address(token), address(loan), 178_525);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Return some funds and remove some collateral
         borrower.erc20_transfer(address(token), address(loan), 150_000);
@@ -152,7 +152,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #5
         borrower.erc20_transfer(address(token), address(loan), 178_525);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment #6
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -169,7 +169,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #6
         borrower.erc20_transfer(address(token), address(loan), 178_525);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment which should not be necessary
         assertEq(loan.paymentsRemaining(), 0, "Different payments remaining");
@@ -239,7 +239,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #1
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment #2
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -256,7 +256,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #2
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment #3
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -273,7 +273,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #3
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment #4
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -290,7 +290,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #4
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Return some funds and remove some collateral
         borrower.erc20_transfer(address(token), address(loan), 500_000);
@@ -321,7 +321,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #5
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment #6
         ( principalPortion, interestPortion, lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
@@ -338,7 +338,7 @@ contract MapleLoanTest is StateManipulations, TestUtils {
         // Make payment #6
         borrower.erc20_transfer(address(token), address(loan), 1_020_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan)), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayments(address(loan), 1), "Cannot pay");
 
         // Check details for upcoming payment which should not be necessary
         assertEq(loan.paymentsRemaining(), 0, "Different payments remaining");

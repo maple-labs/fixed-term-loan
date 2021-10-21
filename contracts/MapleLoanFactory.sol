@@ -7,7 +7,7 @@ import { IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
 import { IMapleLoan }        from "./interfaces/IMapleLoan.sol";
 import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
 
-//// @title MapleLoanFactory facilitates the creation of the MapleLoan contracts as proxies.
+/// @title MapleLoanFactory facilitates the creation of the MapleLoan contracts as proxies.
 contract MapleLoanFactory is IMapleLoanFactory, ProxyFactory {
 
     address public override mapleGlobals;

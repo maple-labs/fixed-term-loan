@@ -92,91 +92,91 @@ interface IRefinancer {
      */
     event PrincipalIncreased(uint256 increasedBy_);
 
-    /********************+**/
-    /*** Loan Parameters ***/
-    /******************+****/
+    /*****************/
+    /*** Functions ***/
+    /*****************/
 
     /**
-     *  @dev  Function to decrease the principal during a refinance
+     *  @dev   Function to decrease the principal during a refinance.
      *  @param amount_ The amount of which the value will decrease by.
      */
     function decreasePrincipal(uint256 amount_) external;
 
     /**
-     *  @dev  Function to increase the principal during a refinance
-     *  @param amount_ The amount of which the value will icrease by.
+     *  @dev   Function to increase the principal during a refinance.
+     *  @param amount_ The amount of which the value will increase by.
      */
     function increasePrincipal(uint256 amount_) external;
 
     /**
-     *  @dev  Function to set the collateralRequired_ during a refinance
-     *  @param collateralRequired_ The new value for collateralRequired_
+     *  @dev   Function to set the collateralRequired_ during a refinance.
+     *  @param collateralRequired_ The new value for collateralRequired_.
      */
     function setCollateralRequired(uint256 collateralRequired_) external;
 
     /**
-     *  @dev  Function to set the earlyFee_ during a refinance
-     *  @param earlyFee_ The new value for earlyFee_
+     *  @dev   Function to set the earlyFee_ during a refinance.
+     *  @param earlyFee_ The new value for earlyFee_.
      */
     function setEarlyFee(uint256 earlyFee_) external;
 
     /**
-     *  @dev  Function to set the earlyFeeRate_ during a refinance
-     *  @param earlyFeeRate_ The new value for earlyFeeRate_
+     *  @dev   Function to set the earlyFeeRate_ during a refinance.
+     *  @param earlyFeeRate_ The new value for earlyFeeRate_.
      */
     function setEarlyFeeRate(uint256 earlyFeeRate_) external;
 
     /**
-     *  @dev  Function to set the earlyInterestRateDiscount_ during a refinance
-     *  @param earlyInterestRateDiscount_ The new value for earlyInterestRateDiscount_
+     *  @dev   Function to set the earlyInterestRateDiscount_ during a refinance.
+     *  @param earlyInterestRateDiscount_ The new value for earlyInterestRateDiscount_.
      */
     function setEarlyInterestRateDiscount(uint256 earlyInterestRateDiscount_) external;
 
     /**
-     *  @dev  Function to set the endingPrincipal_ during a refinance
-     *  @param endingPrincipal_ The new value for endingPrincipal_
+     *  @dev   Function to set the endingPrincipal_ during a refinance.
+     *  @param endingPrincipal_ The new value for endingPrincipal_.
      */
     function setEndingPrincipal(uint256 endingPrincipal_) external;
 
     /**
-     *  @dev  Function to set the gracePeriod_ during a refinance
-     *  @param gracePeriod_ The new value for gracePeriod_
+     *  @dev   Function to set the gracePeriod_ during a refinance.
+     *  @param gracePeriod_ The new value for gracePeriod_.
      */
     function setGracePeriod(uint256 gracePeriod_) external;
 
     /**
-     *  @dev  Function to set the interestRate_ during a refinance
-     *  @param interestRate_ The new value for interestRate_
+     *  @dev   Function to set the interestRate_ during a refinance.
+     *  @param interestRate_ The new value for interestRate_.
      */
     function setInterestRate(uint256 interestRate_) external;
 
     /**
-     *  @dev  Function to set the lateFee_ during a refinance
-     *  @param lateFee_ The new value for lateFee_
+     *  @dev   Function to set the lateFee_ during a refinance.
+     *  @param lateFee_ The new value for lateFee_.
      */
     function setLateFee(uint256 lateFee_) external;
 
     /**
-     *  @dev  Function to set the lateFeeRate_ during a refinance
-     *  @param lateFeeRate_ The new value for lateFeeRate_
+     *  @dev   Function to set the lateFeeRate_ during a refinance.
+     *  @param lateFeeRate_ The new value for lateFeeRate_.
      */
     function setLateFeeRate(uint256 lateFeeRate_) external;
 
     /**
-     *  @dev  Function to set the lateInterestRatePremium_ during a refinance
-     *  @param lateInterestRatePremium_ The new value for lateInterestRatePremium_
+     *  @dev   Function to set the lateInterestRatePremium_ during a refinance.
+     *  @param lateInterestRatePremium_ The new value for lateInterestRatePremium_.
      */
     function setLateInterestRatePremium(uint256 lateInterestRatePremium_) external;
 
     /**
-     *  @dev  Function to set the paymentInterval_ during a refinance
-     *  @param paymentInterval_ The new value for paymentInterval_
+     *  @dev   Function to set the paymentInterval_ during a refinance.
+     *  @param paymentInterval_ The new value for paymentInterval_.
      */
     function setPaymentInterval(uint256 paymentInterval_) external;
 
     /**
-     *  @dev  Function to set the paymentsRemaining_ during a refinance
-     *  @param paymentsRemaining_ The new value for paymentsRemaining_
+     *  @dev   Function to set the paymentsRemaining_ during a refinance.
+     *  @param paymentsRemaining_ The new value for paymentsRemaining_.
      */
     function setPaymentsRemaining(uint256 paymentsRemaining_) external;
 

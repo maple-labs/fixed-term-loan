@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-//// @title MapleLoanFactory facilitates the creation of the MapleLoan contracts as proxies.
+/// @title MapleLoanFactory facilitates the creation of the MapleLoan contracts as proxies.
 interface IMapleLoanFactory {
 
     /**************/
@@ -71,7 +71,7 @@ interface IMapleLoanFactory {
     /**
      *  @dev    The nonce of an account for CREATE2 salts.
      *  @param  account_ The address of an account.
-     *  @return nonce_  The nonce for an account.
+     *  @return nonce_   The nonce for an account.
      */
     function nonceOf(address account_) external view returns (uint256 nonce_);
 
@@ -140,7 +140,7 @@ interface IMapleLoanFactory {
     /**********************/
 
     /**
-     *  @dev   Returns the address of a MapleLoan implementation version.
+     *  @dev    Returns the address of a MapleLoan implementation version.
      *  @param  version_        The MapleLoan version.
      *  @return implementation_ The address of a MapleLoan implementation.
      */
