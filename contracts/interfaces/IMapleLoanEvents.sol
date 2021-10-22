@@ -46,6 +46,13 @@ interface IMapleLoanEvents {
     event FundsDrawnDown(uint256 amount_, address indexed destination_);
 
     /**
+     *  @dev   Funds were redirected on an additional `fundLoan` call.
+     *  @param amount_      The amount of funds redirected.
+     *  @param destination_ The recipient of the redirected funds.
+     */
+    event FundsRedirected(uint256 amount_, address indexed destination_);
+
+    /**
      *  @dev   Funds were returned.
      *  @param amount_ The amount of funds returned.
      */

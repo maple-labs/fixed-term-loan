@@ -96,6 +96,14 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function fundLoan(address lender_, uint256 amount_) external override returns (uint256 amountFunded_) {
         if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
 
+        if (_nextPaymentDueDate > 0) {
+            ERC20Helper.transfer(_fundsAsset, _lender, amountFunded_ = _getUnaccountedAmount(_fundsAsset));
+
+            emit FundsRedirected(amountFunded_, _lender);
+
+            return amountFunded_;
+        }
+
         emit Funded(lender_, amountFunded_ = _fundLoan(lender_), _nextPaymentDueDate);
     }
 

@@ -354,4 +354,50 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         assertTrue(lender.try_loan_claimFunds(address(loan), 1_040_000, address(lender)), "Cannot remove collateral");
     }
 
+    function test_story_redirectFundsToLender() external {
+        Borrower   borrower = new Borrower();
+        LenderMock lender   = new LenderMock();
+        MockERC20  token    = new MockERC20("Test", "TST", 0);
+
+        token.mint(address(borrower), 1_000_000);
+        token.mint(address(lender),   2_000_000);
+
+        address[2] memory assets = [address(token), address(token)];
+
+        uint256[6] memory parameters = [
+            uint256(10 days),
+            uint256(365 days / 6),
+            uint256(6),
+            uint256(0.12 ether),
+            uint256(0.10 ether),
+            uint256(0 ether)
+        ];
+
+        uint256[3] memory amounts = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
+        uint256[4] memory fees    = [uint256(0), uint256(0), uint256(0), uint256(0)];
+
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, amounts, fees);
+
+        // Fund via a 500k approval and a 500k transfer, totaling 1M
+        lender.erc20_transfer(address(token), address(loan), 500_000);
+        lender.erc20_approve(address(token), address(loan),  500_000);
+
+        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
+
+        assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
+
+        //Funding a second time will redirect to lender
+        uint256 balanceBefore = token.balanceOf(address(lender));
+
+        lender.erc20_transfer(address(token), address(loan), 500_000);
+        lender.erc20_approve(address(token), address(loan),  500_000);
+
+        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000));
+
+        uint256 balanceAfter = token.balanceOf(address(lender));
+
+        // Lender got back what he sent
+        assertEq(balanceBefore, balanceAfter, "Balance does not match");
+    }
+
 }
