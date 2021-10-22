@@ -1,23 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { IProxied } from "../../modules/proxy-factory/contracts/interfaces/IProxied.sol";
+import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 
 import { IOwnable } from "./IOwnable.sol";
 
 /// @title MapleBorrower facilitates atomic and batch borrower functionality for MapleLoans.
-interface IMapleBorrower is IProxied, IOwnable {
-
-    /********************************/
-    /*** Administrative Functions ***/
-    /********************************/
-
-    /**
-     *  @dev    Upgrade the MapleBorrower implementation used to a new version.
-     *  @param  toVersion_ The MapleBorrower version to upgrade to.
-     *  @param  arguments_ The encoded arguments used for migration, if any.
-     */
-    function upgrade(uint256 toVersion_, bytes calldata arguments_) external;
+interface IMapleBorrower is IMapleProxied, IOwnable {
 
     /***********************/
     /*** Batch Functions ***/

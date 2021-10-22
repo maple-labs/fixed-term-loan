@@ -19,19 +19,7 @@ contract MapleLoanInitializer is IMapleLoanEvents, MapleLoanInternals {
     }
 
     function decodeArguments(bytes calldata encodedArguments_)
-        external pure returns (
-            address borrower_,
-            address[2] memory assets_,
-            uint256[6] memory parameters_,
-            uint256[3] memory amounts_,
-            uint256[4] memory fees_
-        )
-    {
-        ( borrower_, assets_, parameters_, amounts_, fees_ ) = _decodeArguments(encodedArguments_);
-    }
-
-    function _decodeArguments(bytes calldata encodedArguments_)
-        internal pure returns (
+        public pure returns (
             address borrower_,
             address[2] memory assets_,
             uint256[6] memory parameters_,
@@ -55,11 +43,11 @@ contract MapleLoanInitializer is IMapleLoanEvents, MapleLoanInternals {
             uint256[6] memory parameters_,
             uint256[3] memory amounts_,
             uint256[4] memory fees_
-        ) = _decodeArguments(msg.data);
+        ) = decodeArguments(msg.data);
 
-        _initializeLoan(borrower_, assets_, parameters_, amounts_, fees_);
+        _initialize(borrower_, assets_, parameters_, amounts_, fees_);
 
-        emit Initialized(borrower_, assets_, parameters_, amounts_);
+        emit Initialized(borrower_, assets_, parameters_, amounts_, fees_);
     }
 
 }

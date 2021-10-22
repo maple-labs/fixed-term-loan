@@ -11,7 +11,7 @@ do
     esac
 done
 
-runs=$([ -z "$runs" ] && echo "1" || echo "$runs")
+runs=$([ -z "$runs" ] && echo "10" || echo "$runs")
 build=$([ -z "$build" ] && echo "1" || echo "$build")
 config=$([ -z "$config" ] && echo "./config/dev.json" || echo "$config")
 skip_build=$([ "$build" == "0" ] && echo "1" || echo "0")

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { IProxied } from "../../modules/proxy-factory/contracts/interfaces/IProxied.sol";
+import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxied.sol";
 
 import { IMapleLoanEvents } from "./IMapleLoanEvents.sol";
 
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
-interface IMapleLoan is IProxied, IMapleLoanEvents {
+interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /***********************/
     /*** State Variables ***/
@@ -130,9 +130,10 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     /**
      *  @dev   Accept the proposed terms ans trigger refinance execution
      *  @param refinancer_ The address of the refinancer contract.
-     *  @param calls_  The encoded arguments to be passed to refinancer.
+     *  @param calls_      The encoded arguments to be passed to refinancer.
+     *  @param amount_    An amount to pull from the caller, if any.
      */
-    function acceptNewTerms(address refinancer_, bytes[] calldata calls_) external;
+    function acceptNewTerms(address refinancer_, bytes[] calldata calls_, uint256 amount_) external;
 
     /**
      *  @dev   Claim funds that have been paid (principal, interest, and late fees).
@@ -151,7 +152,7 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     /**
      *  @dev    Lend funds to the loan/borrower.
      *  @param  lender_       The address to be registered as the lender.
-     *  @param  amount_       The amount of fundsAsset to fund the loan with.
+     *  @param  amount_       An amount to pull from the caller, if any.
      *  @return amountFunded_ The amount funded.
      */
     function fundLoan(address lender_, uint256 amount_) external returns (uint256 amountFunded_);
@@ -159,17 +160,19 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
     /**
      *  @dev    Make several installment payments to the loan.
      *  @param  numberOfPayments_ The number of payment installments to make.
+     *  @param  amount_           An amount to pull from the caller, if any.
      *  @return principal_        The portion of the amount paid paying back principal.
      *  @return interest_         The portion of the amount paid paying interest fees.
      *  @return fees_             The portion of the amount paid paying late fees.
      */
-    function makePayments(uint256 numberOfPayments_) external returns (uint256 principal_, uint256 interest_, uint256 fees_);
+    function makePayments(uint256 numberOfPayments_, uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
     /**
      *  @dev    Post collateral to the loan.
-     *  @return amount_ The amount posted.
+     *  @param  amount_       An amount to pull from the caller, if any.
+     *  @return postedAmount_ The amount posted.
      */
-    function postCollateral() external returns (uint256 amount_);
+    function postCollateral(uint256 amount_) external returns (uint256 postedAmount_);
 
     /**
      *  @dev   Propose new terms for refinance
@@ -187,21 +190,18 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Return funds to the loan (opposite of drawing down).
-     *  @return amount_ The amount returned.
+     *  @param  amount_         An amount to pull from the caller, if any.
+     *  @return returnedAmount_ The amount returned.
      */
-    function returnFunds() external returns (uint256 amount_);
+    function returnFunds(uint256 amount_) external returns (uint256 returnedAmount_);
 
     /**
      *  @dev    Repossess collateral, and any funds, for a loan in default.
-     *  @param  collateralAssetDestination_ The address where the collateral asset is to be sent.
-     *  @param  fundsAssetDestination_      The address where the funds asset is to be sent.
-     *  @return collateralAssetAmount_      The amount of collateral asset repossessed.
-     *  @return fundsAssetAmount_           The amount of funds asset repossessed.
+     *  @param  destination_           The address where the collateral and funds asset is to be sent, if any.
+     *  @return collateralAssetAmount_ The amount of collateral asset repossessed.
+     *  @return fundsAssetAmount_      The amount of funds asset repossessed.
      */
-    function repossess(address collateralAssetDestination_, address fundsAssetDestination_) external returns (
-        uint256 collateralAssetAmount_,
-        uint256 fundsAssetAmount_
-    );
+    function repossess(address destination_) external returns (uint256 collateralAssetAmount_, uint256 fundsAssetAmount_);
 
     /**
      *  @dev    Set the borrower to a new account.
@@ -214,13 +214,6 @@ interface IMapleLoan is IProxied, IMapleLoanEvents {
      *  @param  lender_ The address of the new lender.
      */
     function setLender(address lender_) external;
-
-    /**
-     *  @dev    Upgrade the MapleLoan implementation used to a new version.
-     *  @param  toVersion_ The MapleLoan version to upgrade to.
-     *  @param  arguments_ The encoded arguments used for migration, if any.
-     */
-    function upgrade(uint256 toVersion_, bytes calldata arguments_) external;
 
     /**********************/
     /*** View Functions ***/

@@ -21,11 +21,10 @@ contract Refinancer is IRefinancer, MapleLoanInternals {
     }
 
     function increasePrincipal(uint256 amount_) external override {
-        require(_getUnaccountedAmount(_fundsAsset) >= amount_, "R:IP:INSUFFICIENT_FUNDS");
-
         _principal          += amount_;
         _principalRequested += amount_;
         _drawableFunds      += amount_;
+        _claimableFunds     += _getUnaccountedAmount(_fundsAsset);
 
         emit PrincipalIncreased(amount_);
     }

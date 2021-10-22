@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
-import { Proxied }     from "../modules/proxy-factory/contracts/Proxied.sol";
+import { ERC20Helper }  from "../modules/erc20-helper/src/ERC20Helper.sol";
+import { MapleProxied } from "../modules/maple-proxy-factory/contracts/MapleProxied.sol";
 
 import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
 
-contract MapleBorrowerInternals is Proxied {
+contract MapleBorrowerInternals is MapleProxied {
 
     address internal _owner;
     address internal _pendingOwner;
@@ -48,7 +48,7 @@ contract MapleBorrowerInternals is Proxied {
             "MBI:MP:TRANSFER_FAILED"
         );
 
-        IMapleLoan(loan_).makePayments(numberOfPayments_);
+        IMapleLoan(loan_).makePayments(numberOfPayments_, uint256(0));
     }
 
     function _makePaymentsWithCutoff(address loan_, uint256 cutoffDate_) internal returns (bool hasPaymentsWithinCutoff_) {
@@ -67,7 +67,7 @@ contract MapleBorrowerInternals is Proxied {
     function _postCollateral(address loan_, uint256 amount_) internal {
         require(ERC20Helper.transferFrom(IMapleLoan(loan_).collateralAsset(), msg.sender, loan_, amount_), "MBI:PC:TRANSFER_FAILED");
 
-        IMapleLoan(loan_).postCollateral();
+        IMapleLoan(loan_).postCollateral(uint256(0));
     }
 
     function _postCollateralForDrawdown(address loan_, uint256 drawdownAmount_) internal returns (bool additionalCollateralNecessary_) {
@@ -101,7 +101,7 @@ contract MapleBorrowerInternals is Proxied {
     function _returnFunds(address loan_, uint256 amount_) internal {
         require(ERC20Helper.transferFrom(IMapleLoan(loan_).fundsAsset(), msg.sender, loan_, amount_), "MBI:RF:TRANSFER_FAILED");
 
-        IMapleLoan(loan_).returnFunds();
+        IMapleLoan(loan_).returnFunds(uint256(0));
     }
 
     function _returnFundsAndRemoveCollateral(address loan_, uint256 amount_, address destination_) internal returns (bool hasRemovableCollateral_) {

@@ -4,9 +4,9 @@
 [submodule "modules/erc20-helper"]
 	path = modules/erc20-helper
 	url = https://github.com/maple-labs/erc20-helper.git
-[submodule "modules/proxy-factory"]
-	path = modules/proxy-factory
-	url = https://github.com/maple-labs/proxy-factory.git
 [submodule "modules/contract-test-utils"]
 	path = modules/contract-test-utils
 	url = https://github.com/maple-labs/contract-test-utils.git
+[submodule "modules/maple-proxy-factory"]
+	path = modules/maple-proxy-factory
+	url = https://github.com/maple-labs/maple-proxy-factory.git

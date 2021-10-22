@@ -10,16 +10,12 @@ contract MapleBorrowerInitializer is MapleBorrowerInternals {
         return abi.encode(owner_);
     }
 
-    function decodeArguments(bytes calldata encodedArguments_) external pure returns (address owner_) {
-        ( owner_ ) = _decodeArguments(encodedArguments_);
-    }
-
-    function _decodeArguments(bytes calldata encodedArguments_) internal pure returns (address owner_) {
+    function decodeArguments(bytes calldata encodedArguments_) public pure returns (address owner_) {
         ( owner_ ) = abi.decode(encodedArguments_, (address));
     }
 
     fallback() external {
-        ( _owner ) = _decodeArguments(msg.data);
+        ( _owner ) = decodeArguments(msg.data);
     }
 
 }

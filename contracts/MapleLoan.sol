@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
-import { Proxied }     from "../modules/proxy-factory/contracts/Proxied.sol";
+import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { ILenderLike }       from "./interfaces/Interfaces.sol";
-import { IMapleLoan }        from "./interfaces/IMapleLoan.sol";
-import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
+import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
+
+import { ILenderLike } from "./interfaces/Interfaces.sol";
+import { IMapleLoan }  from "./interfaces/IMapleLoan.sol";
 
 import { MapleLoanInternals } from "./MapleLoanInternals.sol";
 
@@ -30,62 +30,57 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
         require(msg.sender == _borrower, "ML:U:NOT_BORROWER");
 
-        IMapleLoanFactory(_factory()).upgradeLoan(toVersion_, arguments_);
+        IMapleProxyFactory(_factory()).upgradeInstance(toVersion_, arguments_);
+
+        emit Upgraded(toVersion_, arguments_);
     }
 
     /************************/
     /*** Borrow Functions ***/
     /************************/
 
-    function postCollateral() external override returns (uint256 amount_) {
-        bool success;
-        ( success, amount_ ) = _postCollateral();
-        require(success, "ML:PC:FAILED");
+    function postCollateral(uint256 amount_) external override returns (uint256 postedAmount_) {
+        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_);
 
-        emit CollateralPosted(amount_);
+        emit CollateralPosted(postedAmount_ = _postCollateral());
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override {
-        require(msg.sender == _borrower,               "ML:DF:NOT_BORROWER");
-        require(_drawdownFunds(amount_, destination_), "ML:DF:FAILED");
+        require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
 
-        emit FundsDrawnDown(amount_);
+        _drawdownFunds(amount_, destination_);
+
+        emit FundsDrawnDown(amount_, destination_);
     }
 
-    function makePayments(uint256 numberOfPayments_) external override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        uint256 adminFee;
-        uint256 serviceFee;
+    function makePayments(uint256 numberOfPayments_, uint256 amount_)
+        external
+        override
+        returns (
+            uint256 principal_,
+            uint256 interest_,
+            uint256 fees_
+        )
+    {
+        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
 
-        ( principal_, interest_, adminFee, serviceFee ) = _getNextPaymentsBreakDown(numberOfPayments_);
-
-        fees_ = adminFee + serviceFee;
-
-        // Update Loan accounting, with `totalPaid_` being principal, interest, and fees.
-        require(_accountForPayments(numberOfPayments_, principal_ + interest_ + fees_ , principal_), "ML:MPWF:ACCOUNTING");
-
-        // Transfer admin fees, if any, to pool delegate, and decrement claimable funds.
-        if (adminFee > uint256(0)) {
-            require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "ML:MPWF:PD_TRANSFER");
-
-            _claimableFunds -= adminFee;
-        }
+        ( principal_, interest_, fees_ ) = _makePayments(numberOfPayments_);
 
         emit PaymentsMade(numberOfPayments_, principal_, interest_, fees_);
     }
 
     function removeCollateral(uint256 amount_, address destination_) external override {
-        require(msg.sender == _borrower,                  "ML:RC:NOT_BORROWER");
-        require(_removeCollateral(amount_, destination_), "ML:RC:FAILED");
+        require(msg.sender == _borrower, "ML:RC:NOT_BORROWER");
 
-        emit CollateralRemoved(amount_);
+        _removeCollateral(amount_, destination_);
+
+        emit CollateralRemoved(amount_, destination_);
     }
 
-    function returnFunds() external override returns (uint256 amount_) {
-        bool success;
-        ( success, amount_ ) = _returnFunds();
-        require(success, "ML:RF:FAILED");
+    function returnFunds(uint256 amount_) external override returns (uint256 returnedAmount_) {
+        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
 
-        emit FundsReturned(amount_);
+        emit FundsReturned(returnedAmount_ = _returnFunds());
     }
 
     function setBorrower(address borrower_) external override {
@@ -99,46 +94,25 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /**********************/
 
     function fundLoan(address lender_, uint256 amount_) external override returns (uint256 amountFunded_) {
-        // If funds were transferred to this contract prior or calling this function, it is acceptable for this `transferFrom` to return false.
-        ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
 
-        bool success;
-        ( success, amountFunded_ ) = _lend(lender_);
-        require(success, "ML:L:FAILED");
-
-        // Transfer the annualized treasury fee, if any, to the Maple treasury, and decrement drawable funds.
-        uint256 treasuryFee = (amountFunded_ * ILenderLike(lender_).treasuryFee() * _paymentInterval * _paymentsRemaining) / (uint256(10_000) * uint256(365 days));
-        require(ERC20Helper.transfer(_fundsAsset, ILenderLike(lender_).mapleTreasury(), treasuryFee), "ML:FL:T_TRANSFER");
-        _drawableFunds -= treasuryFee;
-
-        // Transfer delegate fee, if any, to the pool delegate, and decrement drawable funds.
-        uint256 delegateFee = (amountFunded_ * ILenderLike(lender_).investorFee() * _paymentInterval * _paymentsRemaining) / (uint256(10_000) * uint256(365 days));
-        require(ERC20Helper.transfer(_fundsAsset, ILenderLike(lender_).poolDelegate(), delegateFee), "ML:FL:PD_TRANSFER");
-        _drawableFunds -= delegateFee;
-
-        emit Funded(lender_, _nextPaymentDueDate);
+        emit Funded(lender_, amountFunded_ = _fundLoan(lender_), _nextPaymentDueDate);
     }
 
     function claimFunds(uint256 amount_, address destination_) external override {
-        require(msg.sender == _lender,              "ML:CF:NOT_LENDER");
-        require(_claimFunds(amount_, destination_), "ML:CF:FAILED");
+        require(msg.sender == _lender, "ML:CF:NOT_LENDER");
 
-        emit FundsClaimed(amount_);
+        _claimFunds(amount_, destination_);
+
+        emit FundsClaimed(amount_, destination_);
     }
 
-    function repossess(address collateralAssetDestination_, address fundsAssetDestination_)
-        external override
-        returns (uint256 collateralAssetAmount_, uint256 fundsAssetAmount_)
-    {
+    function repossess(address destination_) external override returns (uint256 collateralAssetAmount_, uint256 fundsAssetAmount_) {
         require(msg.sender == _lender, "ML:R:NOT_LENDER");
-        require(_repossess(),          "ML:R:FAILED");
 
-        ( , collateralAssetAmount_ ) = _skim(_collateralAsset, collateralAssetDestination_);
-        ( , fundsAssetAmount_ )      = _skim(_fundsAsset,      fundsAssetDestination_);
+        ( collateralAssetAmount_, fundsAssetAmount_ ) = _repossess(destination_);
 
-        _lender = address(0);
-
-        emit Repossessed(collateralAssetAmount_, fundsAssetAmount_);
+        emit Repossessed(collateralAssetAmount_, fundsAssetAmount_, destination_);
     }
 
     function setLender(address lender_) external override {
@@ -154,25 +128,15 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function proposeNewTerms(address refinancer_, bytes[] calldata calls_) external override {
         require(msg.sender == _borrower, "ML:PNT:NOT_BORROWER");
 
-        _refinanceCommitment = keccak256(abi.encode(refinancer_, calls_));
-
-        emit NewTermsProposed(_refinanceCommitment, refinancer_, calls_);
+        emit NewTermsProposed(_proposeNewTerms(refinancer_, calls_), refinancer_, calls_);
     }
 
-    function acceptNewTerms(address refinancer_, bytes[] calldata calls_) external override {
+    function acceptNewTerms(address refinancer_, bytes[] calldata calls_, uint256 amount_) external override {
         require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
 
-        bytes32 refinanceCommitment = keccak256(abi.encode(refinancer_, calls_));
-        require(refinanceCommitment == _refinanceCommitment, "ML:ANT:INVALID_ARGS");
+        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
 
-        for (uint256 i; i < calls_.length; ++i) {
-            ( bool success, ) = refinancer_.delegatecall(calls_[i]);
-            require(success, "ML:ANT:FAILED");
-        }
-
-        require(_isCollateralMaintained(), "ML:ANT:COLLATERAL_NOT_MAINTAINED");
-
-        emit NewTermsAccepted(refinanceCommitment, refinancer_, calls_);
+        emit NewTermsAccepted(_acceptNewTerms(refinancer_, calls_), refinancer_, calls_);
     }
 
     /**********************/
@@ -185,6 +149,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function getAdditionalCollateralRequiredFor(uint256 drawdownAmount_) external view override returns (uint256 collateral_) {
         uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds - drawdownAmount_, _principalRequested, _collateralRequired);
+
         return collateralNeeded > _collateral ? collateralNeeded - _collateral : uint256(0);
     }
 
@@ -206,6 +171,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function getRemovableCollateral() external view override returns (uint256 removableCollateral_) {
         uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
+
         return _collateral > collateralNeeded ? _collateral - collateralNeeded : uint256(0);
     }
 

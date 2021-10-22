@@ -18,28 +18,32 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Collateral was removed.
-     *  @param amount_ The amount of collateral removed.
+     *  @param amount_      The amount of collateral removed.
+     *  @param destination_ The recipient of the collateral removed.
      */
-    event CollateralRemoved(uint256 amount_);
+    event CollateralRemoved(uint256 amount_, address indexed destination_);
 
     /**
      *  @dev   The loan was funded.
      *  @param lender_             The address of the lender.
+     *  @param amount_             The amount funded.
      *  @param nextPaymentDueDate_ The due date of the next payment.
      */
-    event Funded(address indexed lender_, uint256 nextPaymentDueDate_);
+    event Funded(address indexed lender_, uint256 amount_, uint256 nextPaymentDueDate_);
 
     /**
      *  @dev   Funds were claimed.
-     *  @param amount_ The amount of funds claimed.
+     *  @param amount_      The amount of funds claimed.
+     *  @param destination_ The recipient of the funds claimed.
      */
-    event FundsClaimed(uint256 amount_);
+    event FundsClaimed(uint256 amount_, address indexed destination_);
 
     /**
      *  @dev   Funds were drawn.
-     *  @param amount_ The amount of funds drawn.
+     *  @param amount_      The amount of funds drawn.
+     *  @param destination_ The recipient of the funds drawn down.
      */
-    event FundsDrawnDown(uint256 amount_);
+    event FundsDrawnDown(uint256 amount_, address indexed destination_);
 
     /**
      *  @dev   Funds were returned.
@@ -64,8 +68,13 @@ interface IMapleLoanEvents {
      *                         [0]: collateralRequired,
      *                         [1]: principalRequested,
      *                         [2]: endingPrincipal.
+     *  @param fees_      Fee parameters:
+     *                         [0]: earlyFee,
+     *                         [1]: earlyFeeRate,
+     *                         [2]: lateFee,
+     *                         [3]: lateFeeRate.
      */
-    event Initialized(address indexed borrower_, address[2] assets_, uint256[6] parameters_, uint256[3] amounts_);
+    event Initialized(address indexed borrower_, address[2] assets_, uint256[6] parameters_, uint256[3] amounts_, uint256[4] fees_);
 
     /**
      *  @dev   Lender was set to a new account.
@@ -102,15 +111,8 @@ interface IMapleLoanEvents {
      *  @dev   The loan was in default and funds and collateral was repossessed by the lender.
      *  @param collateralAssetAmount_ The amount of collateral asset repossessed.
      *  @param fundsAssetAmount_      The amount of funds asset repossessed.
+     *  @param destination_           The recipient of the collateral and funds, if any.
      */
-    event Repossessed(uint256 collateralAssetAmount_, uint256 fundsAssetAmount_);
-
-    /**
-     *  @dev   Additional/unallocated asset was skimmed.
-     *  @param asset_       The address of the asset.
-     *  @param destination_ The address where the asset was send.
-     *  @param amount_      The amount of the asset that was skimmed.
-     */
-    event Skimmed(address asset_, address destination_, uint256 amount_);
+    event Repossessed(uint256 collateralAssetAmount_, uint256 fundsAssetAmount_, address indexed destination_);
 
 }

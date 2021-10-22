@@ -11,21 +11,16 @@ contract Lender is LoanUser {
     /*** Direct Functions ***/
     /************************/
 
-    function loan_acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_) external {
-        IMapleLoan(loan_).acceptNewTerms(refinancer_, calls_);
+    function loan_acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_, uint256 amount_) external {
+        IMapleLoan(loan_).acceptNewTerms(refinancer_, calls_, amount_);
     }
 
     function loan_claimFunds(address loan_, uint256 amount_, address destination_) external {
         IMapleLoan(loan_).claimFunds(amount_, destination_);
     }
 
-    function loan_repossess(address loan_, address collateralAssetDestination_, address fundsAssetDestination_)
-        external returns (
-            uint256 collateralAssetAmount_,
-            uint256 fundsAssetAmount_
-        )
-    {
-        return IMapleLoan(loan_).repossess(collateralAssetDestination_, fundsAssetDestination_);
+    function loan_repossess(address loan_, address destination_) external returns ( uint256 collateralAssetAmount_, uint256 fundsAssetAmount_) {
+        return IMapleLoan(loan_).repossess(destination_);
     }
 
     function loan_setLender(address loan_, address lender_) external {
@@ -36,16 +31,16 @@ contract Lender is LoanUser {
     /*** Try Functions ***/
     /*********************/
 
-    function try_loan_acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptNewTerms.selector, refinancer_, calls_));
+    function try_loan_acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_, uint256 amount_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptNewTerms.selector, refinancer_, calls_, amount_));
     }
 
     function try_loan_claimFunds(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.claimFunds.selector, amount_, destination_));
     }
 
-    function try_loan_repossess(address loan_, address collateralAssetDestination_, address fundsAssetDestination_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.repossess.selector, collateralAssetDestination_, fundsAssetDestination_));
+    function try_loan_repossess(address loan_, address destination_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.repossess.selector, destination_));
     }
 
     function try_loan_setLender(address loan_, address lender_) external returns (bool ok_) {

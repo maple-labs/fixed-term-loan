@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { IMapleLoan }        from "../../interfaces/IMapleLoan.sol";
-import { IMapleLoanFactory } from "../../interfaces/IMapleLoanFactory.sol";
+import { User as ProxyUser } from "../../../modules/maple-proxy-factory/contracts/test/accounts/User.sol";
+
+import { IMapleLoan } from "../../interfaces/IMapleLoan.sol";
 
 import { LoanUser } from "./LoanUser.sol";
 
-contract Borrower is LoanUser {
+contract Borrower is LoanUser, ProxyUser {
 
     /************************/
     /*** Direct Functions ***/
@@ -28,10 +29,6 @@ contract Borrower is LoanUser {
         IMapleLoan(loan_).upgrade(toVersion_, arguments_);
     }
 
-    function loan_upgrade(address loan_, address borrower_) external {
-        IMapleLoan(loan_).setBorrower(borrower_);
-    }
-
     /*********************/
     /*** Try Functions ***/
     /*********************/
@@ -50,10 +47,6 @@ contract Borrower is LoanUser {
 
     function try_loan_setBorrower(address loan_, address borrower_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.setBorrower.selector, borrower_));
-    }
-
-    function try_loan_upgrade(address loan_, uint256 toVersion_, bytes calldata arguments_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.upgrade.selector, toVersion_, arguments_));
     }
 
 }

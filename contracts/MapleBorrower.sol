@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { IMapleBorrower }        from "./interfaces/IMapleBorrower.sol";
-import { IMapleBorrowerFactory } from "./interfaces/IMapleBorrowerFactory.sol";
+import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
+
+import { IMapleBorrower } from "./interfaces/IMapleBorrower.sol";
 
 import { MapleBorrowerInternals } from "./MapleBorrowerInternals.sol";
 
@@ -24,7 +25,7 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
     }
 
     function upgrade(uint256 toVersion_, bytes calldata arguments_) external override onlyOwner {
-        IMapleBorrowerFactory(_factory()).upgradeBorrower(toVersion_, arguments_);
+        IMapleProxyFactory(_factory()).upgradeInstance(toVersion_, arguments_);
     }
 
     /*************************/

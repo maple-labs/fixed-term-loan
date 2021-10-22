@@ -4,9 +4,9 @@ pragma solidity ^0.8.7;
 import { TestUtils, Hevm, StateManipulations } from "../../modules/contract-test-utils/contracts/test.sol";
 import { IERC20 }                              from "../../modules/erc20/src/interfaces/IERC20.sol";
 import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
+import { MapleProxyFactory }                   from "../../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
 import { MapleLoan }            from "../MapleLoan.sol";
-import { MapleLoanFactory }     from "../MapleLoanFactory.sol";
 import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
@@ -26,7 +26,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
     LenderMock           lender;
     MapleGlobalsMock     globals;
     MapleLoan            implementation;
-    MapleLoanFactory     factory;
+    MapleProxyFactory    factory;
     MapleLoanInitializer initializer;
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
@@ -41,14 +41,14 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
 
-        globals    = new MapleGlobalsMock(address(governor));
+        globals = new MapleGlobalsMock(address(governor));
 
-        factory        = new MapleLoanFactory(address(globals));
+        factory        = new MapleProxyFactory(address(globals));
         implementation = new MapleLoan();
         initializer    = new MapleLoanInitializer();
 
-        governor.mapleLoanFactory_registerImplementation(address(factory), 1, address(implementation), address(initializer));
-        governor.mapleLoanFactory_setDefaultVersion(address(factory), 1);
+        governor.mapleProxyFactory_registerImplementation(address(factory), 1, address(implementation), address(initializer));
+        governor.mapleProxyFactory_setDefaultVersion(address(factory), 1);
     }
 
     function createLoanFundAndDrawdown(
@@ -66,7 +66,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         bytes memory arguments = initializer.encodeArguments(address(borrower), assets, parameters, requests, fees);
 
         // Create Loan
-        loan = MapleLoan(factory.createLoan(arguments));
+        loan = MapleLoan(factory.createInstance(arguments));
 
         // Approve and fund Loan
         lender.erc20_approve(address(fundsAsset), address(loan),   requests[1]);
@@ -74,7 +74,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
 
         // Transfer and post collateral and drawdown
         borrower.erc20_transfer(address(collateralAsset), address(loan), requests[0]);
-        borrower.loan_postCollateral(address(loan));
+        borrower.loan_postCollateral(address(loan), requests[0]);
         borrower.loan_drawdownFunds(address(loan), requests[1], address(borrower));  // Will drawdown 985k
     }
 
@@ -103,7 +103,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         // Warp to when payment is due and make payment
         hevm.warp(loan.nextPaymentDueDate());
         borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_makePayments(address(loan), 1);
+        borrower.loan_makePayments(address(loan), 1, paymentAmount);
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 
@@ -674,7 +674,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
 
         // Make payment
         borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_makePayments(address(loan), 3);
+        borrower.loan_makePayments(address(loan), 3, paymentAmount);
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 
@@ -766,7 +766,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
 
         // Make payment
         borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_makePayments(address(loan), 4);
+        borrower.loan_makePayments(address(loan), 4, paymentAmount);
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 

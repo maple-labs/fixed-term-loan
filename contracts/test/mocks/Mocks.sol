@@ -20,7 +20,7 @@ contract MapleGlobalsMock {
 contract ConstructableMapleLoan is MapleLoan {
 
     constructor(address borrower_, address[2] memory assets_, uint256[6] memory parameters_, uint256[3] memory amounts_,  uint256[4] memory fees_) {
-        _initializeLoan(borrower_, assets_, parameters_, amounts_, fees_);
+        _initialize(borrower_, assets_, parameters_, amounts_, fees_);
     }
 
     function getCollateralRequiredFor(
@@ -38,11 +38,11 @@ contract ConstructableMapleLoan is MapleLoan {
 
 contract LenderMock is Lender {
 
-    uint256 public investorFee   = 0;
-    uint256 public treasuryFee   = 0;
-
     address public mapleTreasury = address(9);
     address public poolDelegate  = address(8);
+
+    uint256 public investorFee = uint256(0);
+    uint256 public treasuryFee = uint256(0);
 
 }
 
