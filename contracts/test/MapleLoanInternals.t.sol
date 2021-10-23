@@ -478,9 +478,9 @@ contract MapleLoanInternals_PostCollateralTests is TestUtils {
     }
 
     function test_postCollateral_multiple(uint256 collateral_, uint256 posts_) external {
-        collateral_ = constrictToRange(collateral_, MIN_COLLATERAL, MAX_COLLATERAL / posts_);
         posts_      = constrictToRange(posts_,      2,              10);
-
+        collateral_ = constrictToRange(collateral_, MIN_COLLATERAL, MAX_COLLATERAL / posts_);
+        
         for (uint256 i = 1; i <= posts_; ++i) {
             _collateralAsset.mint(address(_loan), collateral_);
 

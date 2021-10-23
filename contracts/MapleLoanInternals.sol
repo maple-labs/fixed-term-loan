@@ -279,9 +279,9 @@ contract MapleLoanInternals is MapleProxied {
     // TODO: Revisit equation to see if there is a more efficient way to do this mathematically
     function _getEarlyPayments(uint256 numberOfPayments_) internal view returns (uint256 earlyPayments_) {
         uint256 excludedPayments =
-            _nextPaymentDueDate < block.timestamp  // If yes you are late, exclude 2 payments (one late, one on time)
-                ? 2 + (block.timestamp - (_nextPaymentDueDate + 1)) / _paymentInterval  // 2 + extra late payments
-                : _nextPaymentDueDate - block.timestamp < _paymentInterval  // If youre on time, and not early
+            _nextPaymentDueDate < block.timestamp                                       // If late, exclude 2 payments (one late, one on-time),
+                ? 2 + (block.timestamp - (_nextPaymentDueDate + 1)) / _paymentInterval  // 2 + extra late payments.
+                : _nextPaymentDueDate - block.timestamp < _paymentInterval              // If on-time, and not early.
                     ? 1
                     : 0;
 
@@ -289,14 +289,13 @@ contract MapleLoanInternals is MapleProxied {
     }
 
     function _getLatePayments(uint256 numberOfPayments_) internal view returns (uint256 latePayments_) {
-        // Timestamp after which a payment is late.
-        uint256 cutoff = _nextPaymentDueDate + _gracePeriod;
+        uint256 nextPaymentDueDate = _nextPaymentDueDate;
 
         // If the current timestamp is before or on the cutoff, there are no late payments here.
-        if (block.timestamp <= cutoff) return uint256(0);
+        if (block.timestamp <= nextPaymentDueDate) return uint256(0);
 
         // Get the number of late payments and "round up".
-        latePayments_ = uint256(1) + ((block.timestamp - cutoff) / _paymentInterval);
+        latePayments_ = uint256(1) + ((block.timestamp - nextPaymentDueDate) / _paymentInterval);
 
         // Number of late payments being made is fewer of latePayments_ or numberOfPayments_.
         latePayments_ = numberOfPayments_ < latePayments_ ? numberOfPayments_ : latePayments_;

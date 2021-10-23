@@ -74,8 +74,8 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
 
         // Transfer and post collateral and drawdown
         borrower.erc20_transfer(address(collateralAsset), address(loan), requests[0]);
-        borrower.loan_postCollateral(address(loan), requests[0]);
-        borrower.loan_drawdownFunds(address(loan), requests[1], address(borrower));  // Will drawdown 985k
+        borrower.loan_postCollateral(address(loan), 0);
+        borrower.loan_drawdownFunds(address(loan), requests[1], address(borrower));
     }
 
     function assertOnTimePayment(
@@ -588,7 +588,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
 contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
 
-    function test_payments_earlyRepaymentFlatRate_case1() external {
+    function test_payments_earlyRepayment_flatRate_case1() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -684,7 +684,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
         assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * (6 + 1));  // Payment due date increases
     }
 
-    function test_payments_earlyRepaymentFlatRate_case2() external {
+    function test_payments_earlyRepayment_flatRate_case2() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -774,6 +774,503 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
 
         assertEq(loan.paymentsRemaining(),  0);  // Payments remaining increases
         assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * (6 + 1));  // Payment due date increases
+    }
+
+}
+
+contract LateRepaymentsTest is MapleLoanPaymentsTest {
+
+    function test_payments_lateRepayment_flatRate_case1() external {
+        /****************************************/
+        /*** Loan Terms:
+        /*** Amount                    1,000,000
+        /*** Ending Principal          350,000
+        /*** Interest Rate             13%
+        /*** Payment Interval (days)   15
+        /*** Term                      90
+        /*** Number of payments        6
+        /*** Late Repayment Flat Rate  2%
+        /*** Late Repayment Day        90 (One second late)
+        /****************************************/
+
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(10 days),
+            uint256(15 days),
+            uint256(6),
+            uint256(0.13e18),
+            uint256(0),
+            uint256(0)  // No default interest rate
+        ];
+
+        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
+
+        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0.05e18)];  // 5% Late fee flat rate on principal
+
+        uint256[5] memory onTimeTotals = [
+            uint256(112_237.875576 ether),
+            uint256(112_237.875576 ether),
+            uint256(112_237.875576 ether),
+            uint256(112_237.875576 ether),
+            uint256(112_237.875576 ether)
+        ];
+
+        uint256[5] memory onTimePrincipalPortions = [
+            uint256(106_895.409823 ether),
+            uint256(107_466.494889 ether),
+            uint256(108_040.630958 ether),
+            uint256(108_617.834329 ether),
+            uint256(109_198.121389 ether)
+        ];
+
+        uint256[5] memory onTimeInterestPortions = [
+            uint256(5_342.465753 ether),
+            uint256(4_771.380687 ether),
+            uint256(4_197.244619 ether),
+            uint256(3_620.041248 ether),
+            uint256(3_039.754188 ether)
+        ];
+
+        uint256[5] memory onTimePrincipalRemaining = [
+            uint256(893_104.590177 ether),
+            uint256(785_638.095288 ether),
+            uint256(677_597.464330 ether),
+            uint256(568_979.630001 ether),
+            uint256(459_781.508613 ether)
+        ];
+
+        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+
+        uint256 grandTotalPaid;  // TODO: Add grand totals to sheet and add checks
+
+        // Make first five on time payments
+        for (uint256 i = 0; i < 5; i++) {
+            grandTotalPaid += assertOnTimePayment(
+                loan,
+                onTimePrincipalPortions[i],
+                onTimeInterestPortions[i],
+                onTimePrincipalRemaining[i],
+                onTimeTotals[i],
+                i + 1
+            );
+        }
+
+        // On day 75, warp to day 90 plus one second (one second late)
+        hevm.warp(block.timestamp + 15 days + 1 seconds);
+
+        // Get amounts for the remaining loan payments
+        ( uint256 principalPortion, uint256 interestPortion, uint256 feesPortion ) = loan.getNextPaymentsBreakDown(1);
+
+        uint256 lateInterest = principalPortion * 1300 * uint256(1 seconds) / 365 days / 10_000;  // Add one second of late interest
+
+        uint256 paymentAmount = principalPortion + interestPortion + feesPortion;
+
+        assertIgnoringDecimals(paymentAmount, uint256(485_226.951007 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
+
+        // Check payment amounts against provided values
+        // Five decimals of precision used (six provided with rounding)
+        assertIgnoringDecimals(principalPortion, uint256(459_781.508613 ether),                13);
+        assertIgnoringDecimals(interestPortion,  uint256(  2_456.366964 ether) + lateInterest, 13);  // Note: This was 2,292.609166 + 163.757798 from sheet, also late interest wasn't accounted for
+        assertIgnoringDecimals(feesPortion,      uint256( 22_989.075431 ether),                13);
+
+        // Make payment
+        borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
+        borrower.loan_makePayments(address(loan), 1, 0);
+
+        assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
+
+        assertEq(loan.principal(), 0);  // No principal left
+
+        assertEq(loan.paymentsRemaining(),  0);  // Payments remaining increases
+        assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * (6 + 1));  // Payment due date increases
+    }
+
+    function test_payments_lateRepayment_flatRate_case2() external {
+        /****************************************/
+        /*** Loan Terms:
+        /*** Amount                    1,000,000
+        /*** Ending Principal          1,000,000
+        /*** Interest Rate             10%
+        /*** Payment Interval (days)   30
+        /*** Term                      180
+        /*** Number of payments        6
+        /*** Late Repayment Flat Rate  5%
+        /*** Late Repayment Day        90 (Two hours late)
+        /****************************************/
+
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(10 days),
+            uint256(30 days),
+            uint256(6),
+            uint256(0.10e18),
+            uint256(0),
+            uint256(0)  // No default interest rate premium
+        ];
+
+        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+
+        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0.05e18)];  // 5% Late fee flat rate on principal
+
+        // Payments 1, 2, 4, 5, 6
+        uint256[5] memory onTimeTotals = [
+            uint256(    8_219.178082 ether),
+            uint256(    8_219.178082 ether),
+            uint256(    8_219.178082 ether),
+            uint256(    8_219.178082 ether),
+            uint256(1_008_219.178082 ether)
+        ];
+
+        uint256[5] memory onTimePrincipalPortions = [
+            uint256(        0.000000 ether),
+            uint256(        0.000000 ether),
+            uint256(        0.000000 ether),
+            uint256(        0.000000 ether),
+            uint256(1_000_000.000000 ether)
+        ];
+
+        uint256[5] memory onTimeInterestPortions = [
+            uint256(8_219.178082 ether),
+            uint256(8_219.178082 ether),
+            uint256(8_219.178082 ether),
+            uint256(8_219.178082 ether),
+            uint256(8_219.178082 ether)
+        ];
+
+        uint256[5] memory onTimePrincipalRemaining = [
+            uint256(1_000_000.000000 ether),
+            uint256(1_000_000.000000 ether),
+            uint256(1_000_000.000000 ether),
+            uint256(1_000_000.000000 ether),
+            uint256(        0.000000 ether)
+        ];
+
+        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+
+        uint256 grandTotalPaid;
+
+        // Make on two on time payments
+        for (uint256 i = 0; i < 2; i++) {
+            grandTotalPaid += assertOnTimePayment(
+                loan,
+                onTimePrincipalPortions[i],
+                onTimeInterestPortions[i],
+                onTimePrincipalRemaining[i],
+                onTimeTotals[i],
+                i + 1
+            );
+        }
+
+        {
+            // On day 60, warp to day 90 plus two hours
+            hevm.warp(block.timestamp + 30 days + 2 hours);
+
+            // Get amounts for the remaining loan payments
+            ( uint256 principalPortion, uint256 interestPortion, uint256 feesPortion ) = loan.getNextPaymentsBreakDown(1);
+
+            uint256 lateInterest = 1_000_000 ether * 1000 * uint256(2 hours) / 365 days / 10_000;  // Add two hours of late interest
+
+            uint256 paymentAmount = principalPortion + interestPortion + feesPortion;
+
+            assertIgnoringDecimals(paymentAmount, uint256(58_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
+
+            // Check payment amounts against provided values
+            // Five decimals of precision used (six provided with rounding)
+            assertIgnoringDecimals(principalPortion, uint256(     0.000000 ether),                13);
+            assertIgnoringDecimals(interestPortion,  uint256( 8_219.178082 ether) + lateInterest, 13);  // Note: Late interest wasn't accounted for
+            assertIgnoringDecimals(feesPortion,      uint256(50_000.000000 ether),                13);
+
+            // Make payment
+            borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
+            borrower.loan_makePayments(address(loan), 1, 0);
+
+            assertEq(loan.paymentsRemaining(),  3);  // Payments remaining increases
+            assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 4);  // Payment due date increases
+        }
+
+        // Make on three on time payments
+        for (uint256 i = 2; i < 5; i++) {
+            grandTotalPaid += assertOnTimePayment(
+                loan,
+                onTimePrincipalPortions[i],
+                onTimeInterestPortions[i],
+                onTimePrincipalRemaining[i],
+                onTimeTotals[i],
+                i + 2
+            );
+        }
+
+        assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
+        assertEq(loan.principal(),     0);  // No principal left
+    }
+
+    function test_payments_lateRepayment_flatRateAndDefaultRate_case1() external {
+        /****************************************/
+        /*** Loan Terms:
+        /*** Amount                     1,000,000
+        /*** Ending Principal           350,000
+        /*** Interest Rate              13%
+        /*** Payment Interval (days)    15
+        /*** Term                       90
+        /*** Number of payments         6
+        /*** Late Flat Rate             5%
+        /*** Late Default Interest Rate 18%  // NOTE: Assuming sheet meant 5% premium
+        /*** Late Repayment Day         46 (16 days late)
+        /****************************************/
+
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(10 days),
+            uint256(15 days),
+            uint256(6),
+            uint256(0.13e18),
+            uint256(0),
+            uint256(0.05e18)  // No default interest rate premium
+        ];
+
+        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
+
+        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0.05e18)];  // 5% Late fee flat rate on principal, 5% premium
+
+        // All payment amounts under normal amortization schedule in sheet
+        uint256[6] memory onTimeTotals = [
+            uint256(112_237.875576 ether),
+            uint256(112_237.875576 ether),
+            uint256(112_237.875576 ether),
+            uint256(112_237.875576 ether),
+            uint256(112_237.875576 ether),
+            uint256(462_237.875576 ether)
+        ];
+
+        uint256[6] memory onTimePrincipalPortions = [
+            uint256(106_895.409823 ether),
+            uint256(107_466.494889 ether),
+            uint256(108_040.630958 ether),
+            uint256(108_617.834329 ether),
+            uint256(109_198.121389 ether),
+            uint256(459_781.508613 ether)
+        ];
+
+        uint256[6] memory onTimeInterestPortions = [
+            uint256(5_342.465753 ether),
+            uint256(4_771.380687 ether),
+            uint256(4_197.244619 ether),
+            uint256(3_620.041248 ether),
+            uint256(3_039.754188 ether),
+            uint256(2_456.366964 ether)
+        ];
+
+        uint256[6] memory onTimePrincipalRemaining = [
+            uint256(893_104.590177 ether),
+            uint256(785_638.095288 ether),
+            uint256(677_597.464330 ether),
+            uint256(568_979.630001 ether),
+            uint256(459_781.508613 ether),
+            uint256(0.000000       ether)
+        ];
+
+        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+
+        uint256 grandTotalPaid;
+
+        // Make first payment
+        grandTotalPaid += assertOnTimePayment(
+            loan,
+            onTimePrincipalPortions[0],
+            onTimeInterestPortions[0],
+            onTimePrincipalRemaining[0],
+            onTimeTotals[0],
+            1
+        );
+
+        /*****************************************/
+        /*** First Late Payment (16 days late) ***/
+        /*****************************************/
+        {
+            // On day 15, warp to day 46 (16 days late)
+            hevm.warp(block.timestamp + 31 days);
+
+            // Get amounts for the remaining loan payments
+            ( uint256 principalPortion, uint256 interestPortion, uint256 feesPortion ) = loan.getNextPaymentsBreakDown(1);
+
+            uint256 lateInterest = loan.principal() * 1800 * uint256(16 days) / 365 days / 10_000;  // Add sixteen days of late interest TODO: update to principal() for all
+
+            assertIgnoringDecimals(lateInterest, 7046.962245 ether, 13);
+
+            uint256 paymentAmount = principalPortion + interestPortion + feesPortion;
+
+            assertIgnoringDecimals(paymentAmount, uint256(163_940.067331 ether), 13);  // TODO: Validate this against updated spreadsheet
+
+            // Check payment amounts against provided values
+            // Five decimals of precision used (six provided with rounding)
+            assertIgnoringDecimals(principalPortion, onTimePrincipalPortions[1],               13);  // Principal should be in accordance with schedule always
+            assertIgnoringDecimals(interestPortion,  onTimeInterestPortions[1] + lateInterest, 13);  // Note: Late interest wasn't accounted for
+            assertIgnoringDecimals(feesPortion,      loan.principal() * 500 / 10_000,          13);  // Flat rate of 5% on principal
+
+            // Make payment
+            borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
+            borrower.loan_makePayments(address(loan), 1, 0);
+
+            assertEq(loan.paymentsRemaining(),  4);  // Payments remaining increases
+            assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 3);  // Payment due date increases to day 30 (still one day late)
+        }
+
+        /****************************************/
+        /*** Second Late Payment (1 day late) ***/
+        /****************************************/
+        {
+            // Same timestamp - Day 46, due date is day 45
+
+            // Get amounts for the remaining loan payments
+            ( uint256 principalPortion, uint256 interestPortion, uint256 feesPortion ) = loan.getNextPaymentsBreakDown(1);
+
+            uint256 lateInterest = loan.principal() * 1800 * uint256(1 days) / 365 days / 10_000;  // Add one day of late interest TODO: update to principal() for all
+
+            assertIgnoringDecimals(lateInterest, 387.437964 ether, 13);
+
+            uint256 paymentAmount = principalPortion + interestPortion + feesPortion;
+
+            assertIgnoringDecimals(paymentAmount, uint256(151_907.218305 ether), 13);  // TODO: Validate this against updated spreadsheet
+
+            // Check payment amounts against provided values
+            // Five decimals of precision used (six provided with rounding)
+            assertIgnoringDecimals(principalPortion, onTimePrincipalPortions[2],               13);  // Principal should be in accordance with schedule always
+            assertIgnoringDecimals(interestPortion,  onTimeInterestPortions[2] + lateInterest, 13);  // Note: Late interest wasn't accounted for
+            assertIgnoringDecimals(feesPortion,      loan.principal() * 500 / 10_000,          13);  // Flat rate of 5% on principal
+
+            // Make payment
+            borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
+            borrower.loan_makePayments(address(loan), 1, 0);
+
+            assertEq(loan.paymentsRemaining(),  3);  // Payments remaining increases
+            assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 4);  // Payment due date increases to day 45 (still one day late)
+        }
+
+        // Make last three payments
+        for (uint256 i = 3; i < 6; i++) {
+            grandTotalPaid += assertOnTimePayment(
+                loan,
+                onTimePrincipalPortions[i],
+                onTimeInterestPortions[i],
+                onTimePrincipalRemaining[i],
+                onTimeTotals[i],
+                i + 1
+            );
+        }
+
+        assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
+        assertEq(loan.principal(),     0);  // No principal left
+    }
+
+    function test_payments_lateRepayment_flatRateAndDefaultRate_case2() external {
+        /****************************************/
+        /*** Loan Terms:
+        /*** Amount                     1,000,000
+        /*** Ending Principal           1,000,000
+        /*** Interest Rate              10%
+        /*** Payment Interval (days)    30
+        /*** Term                       180
+        /*** Number of payments         6
+        /*** Late Flat Rate             2%
+        /*** Late Default Interest Rate 15%  // NOTE: Assuming sheet meant 5% premium
+        /*** Late Repayment Day         32 (2 days late)
+        /****************************************/
+
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[6] memory parameters = [
+            uint256(10 days),
+            uint256(30 days),
+            uint256(6),
+            uint256(0.10e18),
+            uint256(0),
+            uint256(0.05e18)  // No default interest rate premium
+        ];
+
+        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+
+        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0.02e18)];  // 5% Late fee flat rate on principal
+
+        // Payments 2, 3, 4, 5, 6
+        uint256[5] memory onTimeTotals = [
+            uint256(    8_219.178082 ether),
+            uint256(    8_219.178082 ether),
+            uint256(    8_219.178082 ether),
+            uint256(    8_219.178082 ether),
+            uint256(1_008_219.178082 ether)
+        ];
+
+        uint256[5] memory onTimePrincipalPortions = [
+            uint256(        0.000000 ether),
+            uint256(        0.000000 ether),
+            uint256(        0.000000 ether),
+            uint256(        0.000000 ether),
+            uint256(1_000_000.000000 ether)
+        ];
+
+        uint256[5] memory onTimeInterestPortions = [
+            uint256(8_219.178082 ether),
+            uint256(8_219.178082 ether),
+            uint256(8_219.178082 ether),
+            uint256(8_219.178082 ether),
+            uint256(8_219.178082 ether)
+        ];
+
+        uint256[5] memory onTimePrincipalRemaining = [
+            uint256(1_000_000.000000 ether),
+            uint256(1_000_000.000000 ether),
+            uint256(1_000_000.000000 ether),
+            uint256(1_000_000.000000 ether),
+            uint256(        0.000000 ether)
+        ];
+
+        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+
+        uint256 grandTotalPaid;
+
+        {
+            // On day 0, warp to day 32 (two days late)
+            hevm.warp(block.timestamp + 32 days);
+
+            // Get amounts for the remaining loan payments
+            ( uint256 principalPortion, uint256 interestPortion, uint256 feesPortion ) = loan.getNextPaymentsBreakDown(1);
+
+            uint256 lateInterest = 1_000_000 ether * 1500 * uint256(2 days) / 365 days / 10_000;  // Add two days of late interest (15%)
+
+            assertIgnoringDecimals(lateInterest, 821.917808 ether, 13);
+
+            uint256 paymentAmount = principalPortion + interestPortion + feesPortion;
+
+            assertIgnoringDecimals(paymentAmount, uint256(28_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
+
+            // Check payment amounts against provided values
+            // Five decimals of precision used (six provided with rounding)
+            assertIgnoringDecimals(principalPortion, uint256(     0.000000 ether),                13);
+            assertIgnoringDecimals(interestPortion,  uint256( 8_219.178082 ether) + lateInterest, 13);  // Note: Late interest wasn't accounted for
+            assertIgnoringDecimals(feesPortion,      uint256(20_000.000000 ether),                13);
+
+            // Make payment
+            borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
+            borrower.loan_makePayments(address(loan), 1, 0);
+
+            assertEq(loan.paymentsRemaining(),  5);  // Payments remaining increases
+            assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 2);  // Payment due date increases
+        }
+
+        // Make on two on time payments
+        for (uint256 i = 0; i < 5; i++) {
+            grandTotalPaid += assertOnTimePayment(
+                loan,
+                onTimePrincipalPortions[i],
+                onTimeInterestPortions[i],
+                onTimePrincipalRemaining[i],
+                onTimeTotals[i],
+                i + 2 // Starting on second payment
+            );
+        }
     }
 
 }
