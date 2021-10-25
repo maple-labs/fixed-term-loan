@@ -123,6 +123,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function principalRequested() external view returns (uint256 principalRequested_);
 
+    /**
+     *  @dev The factory address that deployed this contract (necessary for PoolV1 integration).
+     */
+    function superFactory() external view returns (address superFactory_);
+
     /********************************/
     /*** State Changing Functions ***/
     /********************************/

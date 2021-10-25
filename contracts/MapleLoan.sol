@@ -279,4 +279,9 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _principal;
     }
 
+    // Needed for `fundLoan` call from PoolV1
+    function superFactory() external view override returns (address superFactory_) {
+        return _factory();
+    }
+
 }
