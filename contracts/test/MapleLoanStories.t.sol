@@ -99,9 +99,10 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 178_525), "Cannot pay");
 
         // Remove some collateral
-        assertTrue(borrower.try_loan_removeCollateral(address(loan), 145_545, address(borrower)), "Cannot remove collateral");
+        assertTrue(!borrower.try_loan_removeCollateral(address(loan), 145_547, address(borrower)), "Removed more collateral than expected");
+        assertTrue( borrower.try_loan_removeCollateral(address(loan), 145_546, address(borrower)), "Cannot remove collateral");
 
-        assertEq(loan.collateral(), 154_455, "Different collateral");
+        assertEq(loan.collateral(), 154_454, "Different collateral");
 
         // Check details for upcoming payment #4
         ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
@@ -126,9 +127,10 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
 
         assertEq(loan.drawableFunds(), 150_001, "Different drawable funds");
 
-        assertTrue(borrower.try_loan_removeCollateral(address(loan), 85_059, address(borrower)), "Cannot remove collateral");
+        assertTrue(!borrower.try_loan_removeCollateral(address(loan), 95_470, address(borrower)), "Removed more collateral than expected");
+        assertTrue( borrower.try_loan_removeCollateral(address(loan), 95_469, address(borrower)), "Cannot remove collateral");
 
-        assertEq(loan.collateral(), 69_396, "Different collateral");
+        assertEq(loan.collateral(), 58_985, "Different collateral");
 
         // Claim loan proceeds thus far
         assertTrue(lender.try_loan_claimFunds(address(loan), 714_101, address(lender)), "Cannot claim funds");
@@ -170,8 +172,9 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         assertEq(loan.principal(),         0, "Different payments remaining");
 
         // Remove rest of available funds and collateral
-        assertTrue(borrower.try_loan_drawdownFunds(address(loan), 150_000, address(borrower)),   "Cannot drawdown");
-        assertTrue(borrower.try_loan_removeCollateral(address(loan), 69_396, address(borrower)), "Cannot remove collateral");
+        assertTrue( borrower.try_loan_drawdownFunds(address(loan), 150_000, address(borrower)),   "Cannot drawdown");
+        assertTrue(!borrower.try_loan_removeCollateral(address(loan), 58_986, address(borrower)), "Removed more collateral than expected");
+        assertTrue( borrower.try_loan_removeCollateral(address(loan), 58_985, address(borrower)), "Cannot remove collateral");
 
         assertEq(loan.collateral(), 0, "Different collateral");
 

@@ -26,13 +26,13 @@ interface IMapleBorrower is IMapleProxied, IOwnable {
 
     function batchProposeNewTerms(address[] calldata loans_, address[] calldata refinancers_, bytes[][] calldata calls_) external;
 
-    function batchRemoveAvailableCollateral(address[] calldata loans_, address destination_) external;
+    function batchRemoveExcessCollateral(address[] calldata loans_, address destination_) external;
 
     function batchRemoveCollateral(address[] calldata loans_, uint256[] calldata amounts_, address destination_) external;
 
     function batchReturnFunds(address[] calldata loans_, uint256[] calldata amounts_) external;
 
-    function batchReturnFundsAndRemoveCollateral(address[] calldata loans_, uint256[] calldata amounts_, address destination_) external;
+    function batchReturnFundsAndRemoveExcessCollateral(address[] calldata loans_, uint256[] calldata amounts_, address destination_) external;
 
     function batchSetBorrower(address[] calldata loans_, address borrower_) external;
 
@@ -56,13 +56,13 @@ interface IMapleBorrower is IMapleProxied, IOwnable {
 
     function proposeNewTerms(address loan_, address refinancer_, bytes[] calldata calls_) external;
 
-    function removeAvailableCollateral(address loan_, address destination_) external;
+    function removeExcessCollateral(address loan_, address destination_) external;
 
     function removeCollateral(address loan_, uint256 amount_, address destination_) external;
 
     function returnFunds(address loan_, uint256 amount_) external;
 
-    function returnFundsAndRemoveCollateral(address loan_, uint256 amount_, address destination_) external;
+    function returnFundsAndRemoveExcessCollateral(address loan_, uint256 amount_, address destination_) external;
 
     function setBorrower(address loan_, address borrower_) external;
 

@@ -102,11 +102,11 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
         }
     }
 
-    function batchRemoveAvailableCollateral(address[] calldata loans_, address destination_) external override onlyOwner {
+    function batchRemoveExcessCollateral(address[] calldata loans_, address destination_) external override onlyOwner {
         bool needed;
 
         for (uint256 i; i < loans_.length; ++i) {
-            needed = needed || _removeAvailableCollateral(loans_[i], destination_);
+            needed = needed || _removeExcessCollateral(loans_[i], destination_);
         }
 
         require(needed, "MB:BRC:NONE_REMOVABLE");
@@ -124,7 +124,7 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
         }
     }
 
-    function batchReturnFundsAndRemoveCollateral(
+    function batchReturnFundsAndRemoveExcessCollateral(
         address[] calldata loans_,
         uint256[] calldata amounts_,
         address destination_
@@ -132,7 +132,7 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
         bool needed;
 
         for (uint256 i; i < loans_.length; ++i) {
-            needed = needed || _returnFundsAndRemoveCollateral(loans_[i], amounts_[i], destination_);
+            needed = needed || _returnFundsAndRemoveExcessCollateral(loans_[i], amounts_[i], destination_);
         }
 
         require(needed, "MB:BRFARC:NONE_REMOVABLE");
@@ -182,8 +182,8 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
         _proposeNewTerms(loan_, refinancer_, calls_);
     }
 
-    function removeAvailableCollateral(address loan_, address destination_) external override onlyOwner {
-        require(_removeAvailableCollateral(loan_, destination_), "MB:RC:NONE_REMOVABLE");
+    function removeExcessCollateral(address loan_, address destination_) external override onlyOwner {
+        require(_removeExcessCollateral(loan_, destination_), "MB:RC:NONE_REMOVABLE");
     }
 
     function removeCollateral(address loan_, uint256 amount_, address destination_) external override onlyOwner {
@@ -194,8 +194,8 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
         _returnFunds(loan_, amount_);
     }
 
-    function returnFundsAndRemoveCollateral(address loan_, uint256 amount_, address destination_) external override onlyOwner {
-        require(_returnFundsAndRemoveCollateral(loan_, amount_, destination_), "MB:RFARC:NONE_REMOVABLE");
+    function returnFundsAndRemoveExcessCollateral(address loan_, uint256 amount_, address destination_) external override onlyOwner {
+        require(_returnFundsAndRemoveExcessCollateral(loan_, amount_, destination_), "MB:RFARC:NONE_REMOVABLE");
     }
 
     function setBorrower(address loan_, address borrower_) external override onlyOwner {

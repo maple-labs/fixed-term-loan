@@ -92,7 +92,7 @@ interface IMapleLoanEvents {
     /**
      *  @dev  A refinance was proposed.
      *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
-     *  @param refinancer_           The address that will execute the refinance.
+     *  @param refinancer_          The address that will execute the refinance.
      *  @param calls_               The individual calls for the refinancer contract.
      */
     event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, bytes[] calls_);
@@ -100,7 +100,7 @@ interface IMapleLoanEvents {
     /**
      *  @dev  A refinance was proposed.
      *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
-     *  @param refinancer_           The address that will execute the refinance.
+     *  @param refinancer_          The address that will execute the refinance.
      *  @param calls_               The individual calls for the refinancer contract.
      */
     event NewTermsProposed(bytes32 refinanceCommitment_, address refinancer_, bytes[] calls_);
@@ -114,10 +114,18 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   The loan was in default and funds and collateral was repossessed by the lender.
-     *  @param collateralAssetAmount_ The amount of collateral asset repossessed.
-     *  @param fundsAssetAmount_      The amount of funds asset repossessed.
+     *  @param collateralRepossessed_ The amount of collateral asset repossessed.
+     *  @param fundsRepossessed_      The amount of funds asset repossessed.
      *  @param destination_           The recipient of the collateral and funds, if any.
      */
-    event Repossessed(uint256 collateralAssetAmount_, uint256 fundsAssetAmount_, address indexed destination_);
+    event Repossessed(uint256 collateralRepossessed_, uint256 fundsRepossessed_, address indexed destination_);
+
+    /**
+     *  @dev   Some token (neither fundsAsset nor collateralAsset) was removed from the loan.
+     *  @param token_       The address of the token contract.
+     *  @param amount_      The amount of token remove from the loan.
+     *  @param destination_ The recipient of the token.
+     */
+    event Skimmed(address indexed token_, uint256 amount_, address indexed destination_);
 
 }

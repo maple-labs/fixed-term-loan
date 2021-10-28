@@ -90,8 +90,8 @@ contract MapleBorrowerInternals is MapleProxied {
         IMapleLoan(loan_).proposeNewTerms(refinancer_, calls_);
     }
 
-    function _removeAvailableCollateral(address loan_, address destination_) internal returns (bool hasRemovableCollateral_) {
-        uint256 collateral = IMapleLoan(loan_).getRemovableCollateral();
+    function _removeExcessCollateral(address loan_, address destination_) internal returns (bool hasExcessCollateral_) {
+        uint256 collateral = IMapleLoan(loan_).excessCollateral();
 
         if (collateral == uint256(0)) return false;
 
@@ -110,10 +110,10 @@ contract MapleBorrowerInternals is MapleProxied {
         IMapleLoan(loan_).returnFunds(uint256(0));
     }
 
-    function _returnFundsAndRemoveCollateral(address loan_, uint256 amount_, address destination_) internal returns (bool hasRemovableCollateral_) {
+    function _returnFundsAndRemoveExcessCollateral(address loan_, uint256 amount_, address destination_) internal returns (bool hasExcessCollateral_) {
         _returnFunds(loan_, amount_);
 
-        return _removeAvailableCollateral(loan_, destination_);
+        return _removeExcessCollateral(loan_, destination_);
     }
 
     function _setBorrower(address loan_, address borrower_) internal {

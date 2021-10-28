@@ -19,7 +19,7 @@ contract Lender is LoanUser {
         IMapleLoan(loan_).claimFunds(amount_, destination_);
     }
 
-    function loan_repossess(address loan_, address destination_) external returns ( uint256 collateralAssetAmount_, uint256 fundsAssetAmount_) {
+    function loan_repossess(address loan_, address destination_) external returns ( uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         return IMapleLoan(loan_).repossess(destination_);
     }
 

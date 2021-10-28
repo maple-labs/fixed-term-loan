@@ -136,7 +136,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @dev   Accept the proposed terms ans trigger refinance execution
      *  @param refinancer_ The address of the refinancer contract.
      *  @param calls_      The encoded arguments to be passed to refinancer.
-     *  @param amount_    An amount to pull from the caller, if any.
+     *  @param amount_     An amount to pull from the caller, if any.
      */
     function acceptNewTerms(address refinancer_, bytes[] calldata calls_, uint256 amount_) external;
 
@@ -148,19 +148,20 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function claimFunds(uint256 amount_, address destination_) external;
 
     /**
-     *  @dev   Draw down funds from the loan.
-     *  @param amount_      The amount to draw down.
-     *  @param destination_ The address to send the funds.
+     *  @dev    Draw down funds from the loan.
+     *  @param  amount_           The amount to draw down.
+     *  @param  destination_      The address to send the funds.
+     *  @return collateralPosted_ The amount of additional collateral posted, if any.
      */
-    function drawdownFunds(uint256 amount_, address destination_) external;
+    function drawdownFunds(uint256 amount_, address destination_) external returns (uint256 collateralPosted_);
 
     /**
      *  @dev    Lend funds to the loan/borrower.
-     *  @param  lender_       The address to be registered as the lender.
-     *  @param  amount_       An amount to pull from the caller, if any.
-     *  @return amountFunded_ The amount funded.
+     *  @param  lender_    The address to be registered as the lender.
+     *  @param  amount_    An amount to pull from the caller, if any.
+     *  @return fundsLent_ The amount funded.
      */
-    function fundLoan(address lender_, uint256 amount_) external returns (uint256 amountFunded_);
+    function fundLoan(address lender_, uint256 amount_) external returns (uint256 fundsLent_);
 
     /**
      *  @dev    Make a payment to the loan.
@@ -172,15 +173,15 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Post collateral to the loan.
-     *  @param  amount_       An amount to pull from the caller, if any.
-     *  @return postedAmount_ The amount posted.
+     *  @param  amount_           An amount to pull from the caller, if any.
+     *  @return collateralPosted_ The amount posted.
      */
-    function postCollateral(uint256 amount_) external returns (uint256 postedAmount_);
+    function postCollateral(uint256 amount_) external returns (uint256 collateralPosted_);
 
     /**
      *  @dev   Propose new terms for refinance
      *  @param refinancer_ The address of the refinancer contract.
-     *  @param calls_  The encoded arguments to be passed to refinancer.
+     *  @param calls_      The encoded arguments to be passed to refinancer.
      */
     function proposeNewTerms(address refinancer_, bytes[] calldata calls_) external;
 
@@ -193,36 +194,55 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Return funds to the loan (opposite of drawing down).
-     *  @param  amount_         An amount to pull from the caller, if any.
-     *  @return returnedAmount_ The amount returned.
+     *  @param  amount_        An amount to pull from the caller, if any.
+     *  @return fundsReturned_ The amount returned.
      */
-    function returnFunds(uint256 amount_) external returns (uint256 returnedAmount_);
+    function returnFunds(uint256 amount_) external returns (uint256 fundsReturned_);
 
     /**
      *  @dev    Repossess collateral, and any funds, for a loan in default.
      *  @param  destination_           The address where the collateral and funds asset is to be sent, if any.
-     *  @return collateralAssetAmount_ The amount of collateral asset repossessed.
-     *  @return fundsAssetAmount_      The amount of funds asset repossessed.
+     *  @return collateralRepossessed_ The amount of collateral asset repossessed.
+     *  @return fundsRepossessed_      The amount of funds asset repossessed.
      */
-    function repossess(address destination_) external returns (uint256 collateralAssetAmount_, uint256 fundsAssetAmount_);
+    function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
 
     /**
-     *  @dev    Set the borrower to a new account.
-     *  @param  borrower_ The address of the new borrower.
+     *  @dev   Set the borrower to a new account.
+     *  @param borrower_ The address of the new borrower.
      */
     function setBorrower(address borrower_) external;
 
     /**
-     *  @dev    Set the lender to a new account.
-     *  @param  lender_ The address of the new lender.
+     *  @dev   Set the lender to a new account.
+     *  @param lender_ The address of the new lender.
      */
     function setLender(address lender_) external;
+
+    /**
+     *  @dev    Remove some token (neither fundsAsset nor collateralAsset) from the loan.
+     *  @param  token_       The address of the token contract.
+     *  @param  destination_ The recipient of the token.
+     *  @return skimmed_     The amount of token removed from the loan.
+     */
+    function skim(address token_, address destination_) external returns (uint256 skimmed_);
 
     /**********************/
     /*** View Functions ***/
     /**********************/
 
-    function getAdditionalCollateralRequiredFor(uint256 drawdownAmount_) external view returns (uint256 additionalCollateral_);
+    /**
+     *  @dev    Returns the excess collateral that can be removed.
+     *  @return excessCollateral_ The excess collateral that can be removed, if any.
+     */
+    function excessCollateral() external view returns (uint256 excessCollateral_);
+
+    /**
+     *  @dev    Get the additional collateral to be posted to drawdown some amount.
+     *  @param  drawdown_             The amount desired to be drawn down.
+     *  @return additionalCollateral_ The additional collateral that must be posted, if any.
+     */
+    function getAdditionalCollateralRequiredFor(uint256 drawdown_) external view returns (uint256 additionalCollateral_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.
@@ -233,7 +253,5 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
         uint256 totalPrincipalAmount_,
         uint256 totalInterestFees_
     );
-
-    function getRemovableCollateral() external view returns (uint256 removableCollateral_);
 
 }

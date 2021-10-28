@@ -13,8 +13,8 @@ contract Borrower is LoanUser, ProxyUser {
     /*** Direct Functions ***/
     /************************/
 
-    function loan_drawdownFunds(address loan_, uint256 amount_, address destination_) external {
-        IMapleLoan(loan_).drawdownFunds(amount_, destination_);
+    function loan_drawdownFunds(address loan_, uint256 amount_, address destination_) external returns (uint256 collateralPosted_) {
+        return IMapleLoan(loan_).drawdownFunds(amount_, destination_);
     }
 
     function loan_proposeNewTerms(address loan_, address refinancer_, bytes[] calldata calls_) external {

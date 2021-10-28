@@ -114,7 +114,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.getAdditionalCollateralRequiredFor(500_000), 1_000_000);
     }
 
-    function test_getRemovableCollateral_varyCollateral() external {
+    function test_excessCollateral_varyCollateral() external {
         ManipulatableMapleLoan loan = new ManipulatableMapleLoan();
 
         loan.setPrincipalRequested(1_000_000);
@@ -123,35 +123,35 @@ contract MapleLoanTests is TestUtils {
 
         loan.setCollateral(0);
 
-        assertEq(loan.getRemovableCollateral(), 0);
+        assertEq(loan.excessCollateral(), 0);
 
         loan.setCollateral(200_000);
 
-        assertEq(loan.getRemovableCollateral(), 0);
+        assertEq(loan.excessCollateral(), 0);
 
         loan.setCollateral(400_000);
 
-        assertEq(loan.getRemovableCollateral(), 0);
+        assertEq(loan.excessCollateral(), 0);
 
         loan.setCollateral(500_000);
 
-        assertEq(loan.getRemovableCollateral(), 100_000);
+        assertEq(loan.excessCollateral(), 100_000);
 
         loan.setCollateral(1_000_000);
 
-        assertEq(loan.getRemovableCollateral(), 600_000);
+        assertEq(loan.excessCollateral(), 600_000);
 
         loan.setDrawableFunds(1_000_000);
         loan.setCollateral(0);
 
-        assertEq(loan.getRemovableCollateral(), 0);
+        assertEq(loan.excessCollateral(), 0);
 
         loan.setCollateral(1_000_000);
 
-        assertEq(loan.getRemovableCollateral(), 1_000_000);
+        assertEq(loan.excessCollateral(), 1_000_000);
     }
 
-    function test_getRemovableCollateral_varyDrawableFunds() external {
+    function test_excessCollateral_varyDrawableFunds() external {
         ManipulatableMapleLoan loan = new ManipulatableMapleLoan();
 
         loan.setPrincipalRequested(1_000_000);
@@ -161,18 +161,18 @@ contract MapleLoanTests is TestUtils {
 
         loan.setDrawableFunds(0);
 
-        assertEq(loan.getRemovableCollateral(), 0);
+        assertEq(loan.excessCollateral(), 0);
 
         loan.setDrawableFunds(200_000);
 
-        assertEq(loan.getRemovableCollateral(), 480_000);
+        assertEq(loan.excessCollateral(), 480_000);
 
         loan.setDrawableFunds(500_000);
 
-        assertEq(loan.getRemovableCollateral(), 1_200_000);
+        assertEq(loan.excessCollateral(), 1_200_000);
     }
 
-    function test_getRemovableCollateral_varyPrincipal() external {
+    function test_excessCollateral_varyPrincipal() external {
         ManipulatableMapleLoan loan = new ManipulatableMapleLoan();
 
         loan.setPrincipalRequested(1_000_000);
@@ -181,19 +181,19 @@ contract MapleLoanTests is TestUtils {
 
         loan.setPrincipal(1_000_000);
 
-        assertEq(loan.getRemovableCollateral(), 0);
+        assertEq(loan.excessCollateral(), 0);
 
         loan.setPrincipal(500_000);
 
-        assertEq(loan.getRemovableCollateral(), 0);
+        assertEq(loan.excessCollateral(), 0);
 
         loan.setPrincipal(200_000);
 
-        assertEq(loan.getRemovableCollateral(), 720_000);
+        assertEq(loan.excessCollateral(), 720_000);
 
         loan.setPrincipal(0);
 
-        assertEq(loan.getRemovableCollateral(), 1_200_000);
+        assertEq(loan.excessCollateral(), 1_200_000);
     }
 
 }

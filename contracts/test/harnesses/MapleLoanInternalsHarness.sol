@@ -51,7 +51,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _removeCollateral(amount_, destination_);
     }
 
-    function repossess(address destination_) external returns (uint256 collateralAssetAmount_, uint256 fundsAssetAmount_) {
+    function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         return _repossess(destination_);
     }
 
@@ -63,8 +63,8 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
     /*** View Functions ****/
     /***********************/
 
-    function generateRefinanceCommitment(address refinancer_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
-        return _generateRefinanceCommitment(refinancer_, calls_);
+    function getRefinanceCommitment(address refinancer_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
+        return _getRefinanceCommitment(refinancer_, calls_);
     }
 
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {

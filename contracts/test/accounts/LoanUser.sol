@@ -11,25 +11,33 @@ contract LoanUser is ERC20User {
     /*** Direct Functions ***/
     /************************/
 
+    function loan_fundLoan(address loan_, address lender_, uint256 amount_) external returns (uint256 fundsLent_) {
+        return IMapleLoan(loan_).fundLoan(lender_, amount_);
+    }
+
     function loan_makePayment(address loan_, uint256 amount_) external returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_) {
         return IMapleLoan(loan_).makePayment(amount_);
     }
 
-    function loan_postCollateral(address loan_, uint256 amount_) external returns (uint256 postedAmount_) {
+    function loan_postCollateral(address loan_, uint256 amount_) external returns (uint256 collateralPosted_) {
         return IMapleLoan(loan_).postCollateral(amount_);
     }
 
-    function loan_returnFunds(address loan_, uint256 amount_) external returns (uint256 returnedAmount_) {
+    function loan_returnFunds(address loan_, uint256 amount_) external returns (uint256 fundsReturned_) {
         return IMapleLoan(loan_).returnFunds(amount_);
     }
 
-    function loan_fundLoan(address loan_, address lender_, uint256 amount_) external returns (uint256 amountFunded_) {
-        return IMapleLoan(loan_).fundLoan(lender_, amount_);
+    function loan_skim(address loan_, address token_, address destination_) external returns (uint256 fundsReturned_) {
+        return IMapleLoan(loan_).skim(token_, destination_);
     }
 
     /*********************/
     /*** Try Functions ***/
     /*********************/
+
+    function try_loan_fundLoan(address loan_, address lender_, uint256 amount_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.fundLoan.selector, lender_, amount_));
+    }
 
     function try_loan_makePayment(address loan_, uint256 amount_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.makePayment.selector, amount_));
@@ -43,8 +51,8 @@ contract LoanUser is ERC20User {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.returnFunds.selector, amount_));
     }
 
-    function try_loan_fundLoan(address loan_, address lender_, uint256 amount_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.fundLoan.selector, lender_, amount_));
+    function try_loan_skim(address loan_, address token_, address destination_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.skim.selector, token_, destination_));
     }
 
 }

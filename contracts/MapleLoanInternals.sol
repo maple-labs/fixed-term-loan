@@ -142,8 +142,9 @@ contract MapleLoanInternals is MapleProxied {
         _collateral += (amount_ = _getUnaccountedAmount(_collateralAsset));
     }
 
+    /// @dev Sets refinance commitment given refinance operations.
     function _proposeNewTerms(address refinancer_, bytes[] calldata calls_) internal returns (bytes32 refinanceCommitment_) {
-        _refinanceCommitment = refinanceCommitment_ = _generateRefinanceCommitment(refinancer_, calls_);
+        _refinanceCommitment = refinanceCommitment_ = calls_.length > uint256(0) ? _getRefinanceCommitment(refinancer_, calls_) : bytes32(0);
     }
 
     /// @dev Sends `amount_` of `_collateral` to `destination_`.
@@ -163,8 +164,9 @@ contract MapleLoanInternals is MapleProxied {
     /*** Internal Lend-side Functions ***/
     /************************************/
 
+    /// @dev Processes refinance operations.
     function _acceptNewTerms(address refinancer_, bytes[] calldata calls_) internal returns (bytes32 refinanceCommitment_) {
-        require(_refinanceCommitment == (refinanceCommitment_ = _generateRefinanceCommitment(refinancer_, calls_)), "MLI:ANT:COMMITMENT_MISMATCH");
+        require(_refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, calls_)), "MLI:ANT:COMMITMENT_MISMATCH");
 
         for (uint256 i; i < calls_.length; ++i) {
             ( bool success, ) = refinancer_.delegatecall(calls_[i]);
@@ -217,7 +219,7 @@ contract MapleLoanInternals is MapleProxied {
     }
 
     /// @dev Reset all state variables in order to release funds and collateral of a loan in default.
-    function _repossess(address destination_) internal returns (uint256 collateralAssetAmount_, uint256 fundsAssetAmount_) {
+    function _repossess(address destination_) internal returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         require(block.timestamp > _nextPaymentDueDate + _gracePeriod, "MLI:R:NOT_IN_DEFAULT");
 
         _drawableFunds      = uint256(0);
@@ -228,8 +230,8 @@ contract MapleLoanInternals is MapleProxied {
         _paymentsRemaining  = uint256(0);
         _principal          = uint256(0);
 
-        ERC20Helper.transfer(_collateralAsset, destination_, collateralAssetAmount_ = _getUnaccountedAmount(_collateralAsset));
-        ERC20Helper.transfer(_fundsAsset,      destination_, fundsAssetAmount_      = _getUnaccountedAmount(_fundsAsset));
+        ERC20Helper.transfer(_collateralAsset, destination_, collateralRepossessed_ = _getUnaccountedAmount(_collateralAsset));
+        ERC20Helper.transfer(_fundsAsset,      destination_, fundsRepossessed_      = _getUnaccountedAmount(_fundsAsset));
     }
 
     /*******************************/
@@ -267,11 +269,7 @@ contract MapleLoanInternals is MapleProxied {
     /*** Internal Pure Functions ***/
     /*******************************/
 
-    function _generateRefinanceCommitment(address refinancer_, bytes[] calldata calls_) internal pure returns (bytes32 refinanceCommitment_) {
-        refinanceCommitment_ = keccak256(abi.encode(refinancer_, calls_));
-    }
-
-    /// @dev Returns the collateral to be posted for some drawn down (outstanding) principal and overall collateral ratio requirement.
+    /// @dev Returns the total collateral to be posted for some drawn down (outstanding) principal and overall collateral ratio requirement.
     function _getCollateralRequiredFor(
         uint256 principal_,
         uint256 drawableFunds_,
@@ -280,7 +278,6 @@ contract MapleLoanInternals is MapleProxied {
     )
         internal pure returns (uint256 collateral_)
     {
-        // Where outstandingPrincipal = principal_ > drawableFunds_ ? principal_ - drawableFunds_ : uint256(0).
         // Where (collateral / outstandingPrincipal) should be greater or equal to (collateralRequired / principalRequested).
         return (collateralRequired_ * (principal_ > drawableFunds_ ? principal_ - drawableFunds_ : uint256(0))) / principalRequested_;
     }
@@ -355,6 +352,11 @@ contract MapleLoanInternals is MapleProxied {
     /// @dev Returns the interest rate over an interval, given an annualized interest rate.
     function _getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) internal pure virtual returns (uint256 periodicInterestRate_) {
         return (interestRate_ * interval_) / uint256(365 days);
+    }
+
+    /// @dev Returns refinance commitment given refinance parameters.
+    function _getRefinanceCommitment(address refinancer_, bytes[] calldata calls_) internal pure returns (bytes32 refinanceCommitment_) {
+        return keccak256(abi.encode(refinancer_, calls_));
     }
 
     /**

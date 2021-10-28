@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
+import { IERC20 }             from "../modules/erc20/src/interfaces/IERC20.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
@@ -39,14 +40,13 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /*** Borrow Functions ***/
     /************************/
 
-    function postCollateral(uint256 amount_) external override returns (uint256 postedAmount_) {
-        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_);
-
-        emit CollateralPosted(postedAmount_ = _postCollateral());
-    }
-
-    function drawdownFunds(uint256 amount_, address destination_) external override {
+    function drawdownFunds(uint256 amount_, address destination_) external override returns (uint256 collateralPosted_) {
         require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
+
+        if (amount_ == uint256(0)) return uint256(0);
+
+        // Post additional collateral required to facilitate this drawdown, if needed.
+        postCollateral(collateralPosted_ = getAdditionalCollateralRequiredFor(amount_));
 
         _drawdownFunds(amount_, destination_);
 
@@ -61,18 +61,32 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit PaymentMade(principal_, interest_);
     }
 
+    function postCollateral(uint256 amount_) public override returns (uint256 collateralPosted_) {
+        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_);
+
+        emit CollateralPosted(collateralPosted_ = _postCollateral());
+    }
+
+    function proposeNewTerms(address refinancer_, bytes[] calldata calls_) external override {
+        require(msg.sender == _borrower, "ML:PNT:NOT_BORROWER");
+
+        emit NewTermsProposed(_proposeNewTerms(refinancer_, calls_), refinancer_, calls_);
+    }
+
     function removeCollateral(uint256 amount_, address destination_) external override {
         require(msg.sender == _borrower, "ML:RC:NOT_BORROWER");
+
+        if (amount_ == uint256(0)) return;
 
         _removeCollateral(amount_, destination_);
 
         emit CollateralRemoved(amount_, destination_);
     }
 
-    function returnFunds(uint256 amount_) external override returns (uint256 returnedAmount_) {
+    function returnFunds(uint256 amount_) public override returns (uint256 fundsReturned_) {
         if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
 
-        emit FundsReturned(returnedAmount_ = _returnFunds());
+        emit FundsReturned(fundsReturned_ = _returnFunds());
     }
 
     function setBorrower(address borrower_) external override {
@@ -85,34 +99,45 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /*** Lend Functions ***/
     /**********************/
 
-    function fundLoan(address lender_, uint256 amount_) external override returns (uint256 amountFunded_) {
+    function acceptNewTerms(address refinancer_, bytes[] calldata calls_, uint256 amount_) external override {
+        require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
+
         if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
 
-        if (_nextPaymentDueDate > 0) {
-            ERC20Helper.transfer(_fundsAsset, _lender, amountFunded_ = _getUnaccountedAmount(_fundsAsset));
-
-            emit FundsRedirected(amountFunded_, _lender);
-
-            return amountFunded_;
-        }
-
-        emit Funded(lender_, amountFunded_ = _fundLoan(lender_), _nextPaymentDueDate);
+        emit NewTermsAccepted(_acceptNewTerms(refinancer_, calls_), refinancer_, calls_);
     }
 
     function claimFunds(uint256 amount_, address destination_) external override {
         require(msg.sender == _lender, "ML:CF:NOT_LENDER");
+
+        if (amount_ == uint256(0)) return;
 
         _claimFunds(amount_, destination_);
 
         emit FundsClaimed(amount_, destination_);
     }
 
-    function repossess(address destination_) external override returns (uint256 collateralAssetAmount_, uint256 fundsAssetAmount_) {
+    function fundLoan(address lender_, uint256 amount_) external override returns (uint256 fundsLent_) {
+        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+
+        if (_nextPaymentDueDate > 0) {
+            // If the loan is active, send any unaccounted amount of funds asset toi the internally saved lender.
+            ERC20Helper.transfer(_fundsAsset, _lender, fundsLent_ = _getUnaccountedAmount(_fundsAsset));
+
+            emit FundsRedirected(fundsLent_, _lender);
+
+            return fundsLent_;
+        }
+
+        emit Funded(lender_, fundsLent_ = _fundLoan(lender_), _nextPaymentDueDate);
+    }
+
+    function repossess(address destination_) external override returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         require(msg.sender == _lender, "ML:R:NOT_LENDER");
 
-        ( collateralAssetAmount_, fundsAssetAmount_ ) = _repossess(destination_);
+        ( collateralRepossessed_, fundsRepossessed_ ) = _repossess(destination_);
 
-        emit Repossessed(collateralAssetAmount_, fundsAssetAmount_, destination_);
+        emit Repossessed(collateralRepossessed_, fundsRepossessed_, destination_);
     }
 
     function setLender(address lender_) external override {
@@ -121,22 +146,16 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit LenderSet(_lender = lender_);
     }
 
-    /***************************/
-    /*** Refinance Functions ***/
-    /***************************/
+    /*******************************/
+    /*** Miscellaneous Functions ***/
+    /*******************************/
 
-    function proposeNewTerms(address refinancer_, bytes[] calldata calls_) external override {
-        require(msg.sender == _borrower, "ML:PNT:NOT_BORROWER");
+    function skim(address token_, address destination_) external override returns (uint256 skimmed_) {
+        require((msg.sender == _borrower) || (msg.sender == _lender),                                           "L:S:NO_AUTH");
+        require((token_ != _fundsAsset) && (token_ != _collateralAsset),                                        "L:S:INVALID_TOKEN");
+        require(ERC20Helper.transfer(token_, destination_, skimmed_ = IERC20(token_).balanceOf(address(this))), "L:S:TRANSFER_FAILED");
 
-        emit NewTermsProposed(_proposeNewTerms(refinancer_, calls_), refinancer_, calls_);
-    }
-
-    function acceptNewTerms(address refinancer_, bytes[] calldata calls_, uint256 amount_) external override {
-        require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
-
-        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
-
-        emit NewTermsAccepted(_acceptNewTerms(refinancer_, calls_), refinancer_, calls_);
+        emit Skimmed(token_, skimmed_, destination_);
     }
 
     /**********************/
@@ -147,20 +166,20 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _factory();
     }
 
-    function getAdditionalCollateralRequiredFor(uint256 drawdownAmount_) external view override returns (uint256 collateral_) {
-        uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds - drawdownAmount_, _principalRequested, _collateralRequired);
+    function excessCollateral() external view override returns (uint256 excessCollateral_) {
+        uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
+
+        return _collateral > collateralNeeded ? _collateral - collateralNeeded : uint256(0);
+    }
+
+    function getAdditionalCollateralRequiredFor(uint256 drawdown_) public view override returns (uint256 collateral_) {
+        uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds - drawdown_, _principalRequested, _collateralRequired);
 
         return collateralNeeded > _collateral ? collateralNeeded - _collateral : uint256(0);
     }
 
     function getNextPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
         ( principal_, interest_ ) = _getNextPaymentBreakdown();
-    }
-
-    function getRemovableCollateral() external view override returns (uint256 removableCollateral_) {
-        uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
-
-        return _collateral > collateralNeeded ? _collateral - collateralNeeded : uint256(0);
     }
 
     function implementation() external view override returns (address implementation_) {
