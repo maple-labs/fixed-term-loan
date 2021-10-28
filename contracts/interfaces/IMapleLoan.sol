@@ -163,14 +163,12 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function fundLoan(address lender_, uint256 amount_) external returns (uint256 amountFunded_);
 
     /**
-     *  @dev    Make several installment payments to the loan.
-     *  @param  numberOfPayments_ The number of payment installments to make.
+     *  @dev    Make a payment to the loan.
      *  @param  amount_           An amount to pull from the caller, if any.
      *  @return principal_        The portion of the amount paid paying back principal.
      *  @return interest_         The portion of the amount paid paying interest fees.
-     *  @return fees_             The portion of the amount paid paying late fees.
      */
-    function makePayments(uint256 numberOfPayments_, uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 fees_);
+    function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Post collateral to the loan.
@@ -228,15 +226,12 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.
-     *  @param  numberOfPayments_     The number of payment installments.
      *  @return totalPrincipalAmount_ The portion of the total amount that will go towards principal.
      *  @return totalInterestFees_    The portion of the total amount that will go towards interest fees.
-     *  @return totalLateFees_        The portion of the total amount that will go towards late fees.
      */
-    function getNextPaymentsBreakDown(uint256 numberOfPayments_) external view returns (
+    function getNextPaymentBreakdown() external view returns (
         uint256 totalPrincipalAmount_,
-        uint256 totalInterestFees_,
-        uint256 totalLateFees_
+        uint256 totalInterestFees_
     );
 
     function getRemovableCollateral() external view returns (uint256 removableCollateral_);

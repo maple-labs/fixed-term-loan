@@ -37,10 +37,10 @@ contract MapleBorrowerInternals is MapleProxied {
         IMapleLoan(loan_).drawdownFunds(amount_, destination_);
     }
 
-    function _makePayments(address loan_, uint256 numberOfPayments_) internal {
-        ( uint256 principal, uint256 interest, uint256 fees ) = IMapleLoan(loan_).getNextPaymentsBreakDown(numberOfPayments_);
+    function _makePayment(address loan_) internal {
+        ( uint256 principal, uint256 interest ) = IMapleLoan(loan_).getNextPaymentBreakdown();
 
-        uint256 total         = principal + interest + fees;
+        uint256 total         = principal + interest;
         uint256 drawableFunds = IMapleLoan(loan_).drawableFunds();
 
         require(
@@ -48,7 +48,13 @@ contract MapleBorrowerInternals is MapleProxied {
             "MBI:MP:TRANSFER_FAILED"
         );
 
-        IMapleLoan(loan_).makePayments(numberOfPayments_, uint256(0));
+        IMapleLoan(loan_).makePayment(uint256(0));
+    }
+
+    function _makePayments(address loan_, uint256 numberOfPayments_) internal {
+        while (numberOfPayments_-- > 0) {
+            _makePayment(loan_);
+        }
     }
 
     function _makePaymentsWithCutoff(address loan_, uint256 cutoffDate_) internal returns (bool hasPaymentsWithinCutoff_) {

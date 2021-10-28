@@ -13,10 +13,6 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _acceptNewTerms(refinancer_, calls_);
     }
 
-    function accountForPayments(uint256 numberOfPayments_, uint256 totalPaid_, uint256 principalPaid_) external {
-        _accountForPayments(numberOfPayments_, totalPaid_, principalPaid_);
-    }
-
     function claimFunds(uint256 amount_, address destination_) external {
         _claimFunds(amount_, destination_);
     }
@@ -39,8 +35,8 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _fundLoan(lender_);
     }
 
-    function makePayments(uint256 numberOfPayments_) external returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        return _makePayments(numberOfPayments_);
+    function makePayment() external returns (uint256 principal_, uint256 interest_) {
+        return _makePayment();
     }
 
     function postCollateral() external returns (uint256 amount_) {
@@ -71,43 +67,8 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _generateRefinanceCommitment(refinancer_, calls_);
     }
 
-    function getCurrentPaymentsBreakdown(uint256 numberOfPayments_) external view returns (uint256 principal_, uint256 interest_) {
-        return _getCurrentPaymentsBreakdown(numberOfPayments_);
-    }
-
-    function getEarlyPayments(uint256 numberOfPayments_) external view returns (uint256 earlyPayments_) {
-        return _getEarlyPayments(numberOfPayments_);
-    }
-
-    function getLatePayments(uint256 numberOfPayments_) external view returns (uint256 latePayments_) {
-        return _getLatePayments(numberOfPayments_);
-    }
-
-    function getNextPaymentsBreakDown(uint256 numberOfPayments_)
-        external view
-        returns (
-            uint256 principal_,
-            uint256 interest_,
-            uint256 adminFee_,
-            uint256 serviceFee_
-        )
-    {
-        return _getNextPaymentsBreakDown(numberOfPayments_);
-    }
-
-    function getPaymentFees(
-        uint256 amount_,
-        uint256 numberOfPayments_,
-        uint256 earlyPayments_,
-        uint256 latePayments_
-    )
-        external view
-        returns (
-            uint256 adminFee_,
-            uint256 serviceCharge_
-        )
-    {
-        return _getPaymentFees(amount_, numberOfPayments_, earlyPayments_, latePayments_);
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
+        return _getNextPaymentBreakdown();
     }
 
     function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
@@ -333,8 +294,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _getInterest(principal_, interestRate_, interval_);
     }
 
-    function getPaymentsBreakdown(
-        uint256 numberOfPayments_,
+    function getPaymentBreakdown(
         uint256 currentTime_,
         uint256 nextPaymentDueDate_,
         uint256 paymentInterval_,
@@ -342,6 +302,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         uint256 endingPrincipal_,
         uint256 paymentsRemaining_,
         uint256 interestRate_,
+        uint256 lateFeeRate_,
         uint256 lateInterestRatePremium_
     )
         external pure
@@ -350,8 +311,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
             uint256 interestAmount_
         )
     {
-        return _getPaymentsBreakdown(
-            numberOfPayments_,
+        return _getPaymentBreakdown(
             currentTime_,
             nextPaymentDueDate_,
             paymentInterval_,
@@ -359,6 +319,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
             endingPrincipal_,
             paymentsRemaining_,
             interestRate_,
+            lateFeeRate_,
             lateInterestRatePremium_
         );
     }

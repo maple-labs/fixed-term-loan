@@ -115,18 +115,6 @@ contract MapleLoanInternals is MapleProxied {
     /*** Internal Borrow-side Functions ***/
     /**************************************/
 
-    // TODO: fix it
-    /// @dev Perform state changes to account for a payments made
-    function _accountForPayments(uint256 numberOfPayments_, uint256 totalPaid_, uint256 principalPaid_) internal {
-        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
-        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid_;
-
-        _claimableFunds     += totalPaid_;
-        _nextPaymentDueDate += _paymentInterval * numberOfPayments_;
-        _principal          -= principalPaid_;
-        _paymentsRemaining  -= numberOfPayments_;
-    }
-
     /// @dev Sends `amount_` of `_drawableFunds` to `destination_`.
     function _drawdownFunds(uint256 amount_, address destination_) internal {
         _drawableFunds -= amount_;
@@ -135,23 +123,18 @@ contract MapleLoanInternals is MapleProxied {
         require(_isCollateralMaintained(),                                "MLI:DF:INSUFFICIENT_COLLATERAL");
     }
 
-    function _makePayments(uint256 numberOfPayments_) internal returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        uint256 adminFee;
-        uint256 serviceFee;
+    function _makePayment() internal returns (uint256 principal_, uint256 interest_) {
+        ( principal_, interest_ ) = _getNextPaymentBreakdown();
 
-        ( principal_, interest_, adminFee, serviceFee ) = _getNextPaymentsBreakDown(numberOfPayments_);
+        uint256 totalPaid_ = principal_ + interest_;
 
-        fees_ = adminFee + serviceFee;
+        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
+        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid_;
 
-        // Update Loan accounting, with `totalPaid_` being principal, interest, and fees.
-        _accountForPayments(numberOfPayments_, principal_ + interest_ + fees_ , principal_);
-
-        // Transfer admin fees, if any, to pool delegate, and decrement claimable funds.
-        if (adminFee > uint256(0)) {
-            require(ERC20Helper.transfer(_fundsAsset, ILenderLike(_lender).poolDelegate(), adminFee), "MLI:MP:PD_TRANSFER");
-
-            _claimableFunds -= adminFee;
-        }
+        _claimableFunds     += totalPaid_;
+        _nextPaymentDueDate += _paymentInterval ;
+        _principal          -= principal_;
+        _paymentsRemaining--;
     }
 
     /// @dev Registers the delivery of an amount of collateral to be posted.
@@ -258,93 +241,18 @@ contract MapleLoanInternals is MapleProxied {
         return _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
-    /// @dev Returns total principal and interest portion of a number of payments, given current loan state.
-    function _getCurrentPaymentsBreakdown(uint256 numberOfPayments_) internal view virtual returns (uint256 principal_, uint256 interest_) {
-        uint256 paymentsRemaining = _paymentsRemaining;
-
-        // NOTE: Interest rate to use for all payments will be discounted if the entire loan is being paid off early.
-        ( principal_, interest_ ) = _getPaymentsBreakdown(
-            numberOfPayments_,
+    function _getNextPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
+        ( principal_, interest_ ) = _getPaymentBreakdown(
             block.timestamp,
             _nextPaymentDueDate,
             _paymentInterval,
             _principal,
             _endingPrincipal,
             _paymentsRemaining,
-            _interestRate - (paymentsRemaining > 1 && numberOfPayments_ == paymentsRemaining ? _earlyInterestRateDiscount : uint256(0)),
+            _interestRate,
+            _lateFeeRate,
             _lateInterestRatePremium
         );
-    }
-
-    // TODO: Revisit equation to see if there is a more efficient way to do this mathematically
-    function _getEarlyPayments(uint256 numberOfPayments_) internal view returns (uint256 earlyPayments_) {
-        uint256 excludedPayments =
-            _nextPaymentDueDate < block.timestamp                                       // If late, exclude 2 payments (one late, one on-time),
-                ? 2 + (block.timestamp - (_nextPaymentDueDate + 1)) / _paymentInterval  // 2 + extra late payments.
-                : _nextPaymentDueDate - block.timestamp < _paymentInterval              // If on-time, and not early.
-                    ? 1
-                    : 0;
-
-        earlyPayments_ = excludedPayments < numberOfPayments_ ? numberOfPayments_ - excludedPayments : 0;
-    }
-
-    function _getLatePayments(uint256 numberOfPayments_) internal view returns (uint256 latePayments_) {
-        uint256 nextPaymentDueDate = _nextPaymentDueDate;
-
-        // If the current timestamp is before or on the cutoff, there are no late payments here.
-        if (block.timestamp <= nextPaymentDueDate) return uint256(0);
-
-        // Get the number of late payments and "round up".
-        latePayments_ = uint256(1) + ((block.timestamp - nextPaymentDueDate) / _paymentInterval);
-
-        // Number of late payments being made is fewer of latePayments_ or numberOfPayments_.
-        latePayments_ = numberOfPayments_ < latePayments_ ? numberOfPayments_ : latePayments_;
-    }
-
-    function _getNextPaymentsBreakDown(uint256 numberOfPayments_)
-        internal view
-        returns (
-            uint256 principal_,
-            uint256 interest_,
-            uint256 adminFee_,
-            uint256 serviceFee_
-        )
-    {
-        // Get principal and interest amounts, including discounted/premium rates for early/late payments.
-        ( principal_, interest_ ) = _getCurrentPaymentsBreakdown(numberOfPayments_);
-
-        // Calculate flat rate and flat fee amounts for early/late payments.
-        // TODO: Revisit names for fees
-        // TODO: Check if we should check for on time payments and reduce the cost for those for the premium calculation.
-        ( adminFee_, serviceFee_ ) = _getPaymentFees(
-            _principal,                            // Use current principal balance.
-            numberOfPayments_,                     // Number of payments being made.
-            _getEarlyPayments(numberOfPayments_),  // Get number of payments made early.
-            _getLatePayments(numberOfPayments_)    // Get number of payments made late.
-        );
-    }
-
-    function _getPaymentFees(
-        uint256 amount_,
-        uint256 numberOfPayments_,
-        uint256 earlyPayments_,
-        uint256 latePayments_
-    )
-        internal view
-        returns (
-            uint256 adminFee_,
-            uint256 serviceCharge_
-        )
-    {
-        if (earlyPayments_ > uint256(0) && _paymentsRemaining == numberOfPayments_) {
-            adminFee_      += _earlyFee;
-            serviceCharge_ += _earlyFeeRate * amount_ / 10 ** 18;
-        }
-
-        if (latePayments_ > uint256(0)) {
-            adminFee_      += _lateFee * latePayments_;
-            serviceCharge_ += (_lateFeeRate * amount_ * latePayments_) / numberOfPayments_ / 10 ** 18;
-        }
     }
 
     // TODO: write more verbose description
@@ -414,8 +322,7 @@ contract MapleLoanInternals is MapleProxied {
     }
 
     /// @dev Returns total principal and interest portion of a number of payments, given generic, stateless loan parameters and loan state.
-    function _getPaymentsBreakdown(
-        uint256 numberOfPayments_,
+    function _getPaymentBreakdown(
         uint256 currentTime_,
         uint256 nextPaymentDueDate_,
         uint256 paymentInterval_,
@@ -423,34 +330,25 @@ contract MapleLoanInternals is MapleProxied {
         uint256 endingPrincipal_,
         uint256 paymentsRemaining_,
         uint256 interestRate_,
+        uint256 lateFeeRate_,
         uint256 lateInterestRatePremium_
     )
         internal pure virtual
         returns (uint256 principalAmount_, uint256 interestAmount_)
     {
-        // For each payments (current and late)
-        for (; numberOfPayments_ > uint256(0); --numberOfPayments_) {
-            // Get the expected principal and interest portions for the payment.
-            ( uint256 principalAmount, uint256 interestAmount ) = _getInstallment(
-                principal_,
-                endingPrincipal_,
-                interestRate_,
-                paymentInterval_,
-                paymentsRemaining_--
-            );
+        ( principalAmount_,interestAmount_ ) = _getInstallment(
+            principal_,
+            endingPrincipal_,
+            interestRate_,
+            paymentInterval_,
+            paymentsRemaining_
+        );
 
-            // If payment is late, add interest premium given late interest rate premium and late time.
-            // TODO: Revisit this late fee mechanism when comparing to CSVs
-            if (currentTime_ > nextPaymentDueDate_) {
-                interestAmount += _getInterest(principal_, interestRate_ + lateInterestRatePremium_, currentTime_ - nextPaymentDueDate_);
-            }
+        principalAmount_ = paymentsRemaining_ == uint256(1) ? principal_ : principalAmount_;
 
-            // Update local variables
-            // NOTE: The principal amount is overridden with the entire remaining principal, if this is the last payment.
-            interestAmount_     += interestAmount;
-            nextPaymentDueDate_ += paymentInterval_;
-            principalAmount_    += paymentsRemaining_ == 0 ? principal_ : principalAmount;
-            principal_          -= principalAmount;
+        if (currentTime_ > nextPaymentDueDate_) {
+            interestAmount_ += _getInterest(principal_, interestRate_ + lateInterestRatePremium_, currentTime_ - nextPaymentDueDate_);
+            interestAmount_ += lateFeeRate_ * principal_ / ONE;
         }
     }
 

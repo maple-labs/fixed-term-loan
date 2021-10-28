@@ -14,6 +14,8 @@ interface IMapleBorrower is IMapleProxied, IOwnable {
 
     function batchDrawdownFunds(address[] calldata loans_, uint256[] calldata amounts_, address destination_) external;
 
+    function batchMakePayment(address[] calldata loans_) external;
+
     function batchMakePayments(address[] calldata loans_, uint256[] calldata numberOfPayments_) external;
 
     function batchMakePaymentsWithCutoff(address[] calldata loans_, uint256 cutoffDate_) external;
@@ -41,6 +43,8 @@ interface IMapleBorrower is IMapleProxied, IOwnable {
     /************************/
 
     function drawdownFunds(address loan_, uint256 amount_, address destination_) external;
+
+    function makePayment(address loan_) external;
 
     function makePayments(address loan_, uint256 numberOfPayments_) external;
 

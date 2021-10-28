@@ -71,11 +71,11 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
         hevm.warp(loan.nextPaymentDueDate());
 
         // Check details for upcoming payment #1
-        ( uint256 principalPortion, uint256 interestPortion, uint256 lateFeesPortion ) = loan.getNextPaymentsBreakDown(1);
+        ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
         // Make payment #1
-        token.mint(address(loan), principalPortion + interestPortion + lateFeesPortion);
-        loan.makePayments(1, 0);
+        token.mint(address(loan), principalPortion + interestPortion);
+        loan.makePayment(0);
     }
 
     function _encodeWithSignatureAndUint(string memory signature_, uint256 arg_) internal pure returns (bytes[] memory calls) {
@@ -114,7 +114,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         // Current ending principal is requested amount
         assertEq(loan.endingPrincipal(), loan.principalRequested());
 
-        ( uint256 principalPortion, , ) = loan.getNextPaymentsBreakDown(1);
+        ( uint256 principalPortion, ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion, 0);
 
@@ -125,7 +125,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
-        ( principalPortion, , ) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, ) = loan.getNextPaymentBreakdown();
 
         assertTrue(principalPortion > 0);
     }
@@ -156,7 +156,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         // Current ending principal is requested amount
         assertTrue(loan.endingPrincipal() < loan.principalRequested());
 
-        ( uint256 principalPortion, , ) = loan.getNextPaymentsBreakDown(1);
+        ( uint256 principalPortion, ) = loan.getNextPaymentBreakdown();
 
         assertTrue(principalPortion > 0);
 
@@ -168,7 +168,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
-        ( principalPortion, , ) = loan.getNextPaymentsBreakDown(1);
+        ( principalPortion, ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion, 0);
     }

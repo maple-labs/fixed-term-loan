@@ -54,9 +54,15 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
         }
     }
 
-    function batchMakePayments(address[] calldata loans_, uint256[] calldata numberOfPayments_) external override {
+    function batchMakePayment(address[] calldata loans_) external override {
         for (uint256 i; i < loans_.length; ++i) {
-            _makePayments(loans_[i], numberOfPayments_[i]);
+            _makePayment(loans_[i]);
+        }
+    }
+
+    function batchMakePayments(address[] calldata loans_, uint256[] calldata numbersOfPayments_) external override {
+        for (uint256 i; i < loans_.length; ++i) {
+            _makePayments(loans_[i], numbersOfPayments_[i]);
         }
     }
 
@@ -98,7 +104,7 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
 
     function batchRemoveAvailableCollateral(address[] calldata loans_, address destination_) external override onlyOwner {
         bool needed;
-        
+
         for (uint256 i; i < loans_.length; ++i) {
             needed = needed || _removeAvailableCollateral(loans_[i], destination_);
         }
@@ -152,6 +158,10 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
         _drawdownFunds(loan_, amount_, destination_);
     }
 
+    function makePayment(address loan_) external override {
+        _makePayment(loan_);
+    }
+
     function makePayments(address loan_, uint256 numberOfPayments_) external override {
         _makePayments(loan_, numberOfPayments_);
     }
@@ -174,7 +184,7 @@ contract MapleBorrower is IMapleBorrower, MapleBorrowerInternals {
 
     function removeAvailableCollateral(address loan_, address destination_) external override onlyOwner {
         require(_removeAvailableCollateral(loan_, destination_), "MB:RC:NONE_REMOVABLE");
-    }  
+    }
 
     function removeCollateral(address loan_, uint256 amount_, address destination_) external override onlyOwner {
         _removeCollateral(loan_, amount_, destination_);

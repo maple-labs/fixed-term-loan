@@ -107,12 +107,10 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Payments were made.
-     *  @param numberOfPayments_ The number of payment installments made.
      *  @param principalPaid_    The portion of the total amount that went towards principal.
      *  @param interestPaid_     The portion of the total amount that went towards interest fees.
-     *  @param lateFeesPaid_     The portion of the total amount that went towards late fees.
      */
-    event PaymentsMade(uint256 numberOfPayments_, uint256 principalPaid_, uint256 interestPaid_, uint256 lateFeesPaid_);
+    event PaymentMade(uint256 principalPaid_, uint256 interestPaid_);
 
     /**
      *  @dev   The loan was in default and funds and collateral was repossessed by the lender.

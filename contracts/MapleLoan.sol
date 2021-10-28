@@ -53,20 +53,12 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit FundsDrawnDown(amount_, destination_);
     }
 
-    function makePayments(uint256 numberOfPayments_, uint256 amount_)
-        external
-        override
-        returns (
-            uint256 principal_,
-            uint256 interest_,
-            uint256 fees_
-        )
-    {
+    function makePayment(uint256 amount_) external override returns (uint256 principal_,uint256 interest_) {
         if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
 
-        ( principal_, interest_, fees_ ) = _makePayments(numberOfPayments_);
+        ( principal_, interest_ ) = _makePayment();
 
-        emit PaymentsMade(numberOfPayments_, principal_, interest_, fees_);
+        emit PaymentMade(principal_, interest_);
     }
 
     function removeCollateral(uint256 amount_, address destination_) external override {
@@ -161,20 +153,8 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return collateralNeeded > _collateral ? collateralNeeded - _collateral : uint256(0);
     }
 
-    function getNextPaymentsBreakDown(uint256 numberOfPayments_)
-        external view override
-        returns (
-            uint256 principal_,
-            uint256 interest_,
-            uint256 fees_
-        )
-    {
-        uint256 adminFee;
-        uint256 serviceFee;
-
-        ( principal_, interest_, adminFee, serviceFee ) = _getNextPaymentsBreakDown(numberOfPayments_);
-
-        fees_ = adminFee + serviceFee;
+    function getNextPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
+        ( principal_, interest_ ) = _getNextPaymentBreakdown();
     }
 
     function getRemovableCollateral() external view override returns (uint256 removableCollateral_) {
