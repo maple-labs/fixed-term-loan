@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.7;
 
-import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 } from "../../modules/erc20/src/test/mocks/MockERC20.sol";
+import { TestUtils, Hevm, StateManipulations } from "../../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
 import { MapleLoanInternalsHarness } from "./harnesses/MapleLoanInternalsHarness.sol";
 
@@ -916,6 +916,229 @@ contract MapleLoanInternals_MakePaymentsTests is TestUtils {
         assertEq(_loan.principal(),          principalRequested_ - principal);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + (2 * paymentInterval_));
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
+    }
+
+}
+
+
+contract MapleLoanInternals_CloseLoan is StateManipulations, TestUtils {
+
+    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+
+    MapleLoanInternalsHarness internal _loan;
+    MockERC20                 internal _fundsAsset;
+
+    function setUp() external {
+        _fundsAsset = new MockERC20("FundsAsset", "FA", 0);
+        _loan       = new MapleLoanInternalsHarness();
+
+        _loan.setFundsAsset(address(_fundsAsset));
+    }
+
+    function setupLoan(
+        address loan_,
+        uint256 principalRequested_,
+        uint256 paymentsRemaining_,
+        uint256 paymentInterval_,
+        uint256 interestRate_,
+        uint256 endingPrincipal_,
+        uint256 earlyFeeRate_
+    ) internal {
+        MapleLoanInternalsHarness(loan_).setPrincipalRequested(principalRequested_);
+        MapleLoanInternalsHarness(loan_).setPrincipal(principalRequested_);
+        MapleLoanInternalsHarness(loan_).setDrawableFunds(principalRequested_);
+
+        MapleLoanInternalsHarness(loan_).setPaymentsRemaining(paymentsRemaining_);
+        MapleLoanInternalsHarness(loan_).setPaymentInterval(paymentInterval_);
+        MapleLoanInternalsHarness(loan_).setInterestRate(interestRate_);
+        MapleLoanInternalsHarness(loan_).setEndingPrincipal(endingPrincipal_);
+        MapleLoanInternalsHarness(loan_).setNextPaymentDueDate(block.timestamp + paymentInterval_);
+
+        MapleLoanInternalsHarness(loan_).setEarlyFeeRate(earlyFeeRate_);
+    }
+
+    function test_closeLoan(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 endingPrincipal_,
+        uint256 earlyFeeRate_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100,     365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,       120);
+        interestRate_       = constrictToRange(interestRate_,       0,       1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 1,       MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,       principalRequested_);
+        earlyFeeRate_       = constrictToRange(earlyFeeRate_,       0.01e18, 1.00e18);
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_, earlyFeeRate_);
+
+        // Setting drawable to zero to simulate a drawdown
+        MapleLoanInternalsHarness(_loan).setDrawableFunds(0);
+
+        uint256 closingAmount = principalRequested_ + (principalRequested_ * earlyFeeRate_ / 10 ** 18);
+
+        assertEq(_loan.drawableFunds(),      0);
+        assertEq(_loan.claimableFunds(),     0);
+        assertEq(_loan.principal(),          principalRequested_);
+        assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
+        assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
+
+        _fundsAsset.mint(address(_loan), closingAmount);
+
+        ( uint256 principal, uint256 interest ) = _loan.closeLoan();
+
+        uint256 totalPaid = principal + interest;
+
+        assertEq(totalPaid,                  closingAmount);
+        assertEq(_loan.drawableFunds(),      0);
+        assertEq(_loan.claimableFunds(),     totalPaid);
+        assertEq(_loan.principal(),          0);
+        assertEq(_loan.nextPaymentDueDate(), 0);
+        assertEq(_loan.paymentsRemaining(),  0);
+    }
+
+    function test_closeLoan_withDrawableFunds(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 endingPrincipal_,
+        uint256 earlyFeeRate_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100,     365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,       120);
+        interestRate_       = constrictToRange(interestRate_,       0,       1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 1,       MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,       principalRequested_);
+        earlyFeeRate_       = constrictToRange(earlyFeeRate_,       0.01e18, 1.00e18);
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_, earlyFeeRate_);
+
+        // Sending funds to loan
+        _fundsAsset.mint(address(_loan), principalRequested_);
+
+        // Only fee needs to be sent, since drawdown never ocurred
+        uint256 closingAmount = principalRequested_ * earlyFeeRate_ / 10 ** 18;
+
+        assertEq(_loan.drawableFunds(),      principalRequested_);
+        assertEq(_loan.claimableFunds(),     0);
+        assertEq(_loan.principal(),          principalRequested_);
+        assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
+        assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
+
+        _fundsAsset.mint(address(_loan), closingAmount);
+
+        ( uint256 principal, uint256 interest) = _loan.closeLoan();
+
+        uint256 totalPaid = principal + interest;
+
+        assertEq(totalPaid - principalRequested_, closingAmount);
+        assertEq(_loan.claimableFunds(),           totalPaid);
+        assertEq(_loan.drawableFunds(),            0);
+        assertEq(_loan.principal(),                0);
+        assertEq(_loan.nextPaymentDueDate(),       0);
+        assertEq(_loan.paymentsRemaining(),        0);
+    }
+
+    function test_closeLoan_withRemainderAsDrawableFunds(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 endingPrincipal_,
+        uint256 earlyFeeRate_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100,     365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,       120);
+        interestRate_       = constrictToRange(interestRate_,       0,       1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 1,       MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,       principalRequested_);
+        earlyFeeRate_       = constrictToRange(earlyFeeRate_,       0.01e18, 1.00e18);
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_, earlyFeeRate_);
+
+        // Sending funds to loan
+        _fundsAsset.mint(address(_loan), principalRequested_);
+
+        // Only fee needs to be sent, since drawdown never ocurred
+        uint256 closingAmount = principalRequested_ * earlyFeeRate_ / 10 ** 18;
+        uint256 extraFunds    = 1 ether;
+
+        assertEq(_loan.drawableFunds(),      principalRequested_);
+        assertEq(_loan.claimableFunds(),     0);
+        assertEq(_loan.principal(),          principalRequested_);
+        assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
+        assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
+
+        _fundsAsset.mint(address(_loan), closingAmount + extraFunds);
+
+        ( uint256 principal, uint256 interest) = _loan.closeLoan();
+
+        uint256 totalPaid = principal + interest;
+
+        assertEq(totalPaid - principalRequested_,  closingAmount);
+        assertEq(_loan.drawableFunds(),            extraFunds);
+        assertEq(_loan.claimableFunds(),           totalPaid);
+        assertEq(_loan.principal(),                0);
+        assertEq(_loan.nextPaymentDueDate(),       0);
+        assertEq(_loan.paymentsRemaining(),        0);
+    }
+
+    function test_closeLoan_failIfPaymentIsLate(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 endingPrincipal_,
+        uint256 earlyFeeRate_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100,     365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,       120);
+        interestRate_       = constrictToRange(interestRate_,       0,       1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 1,       MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,       principalRequested_);
+        earlyFeeRate_       = constrictToRange(earlyFeeRate_,       0.01e18, 1.00e18);
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_, earlyFeeRate_);
+
+        // Sending funds to loan
+        _fundsAsset.mint(address(_loan), principalRequested_);
+
+        uint256 closingAmount = principalRequested_ * earlyFeeRate_ / 10 ** 18;
+
+        assertEq(_loan.drawableFunds(),      principalRequested_);
+        assertEq(_loan.claimableFunds(),     0);
+        assertEq(_loan.principal(),          principalRequested_);
+        assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
+        assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
+
+        _fundsAsset.mint(address(_loan), closingAmount);
+
+        hevm.warp(block.timestamp + paymentInterval_ + 1);
+
+        try _loan.closeLoan() { assertTrue(false, "Cannot close when late"); } catch { }
+        // Returning to being on-time 
+        hevm.warp(block.timestamp - 2);
+
+        ( uint256 principal, uint256 interest) = _loan.closeLoan();
+
+        uint256 totalPaid = principal + interest;
+
+        assertEq(_loan.drawableFunds(),      0);
+        assertEq(_loan.claimableFunds(),     totalPaid);
+        assertEq(_loan.principal(),          0);
+        assertEq(_loan.nextPaymentDueDate(), 0);
+        assertEq(_loan.paymentsRemaining(),  0);   
     }
 
 }

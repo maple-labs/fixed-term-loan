@@ -123,6 +123,23 @@ contract MapleLoanInternals is MapleProxied {
         require(_isCollateralMaintained(),                                "MLI:DF:INSUFFICIENT_COLLATERAL");
     }
 
+    function _closeLoan() internal returns (uint256 principal_, uint256 interest_) {
+        require(block.timestamp <= _nextPaymentDueDate, "MLI:CL:PAYMENT_IS_LATE");
+
+        interest_  = _principal * _earlyFeeRate / ONE; 
+        principal_ = _principal;
+
+        uint256 totalPaid_ = principal_ + interest_;
+
+        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
+        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid_;
+
+        _claimableFunds     += totalPaid_;
+        _nextPaymentDueDate  = uint256(0);
+        _principal           = uint256(0);
+        _paymentsRemaining   = uint256(0);
+    }
+
     function _makePayment() internal returns (uint256 principal_, uint256 interest_) {
         ( principal_, interest_ ) = _getNextPaymentBreakdown();
 
@@ -132,7 +149,7 @@ contract MapleLoanInternals is MapleProxied {
         _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid_;
 
         _claimableFunds     += totalPaid_;
-        _nextPaymentDueDate += _paymentInterval ;
+        _nextPaymentDueDate += _paymentInterval;
         _principal          -= principal_;
         _paymentsRemaining--;
     }

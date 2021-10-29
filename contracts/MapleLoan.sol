@@ -40,6 +40,15 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /*** Borrow Functions ***/
     /************************/
 
+    function closeLoan(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
+        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+
+        ( principal_, interest_ ) = _closeLoan();
+
+        // TODO discuss events with offchain team
+        emit PaymentMade(principal_, interest_);
+    }
+
     function drawdownFunds(uint256 amount_, address destination_) external override returns (uint256 collateralPosted_) {
         require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
 

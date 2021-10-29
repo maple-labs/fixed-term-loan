@@ -148,6 +148,14 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function claimFunds(uint256 amount_, address destination_) external;
 
     /**
+     *  @dev    Repay all principal and fees and close a loan.
+     *  @param  amount_    An amount to pull from the caller, if any.
+     *  @return principal_ The portion of the amount paid paying back principal.
+     *  @return interest_  The portion of the amount paid paying interest fees.
+     */
+    function closeLoan(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
+
+    /**
      *  @dev    Draw down funds from the loan.
      *  @param  amount_           The amount to draw down.
      *  @param  destination_      The address to send the funds.
@@ -165,9 +173,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Make a payment to the loan.
-     *  @param  amount_           An amount to pull from the caller, if any.
-     *  @return principal_        The portion of the amount paid paying back principal.
-     *  @return interest_         The portion of the amount paid paying interest fees.
+     *  @param  amount_    An amount to pull from the caller, if any.
+     *  @return principal_ The portion of the amount paid paying back principal.
+     *  @return interest_  The portion of the amount paid paying interest fees.
      */
     function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
 

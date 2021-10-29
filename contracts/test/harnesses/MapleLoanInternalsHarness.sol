@@ -17,6 +17,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _claimFunds(amount_, destination_);
     }
 
+    function closeLoan() external returns (uint256 principal_, uint256 interest_) {
+        return _closeLoan();
+    }
+
     function drawdownFunds(uint256 amount_, address destination_) external {
         _drawdownFunds(amount_, destination_);
     }
