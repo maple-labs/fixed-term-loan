@@ -3,7 +3,7 @@ pragma solidity ^0.8.7;
 
 import { User as ProxyUser } from "../../../modules/maple-proxy-factory/contracts/test/accounts/User.sol";
 
-import { IMapleLoan } from "../../interfaces/IMapleLoan.sol";
+import { IMapleLoan, IMapleProxied } from "../../interfaces/IMapleLoan.sol";
 
 import { LoanUser } from "./LoanUser.sol";
 
@@ -25,7 +25,11 @@ contract Borrower is LoanUser, ProxyUser {
         IMapleLoan(loan_).removeCollateral(amount_, destination_);
     }
 
-    function loan_setBorrower(address loan_, uint256 toVersion_, bytes calldata arguments_) external {
+    function loan_setBorrower(address loan_, address borrower_) external {
+        IMapleLoan(loan_).setBorrower(borrower_);
+    }
+
+    function loan_upgrade(address loan_, uint256 toVersion_, bytes calldata arguments_) external {
         IMapleLoan(loan_).upgrade(toVersion_, arguments_);
     }
 
@@ -47,6 +51,10 @@ contract Borrower is LoanUser, ProxyUser {
 
     function try_loan_setBorrower(address loan_, address borrower_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.setBorrower.selector, borrower_));
+    }
+
+    function try_loan_upgrade(address loan_, uint256 toVersion_, bytes calldata arguments_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleProxied.upgrade.selector, toVersion_, arguments_));
     }
 
 }
