@@ -21,12 +21,15 @@ contract MapleLoanInternals is MapleProxied {
     address internal _collateralAsset;  // The address of the asset used as collateral.
     address internal _fundsAsset;       // The address of the asset used as funds.
 
-    // Static Loan Parameters
-    uint256 internal _earlyInterestRateDiscount;  // The amount to decrease the interest rate by calling a loan early.
-    uint256 internal _gracePeriod;                // The number of seconds a payment can be late.
-    uint256 internal _interestRate;               // The annualized interest rate of the loan.
-    uint256 internal _lateInterestRatePremium;    // The amount to increase the interest rate by for late payments.
-    uint256 internal _paymentInterval;            // The number of seconds between payments.
+    // Loan Term Parameters
+    uint256 internal _gracePeriod;      // The number of seconds a payment can be late.
+    uint256 internal _paymentInterval;  // The number of seconds between payments.
+
+    // Rates
+    uint256 internal _interestRate;         // The annualized interest rate of the loan.
+    uint256 internal _earlyFeeRate;         // The fee rate for prematuraly closing lines.
+    uint256 internal _lateFeeRate;          // The fee rate for late payments
+    uint256 internal _lateInterestPremium;  // The amount to increase the interest rate by for late payments.
 
     // Requested Amounts
     uint256 internal _collateralRequired;  // The collateral the borrower is expected to put up to draw down all _principalRequested.
@@ -41,12 +44,6 @@ contract MapleLoanInternals is MapleProxied {
     uint256 internal _paymentsRemaining;   // The number of payment remaining.
     uint256 internal _principal;           // The amount of principal yet to be paid down.
 
-    // Fees
-    uint256 internal _earlyFee;
-    uint256 internal _earlyFeeRate;
-    uint256 internal _lateFee;
-    uint256 internal _lateFeeRate;
-
     // Refinance
     bytes32 internal _refinanceCommitment;
 
@@ -60,29 +57,26 @@ contract MapleLoanInternals is MapleProxied {
      *  @param assets_     Array of asset addresses.
      *                         [0]: collateralAsset,
      *                         [1]: fundsAsset.
-     *  @param parameters_ Array of loan parameters:
+     *  @param termDetails_ Array of loan parameters:
      *                         [0]: gracePeriod,
      *                         [1]: paymentInterval,
      *                         [2]: payments,
-     *                         [3]: interestRate,
-     *                         [4]: earlyInterestRateDiscount,
-     *                         [5]: lateInterestRatePremium.
-     *  @param amounts_   Requested amounts:
+     *  @param amounts_    Requested amounts:
      *                         [0]: collateralRequired,
      *                         [1]: principalRequested,
      *                         [2]: endingPrincipal.
-     *  @param fees_      Fee parameters:
-     *                         [0]: earlyFee,
+     *  @param rates_      Fee parameters:
+     *                         [0]: interestRate,
      *                         [1]: earlyFeeRate,
-     *                         [2]: lateFee,
-     *                         [3]: lateFeeRate.
+     *                         [2]: lateFeeRate,
+     *                         [3]: lateInterestPremium.
      */
     function _initialize(
         address borrower_,
         address[2] memory assets_,
-        uint256[6] memory parameters_,
+        uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
-        uint256[4] memory fees_
+        uint256[4] memory rates_
     )
         internal
     {
@@ -94,21 +88,18 @@ contract MapleLoanInternals is MapleProxied {
         _collateralAsset = assets_[0];
         _fundsAsset      = assets_[1];
 
-        _gracePeriod               = parameters_[0];
-        _paymentInterval           = parameters_[1];
-        _paymentsRemaining         = parameters_[2];
-        _interestRate              = parameters_[3];
-        _earlyInterestRateDiscount = parameters_[4];
-        _lateInterestRatePremium   = parameters_[5];
+        _gracePeriod       = termDetails_[0];
+        _paymentInterval   = termDetails_[1];
+        _paymentsRemaining = termDetails_[2];
 
         _collateralRequired = amounts_[0];
         _principalRequested = amounts_[1];
         _endingPrincipal    = amounts_[2];
 
-        _earlyFee     = fees_[0];
-        _earlyFeeRate = fees_[1];
-        _lateFee      = fees_[2];
-        _lateFeeRate  = fees_[3];
+        _interestRate        = rates_[0];
+        _earlyFeeRate        = rates_[1];
+        _lateFeeRate         = rates_[2];
+        _lateInterestPremium = rates_[3];
     }
 
     /**************************************/
@@ -260,6 +251,11 @@ contract MapleLoanInternals is MapleProxied {
         return _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
+    function _getEarlyPaymentBreakdown() internal view returns (uint256 principalAmount_, uint256 interestAmount_) {
+        principalAmount_ = _principal;
+        interestAmount_  = _principal * _earlyFeeRate / ONE; 
+    }
+
     function _getNextPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
         ( principal_, interest_ ) = _getPaymentBreakdown(
             block.timestamp,
@@ -270,7 +266,7 @@ contract MapleLoanInternals is MapleProxied {
             _paymentsRemaining,
             _interestRate,
             _lateFeeRate,
-            _lateInterestRatePremium
+            _lateInterestPremium
         );
     }
 
@@ -345,7 +341,7 @@ contract MapleLoanInternals is MapleProxied {
         uint256 paymentsRemaining_,
         uint256 interestRate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestRatePremium_
+        uint256 lateInterestPremium_
     )
         internal pure virtual
         returns (uint256 principalAmount_, uint256 interestAmount_)
@@ -361,7 +357,7 @@ contract MapleLoanInternals is MapleProxied {
         principalAmount_ = paymentsRemaining_ == uint256(1) ? principal_ : principalAmount_;
 
         if (currentTime_ > nextPaymentDueDate_) {
-            interestAmount_ += _getInterest(principal_, interestRate_ + lateInterestRatePremium_, currentTime_ - nextPaymentDueDate_);
+            interestAmount_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, currentTime_ - nextPaymentDueDate_);
             interestAmount_ += lateFeeRate_ * principal_ / ONE;
         }
     }

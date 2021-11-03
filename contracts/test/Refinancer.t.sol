@@ -41,22 +41,12 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
     {
         token = new MockERC20("Test", "TST", 0);
 
-        address[2] memory assets = [address(token), address(token)];
+        address[2] memory assets      = [address(token), address(token)];
+        uint256[3] memory requests    = [collateralRequired_, principalRequested_, endingPrincipal_];
+        uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
+        uint256[4] memory rates       = [interestRate_, uint256(0.10 ether), uint256(0.15 ether), uint256(0)];
 
-        uint256[6] memory parameters = [
-            gracePeriod_,
-            paymentInterval_,
-            paymentsRemaining_,
-            interestRate_,
-            0,
-            0
-        ];
-
-        uint256[4] memory fees = [uint256(15_000), uint256(0.10 ether), uint256(20_000), uint256(0.15 ether)];
-
-        uint256[3] memory requests = [collateralRequired_, principalRequested_, endingPrincipal_];
-
-        loan = new ConstructableMapleLoan(address(this), assets, parameters, requests, fees);
+        loan = new ConstructableMapleLoan(address(this), assets, termDetails, requests, rates);
 
         token.mint(address(this), principalRequested_);
         token.approve(address(loan), principalRequested_);
@@ -362,42 +352,6 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
 
 contract RefinancerFeeTests is BaseRefinanceTest {
 
-    function test_refinance_earlyFee(
-        uint256 principalRequested_,
-        uint256 collateralRequired_,
-        uint256 endingPrincipal_,
-        uint256 gracePeriod_,
-        uint256 interestRate_,
-        uint256 lateFeeRate_,
-        uint256 paymentInterval_,
-        uint256 paymentsRemaining_,
-        uint256 newEarlyFee_
-    )
-        external
-    {
-        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
-        collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
-        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
-        gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);          
-        lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
-        paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
-        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
-
-        setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
-
-        newEarlyFee_ = constrictToRange(newEarlyFee_, 1, MAX_RATE);
-
-        assertEq(loan.earlyFee(), 15_000);
-
-        bytes[] memory data = _encodeWithSignatureAndUint("setEarlyFee(uint256)", newEarlyFee_);
-
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
-
-        assertEq(loan.earlyFee(), newEarlyFee_);
-    }
-
     function test_refinance_earlyFeeRate(
         uint256 principalRequested_,
         uint256 collateralRequired_,
@@ -432,42 +386,6 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
 
         assertEq(loan.earlyFeeRate(), newEarlyFeeRate_);
-    }
-
-    function test_refinance_lateFee(
-        uint256 principalRequested_,
-        uint256 collateralRequired_,
-        uint256 endingPrincipal_,
-        uint256 gracePeriod_,
-        uint256 interestRate_,
-        uint256 lateFeeRate_,
-        uint256 paymentInterval_,
-        uint256 paymentsRemaining_,
-        uint256 newLateFee_
-    )
-        external
-    {
-        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
-        collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
-        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
-        gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);             
-        lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
-        paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
-        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
-
-        setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
-
-        newLateFee_ = constrictToRange(newLateFee_, 1, MAX_RATE);
-
-        assertEq(loan.lateFee(), 20_000);
-
-        bytes[] memory data = _encodeWithSignatureAndUint("setLateFee(uint256)", newLateFee_);
-
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
-
-        assertEq(loan.lateFee(), newLateFee_);
     }
 
     function test_refinance_lateFeeRate(

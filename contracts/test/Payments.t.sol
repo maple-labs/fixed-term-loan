@@ -53,9 +53,9 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
 
     function createLoanFundAndDrawdown(
         address[2] memory assets,
-        uint256[6] memory parameters,
+        uint256[3] memory termDetails,
         uint256[3] memory requests,
-        uint256[4] memory fees
+        uint256[4] memory rates
     )
         internal returns (MapleLoan loan)
     {
@@ -63,7 +63,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         fundsAsset.mint(address(lender),        requests[1]);
         fundsAsset.mint(address(borrower),      requests[1]);  // Mint more than enough for borrower to make payments
 
-        bytes memory arguments = initializer.encodeArguments(address(borrower), assets, parameters, requests, fees);
+        bytes memory arguments = initializer.encodeArguments(address(borrower), assets, termDetails, requests, rates);
 
         // Create Loan
         loan = MapleLoan(factory.createInstance(arguments));
@@ -169,18 +169,15 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(30 days),  // Monthly, 6 month term
-            uint256(6),
-            uint256(0.10 ether),
-            uint256(0.10 ether),
-            uint256(0)
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(171_493.890825 ether),
@@ -220,7 +217,7 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_028_963.344948 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
@@ -240,18 +237,15 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(15 days),  // Fortnightly, 6 month term
-            uint256(6),
-            uint256(0.15 ether),
-            uint256(0.15 ether),
-            uint256(0)
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(170_280.971987 ether),
@@ -291,7 +285,7 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_021_685.831922 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
@@ -314,18 +308,15 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(30 days),  // Monthly, 6 month term
-            uint256(6),
-            uint256(0.10 ether),
-            uint256(0.10 ether),
-            uint256(0)
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256( 40_874.120631 ether),
@@ -365,7 +356,7 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_045_244.723784 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
@@ -385,18 +376,15 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(15 days),  // Fortnightly, 6 month term
-            uint256(6),
-            uint256(0.13 ether),
-            uint256(0.13 ether),
-            uint256(0)
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(112_237.875576 ether),
@@ -437,7 +425,7 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_023_427.253459 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
@@ -458,18 +446,15 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(30 days),  // Monthly, 6 month term
-            uint256(6),
-            uint256(0.10 ether),
-            uint256(0.10 ether),
-            uint256(0)
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(    8_219.178082 ether),
@@ -509,7 +494,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_049_315.068493 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
@@ -527,18 +512,15 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(15 days),  // Fortnightly, 6 month term
-            uint256(6),
-            uint256(0.15 ether),
-            uint256(0.15 ether),
-            uint256(0)
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(    6_164.383562 ether),
@@ -578,7 +560,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_036_986.3013699 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
@@ -601,18 +583,15 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(30 days),  // Monthly, 6 month term
-            uint256(6),
-            uint256(0.13e18),
-            uint256(0.13e18),  // 100% early interest discount since no interest is charged
-            uint256(0)
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for early repayment
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for early repayment
 
         uint256[3] memory onTimeTotals = [
             uint256(43_138.893875 ether),
@@ -638,7 +617,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
             uint256(901_594.102603 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         uint256 grandTotalPaid;
 
@@ -658,8 +637,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
         hevm.warp(block.timestamp + 23 days);
 
         // Get amounts for the remaining loan payments
-        uint256 principalPortion = loan.principal();
-        uint256 interestPortion  = principalPortion * 0.02e18 / 10 ** 18;
+        (uint256 principalPortion, uint256 interestPortion) = loan.getEarlyPaymentBreakdown();
 
 
         uint256 paymentAmount = principalPortion + interestPortion;
@@ -698,18 +676,15 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(15 days),
-            uint256(6),
-            uint256(0.13e18),
-            uint256(0.13e18),  // 100% early interest discount since no interest is charged
-            uint256(0)
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for early repayment
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for early repayment
 
         uint256[2] memory onTimeTotals = [
             uint256(169_796.942404 ether),
@@ -731,7 +706,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
             uint256(670_212.454289 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         uint256 grandTotalPaid;
 
@@ -750,9 +725,8 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
         // On day 30, warp to day 44
         hevm.warp(block.timestamp + 14 days);
 
-         // Get amounts for the remaining loan payments
-        uint256 principalPortion = loan.principal();
-        uint256 interestPortion  = principalPortion * 0.02e18 / 10 ** 18;
+        // Get amounts for the remaining loan payments
+        (uint256 principalPortion, uint256 interestPortion) = loan.getEarlyPaymentBreakdown();
 
         uint256 paymentAmount = principalPortion + interestPortion;
 
@@ -794,18 +768,15 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(15 days),
-            uint256(6),
-            uint256(0.13e18),
-            uint256(0),
-            uint256(0)  // No default interest rate
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0.05e18)];  // 5% Late fee flat rate on principal
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal
 
         uint256[5] memory onTimeTotals = [
             uint256(112_237.875576 ether),
@@ -839,7 +810,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(459_781.508613 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         uint256 grandTotalPaid;  // TODO: Add grand totals to sheet and add checks
 
@@ -900,18 +871,15 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(30 days),
-            uint256(6),
-            uint256(0.10e18),
-            uint256(0),
-            uint256(0)  // No default interest rate premium
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0.05e18)];  // 5% Late fee flat rate on principal
+        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal
 
         // Payments 1, 2, 4, 5, 6
         uint256[5] memory onTimeTotals = [
@@ -946,7 +914,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(        0.000000 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         uint256 grandTotalPaid;
 
@@ -1021,18 +989,15 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(15 days),
-            uint256(6),
-            uint256(0.13e18),
-            uint256(0),
-            uint256(0.05e18)  // No default interest rate premium
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0.05e18)];  // 5% Late fee flat rate on principal, 5% premium
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0.05e18)];  // 5% Late fee flat rate on principal, 5% premium
 
         // All payment amounts under normal amortization schedule in sheet
         uint256[6] memory onTimeTotals = [
@@ -1071,7 +1036,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(0.000000       ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         uint256 grandTotalPaid;
 
@@ -1181,18 +1146,15 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
-        uint256[6] memory parameters = [
+        uint256[3] memory termDetails = [
             uint256(10 days),
             uint256(30 days),
-            uint256(6),
-            uint256(0.10e18),
-            uint256(0),
-            uint256(0.05e18)  // No default interest rate premium
+            uint256(6)
         ];
 
         uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory fees = [uint256(0), uint256(0), uint256(0), uint256(0.02e18)];  // 2% Late fee rate on principal
+        uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
 
         // Payments 2, 3, 4, 5, 6
         uint256[5] memory onTimeTotals = [
@@ -1227,7 +1189,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(        0.000000 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, parameters, requests, fees);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
 
         uint256 grandTotalPaid;
 

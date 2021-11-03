@@ -33,16 +33,8 @@ contract Refinancer is IRefinancer, MapleLoanInternals {
         emit CollateralRequiredSet(_collateralRequired = collateralRequired_);
     }
 
-    function setEarlyFee(uint256 earlyFee_) external override {
-        emit EarlyFeeSet(_earlyFee = earlyFee_);
-    }
-
     function setEarlyFeeRate(uint256 earlyFeeRate_) external override {
         emit EarlyFeeRateSet(_earlyFeeRate = earlyFeeRate_);
-    }
-
-    function setEarlyInterestRateDiscount(uint256 earlyInterestRateDiscount_) external override {
-        emit EarlyInterestRateDiscountSet(_earlyInterestRateDiscount = earlyInterestRateDiscount_);
     }
 
     function setEndingPrincipal(uint256 endingPrincipal_) external override {
@@ -58,16 +50,12 @@ contract Refinancer is IRefinancer, MapleLoanInternals {
         emit InterestRateSet(_interestRate = interestRate_);
     }
 
-    function setLateFee(uint256 lateFee_) external override {
-        emit LateFeeSet(_lateFee = lateFee_);
-    }
-
     function setLateFeeRate(uint256 lateFeeRate_) external override {
         emit LateFeeRateSet(_lateFeeRate = lateFeeRate_);
     }
 
-    function setLateInterestRatePremium(uint256 lateInterestRatePremium_) external override {
-        emit LateInterestRatePremiumSet(_lateInterestRatePremium = lateInterestRatePremium_);
+    function setLateInterestPremium(uint256 lateInterestPremium_) external override {
+        emit LateInterestPremiumSet(_lateInterestPremium = lateInterestPremium_);
     }
 
     function setPaymentInterval(uint256 paymentInterval_) external override {

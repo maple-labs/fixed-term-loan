@@ -28,11 +28,11 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
     function initialize(
         address borrower_,
         address[2] memory assets_,
-        uint256[6] memory parameters_,
+        uint256[3] memory termDetails_,
         uint256[3] memory requests_,
-        uint256[4] memory fees_
+        uint256[4] memory rates_
     ) external {
-        return _initialize(borrower_, assets_, parameters_, requests_, fees_) ;
+        return _initialize(borrower_, assets_, termDetails_, requests_, rates_) ;
     }
 
     function fundLoan(address lender_) external returns (uint256 amount_) {
@@ -66,6 +66,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
     /***********************/
     /*** View Functions ****/
     /***********************/
+
+    function getEarlyPaymentBreakdown() internal view returns (uint256 principalAmount_, uint256 interestAmount_) {
+        return _getEarlyPaymentBreakdown();
+    }
 
     function getRefinanceCommitment(address refinancer_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
         return _getRefinanceCommitment(refinancer_, calls_);
@@ -111,20 +115,12 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _drawableFunds;
     }
 
-    function earlyInterestRateDiscount() external view returns (uint256 earlyInterestRateDiscount_) {
-        return _earlyInterestRateDiscount;
-    }
-
     function endingPrincipal() external view returns (uint256 endingPrincipal_) {
         return _endingPrincipal;
     }
 
     function fundsAsset() external view returns (address fundsAsset_) {
         return _fundsAsset;
-    }
-
-    function earlyFee() external view returns (uint256 earlyFee_) {
-        return _earlyFee;
     }
 
     function earlyFeeRate() external view returns (uint256 earlyFeeRate_) {
@@ -139,16 +135,13 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _interestRate;
     }
 
-    function lateFee() external view returns (uint256 lateFee_) {
-        return _lateFee;
-    }
 
     function lateFeeRate() external view returns (uint256 lateFeeRate_) {
         return _lateFeeRate;
     }
 
-    function lateInterestRatePremium() external view returns (uint256 lateInterestRatePremium_) {
-        return _lateInterestRatePremium;
+    function lateInterestPremium() external view returns (uint256 lateInterestPremium_) {
+        return _lateInterestPremium;
     }
 
     function lender() external view returns (address lender_) {
@@ -203,20 +196,12 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _drawableFunds = drawableFunds_;
     }
 
-    function setEarlyInterestRateDiscount(uint256 earlyInterestRateDiscount_) external {
-        _earlyInterestRateDiscount = earlyInterestRateDiscount_;
-    }
-
     function setEndingPrincipal(uint256 endingPrincipal_) external {
         _endingPrincipal = endingPrincipal_;
     }
 
     function setFundsAsset(address fundsAsset_) external {
         _fundsAsset = fundsAsset_;
-    }
-
-    function setEarlyFee(uint256 earlyFee_) external {
-        _earlyFee = earlyFee_;
     }
 
     function setEarlyFeeRate(uint256 earlyFeeRate_) external {
@@ -231,16 +216,12 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _interestRate = interestRate_;
     }
 
-    function setLateFee(uint256 lateFee_) external {
-        _lateFee = lateFee_;
-    }
-
     function setLateFeeRate(uint256 lateFeeRate_) external {
         _lateFeeRate = lateFeeRate_;
     }
 
-    function setLateInterestRatePremium(uint256 lateInterestRatePremium_) external {
-        _lateInterestRatePremium = lateInterestRatePremium_;
+    function setLateInterestPremium(uint256 lateInterestPremium_) external {
+        _lateInterestPremium = lateInterestPremium_;
     }
 
     function setLender(address lender_) external {
@@ -307,7 +288,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         uint256 paymentsRemaining_,
         uint256 interestRate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestRatePremium_
+        uint256 lateInterestPremium_
     )
         external pure
         returns (
@@ -324,7 +305,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
             paymentsRemaining_,
             interestRate_,
             lateFeeRate_,
-            lateInterestRatePremium_
+            lateInterestPremium_
         );
     }
 

@@ -43,19 +43,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function drawableFunds() external view returns (uint256 drawableFunds_);
 
     /**
-     *  @dev The flat fee charged at early payments.
-     */
-    function earlyFee() external view returns (uint256 earlyFee_);
-
-    /**
      *  @dev The rate charged at early payments.
      */
     function earlyFeeRate() external view returns (uint256 earlyFeeRate_);
-
-    /**
-     *  @dev The discount over the regular interest rate applied when paying early.
-     */
-    function earlyInterestRateDiscount() external view returns (uint256 earlyInterestRateDiscount_);
 
     /**
      *  @dev The portion of principal to not be paid down as part of payment installments, which would need to be paid back upon final payment.
@@ -79,11 +69,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function interestRate() external view returns (uint256 interestRate_);
 
     /**
-     *  @dev The flat fee charged at late payments.
-     */
-    function lateFee() external view returns (uint256 lateFee_);
-
-    /**
      *  @dev The rate charged at late payments.
      */
     function lateFeeRate() external view returns (uint256 lateFeeRate_);
@@ -91,7 +76,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     /**
      *  @dev The premium over the regular interest rate applied when paying late.
      */
-    function lateInterestRatePremium() external view returns (uint256 lateInterestRatePremium_);
+    function lateInterestPremium() external view returns (uint256 lateInterestPremium_);
 
     /**
      *  @dev The lender of the Loan.
@@ -251,6 +236,16 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @return additionalCollateral_ The additional collateral that must be posted, if any.
      */
     function getAdditionalCollateralRequiredFor(uint256 drawdown_) external view returns (uint256 additionalCollateral_);
+
+    /**
+     *  @dev    Get the breakdown of the total payment needed to satisfy an early repayment.
+     *  @return totalPrincipalAmount_ The portion of the total amount that will go towards principal.
+     *  @return totalInterestFees_    The portion of the total amount that will go towards interest fees.
+     */
+    function getEarlyPaymentBreakdown() external view returns (
+        uint256 totalPrincipalAmount_,
+        uint256 totalInterestFees_
+    );
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.

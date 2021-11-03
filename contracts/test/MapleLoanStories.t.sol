@@ -19,21 +19,12 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
 
-        address[2] memory assets = [address(token), address(token)];
+        address[2] memory assets      = [address(token), address(token)];
+        uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
+        uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
+        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
-        uint256[6] memory parameters = [
-            uint256(10 days),
-            uint256(365 days / 6),
-            uint256(6),
-            uint256(0.12 ether),
-            uint256(0.10 ether),
-            uint256(0 ether)
-        ];
-
-        uint256[3] memory amounts = [uint256(300_000), uint256(1_000_000), uint256(0)];
-        uint256[4] memory fees    = [uint256(0), uint256(0), uint256(0), uint256(0)];
-
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, amounts, fees);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
@@ -190,21 +181,12 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
 
-        address[2] memory assets = [address(token), address(token)];
+        address[2] memory assets      = [address(token), address(token)];
+        uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
+        uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
+        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
-        uint256[6] memory parameters = [
-            uint256(10 days),
-            uint256(365 days / 6),
-            uint256(6),
-            uint256(0.12 ether),
-            uint256(0.10 ether),
-            uint256(0 ether)
-        ];
-
-        uint256[3] memory amounts = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
-        uint256[4] memory fees    = [uint256(0), uint256(0), uint256(0), uint256(0)];
-
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, amounts, fees);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
@@ -353,21 +335,12 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   2_000_000);
 
-        address[2] memory assets = [address(token), address(token)];
+        address[2] memory assets      = [address(token), address(token)];
+        uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
+        uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
+        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
-        uint256[6] memory parameters = [
-            uint256(10 days),
-            uint256(365 days / 6),
-            uint256(6),
-            uint256(0.12 ether),
-            uint256(0.10 ether),
-            uint256(0 ether)
-        ];
-
-        uint256[3] memory amounts = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
-        uint256[4] memory fees    = [uint256(0), uint256(0), uint256(0), uint256(0)];
-
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, parameters, amounts, fees);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);

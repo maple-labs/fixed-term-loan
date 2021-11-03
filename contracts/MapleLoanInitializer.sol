@@ -11,43 +11,43 @@ contract MapleLoanInitializer is IMapleLoanEvents, MapleLoanInternals {
     function encodeArguments(
         address borrower_,
         address[2] memory assets_,
-        uint256[6] memory parameters_,
+        uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
-        uint256[4] memory fees_
+        uint256[4] memory rates_
     ) external pure returns (bytes memory encodedArguments_) {
-        return abi.encode(borrower_, assets_, parameters_, amounts_, fees_);
+        return abi.encode(borrower_, assets_, termDetails_, amounts_, rates_);
     }
 
     function decodeArguments(bytes calldata encodedArguments_)
         public pure returns (
             address borrower_,
             address[2] memory assets_,
-            uint256[6] memory parameters_,
+            uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
-            uint256[4] memory fees_
+            uint256[4] memory rates_
         )
     {
         (
             borrower_,
             assets_,
-            parameters_,
+            termDetails_,
             amounts_,
-            fees_
-        ) = abi.decode(encodedArguments_, (address, address[2], uint256[6], uint256[3], uint256[4]));
+            rates_
+        ) = abi.decode(encodedArguments_, (address, address[2], uint256[3], uint256[3], uint256[4]));
     }
 
     fallback() external {
         (
             address borrower_,
             address[2] memory assets_,
-            uint256[6] memory parameters_,
+            uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
-            uint256[4] memory fees_
+            uint256[4] memory rates_
         ) = decodeArguments(msg.data);
 
-        _initialize(borrower_, assets_, parameters_, amounts_, fees_);
+        _initialize(borrower_, assets_, termDetails_, amounts_, rates_);
 
-        emit Initialized(borrower_, assets_, parameters_, amounts_, fees_);
+        emit Initialized(borrower_, assets_, termDetails_, amounts_, rates_);
     }
 
 }

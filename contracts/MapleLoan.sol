@@ -187,6 +187,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return collateralNeeded > _collateral ? collateralNeeded - _collateral : uint256(0);
     }
 
+    function getEarlyPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
+        ( principal_, interest_ ) = _getEarlyPaymentBreakdown();
+    }
+
     function getNextPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
         ( principal_, interest_ ) = _getNextPaymentBreakdown();
     }
@@ -223,16 +227,8 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _drawableFunds;
     }
 
-    function earlyFee() external view override returns (uint256 earlyFee_) {
-        return _earlyFee;
-    }
-
     function earlyFeeRate() external view override returns (uint256 earlyFeeRate_) {
         return _earlyFeeRate;
-    }
-
-    function earlyInterestRateDiscount() external view override returns (uint256 earlyInterestRateDiscount_) {
-        return _earlyInterestRateDiscount;
     }
 
     function endingPrincipal() external view override returns (uint256 endingPrincipal_) {
@@ -251,16 +247,12 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _interestRate;
     }
 
-    function lateFee() external view override returns (uint256 lateFee_) {
-        return _lateFee;
-    }
-
     function lateFeeRate() external view override returns (uint256 lateFeeRate_) {
         return _lateFeeRate;
     }
 
-    function lateInterestRatePremium() external view override returns (uint256 lateInterestRatePremium_) {
-        return _lateInterestRatePremium;
+    function lateInterestPremium() external view override returns (uint256 lateInterestPremium_) {
+        return _lateInterestPremium;
     }
 
     function lender() external view override returns (address lender_) {
