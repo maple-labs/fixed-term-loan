@@ -376,7 +376,7 @@ contract RefinancerFeeTests is BaseRefinanceTest {
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
-        newEarlyFeeRate_ = constrictToRange(newEarlyFeeRate_, 1, MAX_RATE);
+        newEarlyFeeRate_ = constrictToRange(newEarlyFeeRate_, 0, MAX_RATE);
 
         assertEq(loan.earlyFeeRate(), 0.1 ether);
 
@@ -412,7 +412,7 @@ contract RefinancerFeeTests is BaseRefinanceTest {
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
-        newLateFeeRate_ = constrictToRange(newLateFeeRate_, 1, MAX_RATE);
+        newLateFeeRate_ = constrictToRange(newLateFeeRate_, 0, MAX_RATE);
 
         assertEq(loan.lateFeeRate(), 0.15 ether);
 
@@ -422,6 +422,42 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
 
         assertEq(loan.lateFeeRate(), newLateFeeRate_);
+    }
+
+    function test_refinance_lateInterestPremium(
+        uint256 principalRequested_,
+        uint256 collateralRequired_,
+        uint256 endingPrincipal_,
+        uint256 gracePeriod_,
+        uint256 interestRate_,
+        uint256 lateFeeRate_,
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 newLateInterestPremium_
+    )
+        external
+    {
+        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
+        gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);             // Giving enough room to increase the interest Rate
+        lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
+        paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+
+        setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
+
+        newLateInterestPremium_ = constrictToRange(newLateInterestPremium_, 0, MAX_RATE);
+
+        assertEq(loan.lateInterestPremium(), 0 ether);
+
+        bytes[] memory data = _encodeWithSignatureAndUint("setLateInterestPremium(uint256)", newLateInterestPremium_);
+
+        loan.proposeNewTerms(address(refinancer), data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+
+        assertEq(loan.lateInterestPremium(), newLateInterestPremium_);
     }
 
 }
