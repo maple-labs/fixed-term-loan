@@ -6,8 +6,7 @@ import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/int
 
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 
-import { ILenderLike } from "./interfaces/Interfaces.sol";
-import { IMapleLoan }  from "./interfaces/IMapleLoan.sol";
+import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
 
 import { MapleLoanInternals } from "./MapleLoanInternals.sol";
 
@@ -41,29 +40,38 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /************************/
 
     function closeLoan(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
-        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
 
         ( principal_, interest_ ) = _closeLoan();
 
-        // TODO discuss events with offchain team
-        emit PaymentMade(principal_, interest_);
+        emit LoanClosed(principal_, interest_);
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override returns (uint256 collateralPosted_) {
         require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
 
-        if (amount_ == uint256(0)) return uint256(0);
-
         // Post additional collateral required to facilitate this drawdown, if needed.
-        postCollateral(collateralPosted_ = getAdditionalCollateralRequiredFor(amount_));
+        uint256 additionalCollateralRequired = getAdditionalCollateralRequiredFor(amount_);
+
+        if (additionalCollateralRequired > uint256(0)) {
+            // Determine collateral currently unaccounted for.
+            uint256 unaccountedCollateral = _getUnaccountedAmount(_collateralAsset);
+
+            // Post required collateral, specifying then amount lacking as the optional amount to be transferred from.
+            collateralPosted_ = postCollateral(
+                additionalCollateralRequired > unaccountedCollateral ? additionalCollateralRequired - unaccountedCollateral : uint256(0)
+            );
+        }
 
         _drawdownFunds(amount_, destination_);
 
         emit FundsDrawnDown(amount_, destination_);
     }
 
-    function makePayment(uint256 amount_) external override returns (uint256 principal_,uint256 interest_) {
-        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+    function makePayment(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
+        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
 
         ( principal_, interest_ ) = _makePayment();
 
@@ -71,7 +79,8 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     }
 
     function postCollateral(uint256 amount_) public override returns (uint256 collateralPosted_) {
-        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_);
+        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_), "ML:PC:TRANSFER_FROM_FAILED");
 
         emit CollateralPosted(collateralPosted_ = _postCollateral());
     }
@@ -85,15 +94,14 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function removeCollateral(uint256 amount_, address destination_) external override {
         require(msg.sender == _borrower, "ML:RC:NOT_BORROWER");
 
-        if (amount_ == uint256(0)) return;
-
         _removeCollateral(amount_, destination_);
 
         emit CollateralRemoved(amount_, destination_);
     }
 
     function returnFunds(uint256 amount_) public override returns (uint256 fundsReturned_) {
-        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:RF:TRANSFER_FROM_FAILED");
 
         emit FundsReturned(fundsReturned_ = _returnFunds());
     }
@@ -111,7 +119,8 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function acceptNewTerms(address refinancer_, bytes[] calldata calls_, uint256 amount_) external override {
         require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
 
-        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:ACT:TRANSFER_FROM_FAILED");
 
         emit NewTermsAccepted(_acceptNewTerms(refinancer_, calls_), refinancer_, calls_);
     }
@@ -119,19 +128,18 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function claimFunds(uint256 amount_, address destination_) external override {
         require(msg.sender == _lender, "ML:CF:NOT_LENDER");
 
-        if (amount_ == uint256(0)) return;
-
         _claimFunds(amount_, destination_);
 
         emit FundsClaimed(amount_, destination_);
     }
 
     function fundLoan(address lender_, uint256 amount_) external override returns (uint256 fundsLent_) {
-        if (amount_ > uint256(0)) ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_);
+        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:FL:TRANSFER_FROM_FAILED");
 
+        // NOTE: This block is a stopgap solution to allow a LiquidityLockerV1 to send funds to a DebtLocker, while maintaining PoolV1 accounting.
         if (_nextPaymentDueDate > 0) {
-            // If the loan is active, send any unaccounted amount of funds asset toi the internally saved lender.
-            ERC20Helper.transfer(_fundsAsset, _lender, fundsLent_ = _getUnaccountedAmount(_fundsAsset));
+            // If the loan is active, send any unaccounted amount of funds asset to the internally saved lender.
+            require(ERC20Helper.transfer(_fundsAsset, _lender, fundsLent_ = _getUnaccountedAmount(_fundsAsset)), "ML:FL:TRANSFER_FAILED");
 
             emit FundsRedirected(fundsLent_, _lender);
 
@@ -171,17 +179,8 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /*** View Functions ***/
     /**********************/
 
-    function factory() external view override returns (address factory_) {
-        return _factory();
-    }
-
-    function excessCollateral() external view override returns (uint256 excessCollateral_) {
-        uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
-
-        return _collateral > collateralNeeded ? _collateral - collateralNeeded : uint256(0);
-    }
-
     function getAdditionalCollateralRequiredFor(uint256 drawdown_) public view override returns (uint256 collateral_) {
+        // Determine the collateral needed in the contract for a reduced drawable funds amount.
         uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds - drawdown_, _principalRequested, _collateralRequired);
 
         return collateralNeeded > _collateral ? collateralNeeded - _collateral : uint256(0);
@@ -195,13 +194,9 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         ( principal_, interest_ ) = _getNextPaymentBreakdown();
     }
 
-    function implementation() external view override returns (address implementation_) {
-        return _implementation();
-    }
-
-    /*************************************/
-    /*** State Variable View Functions ***/
-    /*************************************/
+    /****************************/
+    /*** State View Functions ***/
+    /****************************/
 
     function borrower() external view override returns (address borrower_) {
         return _borrower;
@@ -235,12 +230,26 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _endingPrincipal;
     }
 
+    function excessCollateral() external view override returns (uint256 excessCollateral_) {
+        uint256 collateralNeeded = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
+
+        return _collateral > collateralNeeded ? _collateral - collateralNeeded : uint256(0);
+    }
+
+    function factory() external view override returns (address factory_) {
+        return _factory();
+    }
+
     function fundsAsset() external view override returns (address fundsAsset_) {
         return _fundsAsset;
     }
 
     function gracePeriod() external view override returns (uint256 gracePeriod_) {
         return _gracePeriod;
+    }
+
+    function implementation() external view override returns (address implementation_) {
+        return _implementation();
     }
 
     function interestRate() external view override returns (uint256 interestRate_) {
@@ -279,7 +288,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _principal;
     }
 
-    // Needed for `fundLoan` call from PoolV1
+    // NOTE: This is needed for `fundLoan` call from PoolV1.
     function superFactory() external view override returns (address superFactory_) {
         return _factory();
     }

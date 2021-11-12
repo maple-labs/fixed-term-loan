@@ -87,6 +87,13 @@ interface IMapleLoanEvents {
     event LenderSet(address indexed lender_);
 
     /**
+     *  @dev   Loan was repaid early and closed.
+     *  @param principalPaid_    The portion of the total amount that went towards principal.
+     *  @param interestPaid_     The portion of the total amount that went towards interest fees.
+     */
+    event LoanClosed(uint256 principalPaid_, uint256 interestPaid_);
+
+    /**
      *  @dev  A refinance was proposed.
      *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
      *  @param refinancer_          The address that will execute the refinance.

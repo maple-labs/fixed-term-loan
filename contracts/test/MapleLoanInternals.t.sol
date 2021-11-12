@@ -27,7 +27,7 @@ contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
             uint256 totalInterestFees
         )
     {
-        ( totalPrincipalAmount, totalInterestFees) = MapleLoanInternalsHarness(loan_).getPaymentBreakdown(
+        ( totalPrincipalAmount, totalInterestFees ) = MapleLoanInternalsHarness(loan_).getPaymentBreakdown(
             currentTime_,
             nextPaymentDueDate_,
             365 days / 12,        // Interval such that there are 12 payments in a year
@@ -298,21 +298,14 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
         assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), 0);
     }
 
-    function test_fundLoan_overFunding(uint256 principalRequested_, uint256 extra_) external {
-        principalRequested_ = constrictToRange(principalRequested_, MIN_PRINCIPAL, MAX_PRINCIPAL / 2);
-        extra_              = constrictToRange(extra_,              1,             MAX_PRINCIPAL - principalRequested_);
+    function testFail_fundLoan_overFunding(uint256 principalRequested_) external {
+        principalRequested_ = constrictToRange(principalRequested_, MIN_PRINCIPAL, MAX_PRINCIPAL);
 
         _loan.setPrincipalRequested(principalRequested_);
 
-        _fundsAsset.mint(address(_loan), principalRequested_ + extra_);
+        _fundsAsset.mint(address(_loan), principalRequested_ + 1);
 
-        assertEq(_loan.fundLoan(address(_lender)),                 principalRequested_);
-        assertEq(_loan.lender(),                                   address(_lender));
-        assertEq(_loan.nextPaymentDueDate(),                       block.timestamp + _loan.paymentInterval());
-        assertEq(_loan.principal(),                                principalRequested_);
-        assertEq(_loan.drawableFunds(),                            principalRequested_);
-        assertEq(_loan.claimableFunds(),                           extra_);
-        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), 0);
+        _loan.fundLoan(address(_lender));
     }
 
     function testFail_fundLoan_partialFunding(uint256 principalRequested_) external {
@@ -350,19 +343,6 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
         _loan.fundLoan(address(_lender));
 
         _loan.claimFunds(claim_, address(this));
-    }
-
-    function test_fundLoan_claimImmediatelyAfterOverFunding(uint256 principalRequested_, uint256 extra_) external {
-        principalRequested_ = constrictToRange(principalRequested_, MIN_PRINCIPAL, MAX_PRINCIPAL / 2);
-        extra_              = constrictToRange(extra_,              1,             MAX_PRINCIPAL - principalRequested_);
-
-        _loan.setPrincipalRequested(principalRequested_);
-
-        _fundsAsset.mint(address(_loan), principalRequested_ + extra_);
-
-        _loan.fundLoan(address(_lender));
-
-        _loan.claimFunds(extra_, address(this));
     }
 
     function testFail_fundLoan_invalidFundsAsset() external {
@@ -425,7 +405,7 @@ contract MapleLoanInternals_PostCollateralTests is TestUtils {
     function test_postCollateral_multiple(uint256 collateral_, uint256 posts_) external {
         posts_      = constrictToRange(posts_,      2,              10);
         collateral_ = constrictToRange(collateral_, MIN_COLLATERAL, MAX_COLLATERAL / posts_);
-        
+
         for (uint256 i = 1; i <= posts_; ++i) {
             _collateralAsset.mint(address(_loan), collateral_);
 
@@ -687,7 +667,6 @@ contract MapleLoanInternals_RepossessTests is TestUtils {
         assertEq(_loan.drawableFunds(),                     0);
         assertEq(_loan.claimableFunds(),                    0);
         assertEq(_loan.collateral(),                        0);
-        assertEq(_loan.lender(),                            address(0));
         assertEq(_loan.nextPaymentDueDate(),                0);
         assertEq(_loan.paymentsRemaining(),                 0);
         assertEq(_loan.principal(),                         0);
@@ -848,7 +827,7 @@ contract MapleLoanInternals_MakePaymentsTests is TestUtils {
         external
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
-        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,   120);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,   50);
         interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
         principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
@@ -869,14 +848,14 @@ contract MapleLoanInternals_MakePaymentsTests is TestUtils {
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
 
-        ( uint256 principal, uint256 interest) = _loan.makePayment();
+        ( uint256 principal, uint256 interest ) = _loan.makePayment();
 
         uint256 totalPaid = principal + interest;
 
         assertEq(_loan.drawableFunds(),      startingDrawableFunds - totalPaid);
         assertEq(_loan.claimableFunds(),     totalPaid);
         assertEq(_loan.principal(),          principalRequested_ - principal);
-        assertEq(_loan.nextPaymentDueDate(), block.timestamp + (2 * paymentInterval_));
+        assertEq(_loan.nextPaymentDueDate(), _loan.paymentsRemaining() == 0 ? 0 : block.timestamp + (2 * paymentInterval_));
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
     }
 
@@ -890,7 +869,7 @@ contract MapleLoanInternals_MakePaymentsTests is TestUtils {
         external
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
-        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,   120);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,   50);
         interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
         principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
@@ -907,19 +886,18 @@ contract MapleLoanInternals_MakePaymentsTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), fundsForPayments);
 
-        ( uint256 principal, uint256 interest) = _loan.makePayment();
+        ( uint256 principal, uint256 interest ) = _loan.makePayment();
 
         uint256 totalPaid = principal + interest;
 
         assertEq(_loan.drawableFunds(),      principalRequested_ + fundsForPayments - totalPaid);
         assertEq(_loan.claimableFunds(),     totalPaid);
         assertEq(_loan.principal(),          principalRequested_ - principal);
-        assertEq(_loan.nextPaymentDueDate(), block.timestamp + (2 * paymentInterval_));
+        assertEq(_loan.nextPaymentDueDate(), _loan.paymentsRemaining() == 0 ? 0 : block.timestamp + (2 * paymentInterval_));
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
     }
 
 }
-
 
 contract MapleLoanInternals_CloseLoan is StateManipulations, TestUtils {
 
@@ -1034,7 +1012,7 @@ contract MapleLoanInternals_CloseLoan is StateManipulations, TestUtils {
 
         _fundsAsset.mint(address(_loan), closingAmount);
 
-        ( uint256 principal, uint256 interest) = _loan.closeLoan();
+        ( uint256 principal, uint256 interest ) = _loan.closeLoan();
 
         uint256 totalPaid = principal + interest;
 
@@ -1080,7 +1058,7 @@ contract MapleLoanInternals_CloseLoan is StateManipulations, TestUtils {
 
         _fundsAsset.mint(address(_loan), closingAmount + extraFunds);
 
-        ( uint256 principal, uint256 interest) = _loan.closeLoan();
+        ( uint256 principal, uint256 interest ) = _loan.closeLoan();
 
         uint256 totalPaid = principal + interest;
 
@@ -1127,10 +1105,11 @@ contract MapleLoanInternals_CloseLoan is StateManipulations, TestUtils {
         hevm.warp(block.timestamp + paymentInterval_ + 1);
 
         try _loan.closeLoan() { assertTrue(false, "Cannot close when late"); } catch { }
-        // Returning to being on-time 
+
+        // Returning to being on-time
         hevm.warp(block.timestamp - 2);
 
-        ( uint256 principal, uint256 interest) = _loan.closeLoan();
+        ( uint256 principal, uint256 interest ) = _loan.closeLoan();
 
         uint256 totalPaid = principal + interest;
 
@@ -1138,7 +1117,7 @@ contract MapleLoanInternals_CloseLoan is StateManipulations, TestUtils {
         assertEq(_loan.claimableFunds(),     totalPaid);
         assertEq(_loan.principal(),          0);
         assertEq(_loan.nextPaymentDueDate(), 0);
-        assertEq(_loan.paymentsRemaining(),  0);   
+        assertEq(_loan.paymentsRemaining(),  0);
     }
 
 }

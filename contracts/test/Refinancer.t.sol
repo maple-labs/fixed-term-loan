@@ -291,7 +291,7 @@ contract RefinancerPaymentRemaining is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);             
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
@@ -330,7 +330,7 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);            
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
 
@@ -369,7 +369,7 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);             
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
@@ -574,6 +574,53 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         assertEq(loan.drawableFunds(),      initialDrawable + principalIncrease_);
     }
 
+    function testFail_refinance_increasePrincipalRequested(
+        uint256 principalRequested_,
+        uint256 collateralRequired_,
+        uint256 endingPrincipal_,
+        uint256 gracePeriod_,
+        uint256 interestRate_,
+        uint256 lateFeeRate_,
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 principalIncrease_
+    )
+        external
+    {
+        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT - MIN_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
+        gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);                             // Giving enough room to increase the interest Rate
+        lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
+        paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+
+        setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
+
+        principalIncrease_ = constrictToRange(principalIncrease_, 1, MIN_TOKEN_AMOUNT);  // If we increase too much we get overflows
+
+        assertEq(loan.principalRequested(), principalRequested_);
+
+        bytes[] memory data = _encodeWithSignatureAndUint("increasePrincipal(uint256)", principalIncrease_);
+
+        loan.proposeNewTerms(address(refinancer), data);
+
+        // Increasing the amount without sending it first should fail
+        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), data, 0));
+
+        // Since the collateral rate has remained the same, we need to also send more collateral
+        uint256 extraCollateral = collateralRequired_ * principalIncrease_ / principalRequested_;
+
+        token.mint(address(loan), extraCollateral);
+        loan.postCollateral(0);
+
+        // Sending too much, causes revert
+        token.mint(address(loan), principalIncrease_ + 1);
+
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+    }
+
     function test_refinance_decreasePrincipalRequested(
         uint256 principalRequested_,
         uint256 collateralRequired_,
@@ -681,7 +728,7 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
             loan.postCollateral(0);
         }
 
-        token.mint(address(loan), principalIncrease_);        
+        token.mint(address(loan), principalIncrease_);
 
         lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
 

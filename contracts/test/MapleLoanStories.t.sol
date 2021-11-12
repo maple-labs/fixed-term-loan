@@ -28,15 +28,16 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan),  500_000);
+        lender.erc20_approve(address(token), address(loan), 500_000);
 
         assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 
-        borrower.erc20_transfer(address(token), address(loan), 300_000);
+        borrower.erc20_transfer(address(token), address(loan), 150_000);
+        borrower.erc20_approve(address(token), address(loan), 150_000);
 
-        assertTrue(borrower.try_loan_postCollateral(address(loan), 300_000),                      "Cannot post");
+        assertTrue(borrower.try_loan_postCollateral(address(loan), 150_000),                      "Cannot post");
         assertTrue(borrower.try_loan_drawdownFunds(address(loan),  1_000_000, address(borrower)), "Cannot drawdown");
 
         assertEq(loan.drawableFunds(), 0, "Different drawable funds");
@@ -53,9 +54,10 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         hevm.warp(loan.nextPaymentDueDate() - 1);
 
         // Make payment #1
-        borrower.erc20_transfer(address(token), address(loan), 178_526);
+        borrower.erc20_transfer(address(token), address(loan), 78_526);
+        borrower.erc20_approve(address(token), address(loan), 100_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 178_526), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 100_000), "Cannot pay");
 
         // Check details for upcoming payment #2
         ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
@@ -71,7 +73,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #2
         borrower.erc20_transfer(address(token), address(loan), 178_526);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 178_526), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #3
         ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
@@ -87,7 +89,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #3
         borrower.erc20_transfer(address(token), address(loan), 178_525);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 178_525), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Remove some collateral
         assertTrue(!borrower.try_loan_removeCollateral(address(loan), 145_547, address(borrower)), "Removed more collateral than expected");
@@ -109,12 +111,13 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #4
         borrower.erc20_transfer(address(token), address(loan), 178_525);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 178_525), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Return some funds and remove some collateral
-        borrower.erc20_transfer(address(token), address(loan), 150_000);
+        borrower.erc20_transfer(address(token), address(loan), 75_000);
+        borrower.erc20_approve(address(token), address(loan), 75_000);
 
-        assertTrue(borrower.try_loan_returnFunds(address(loan), 150_000), "Cannot return funds");
+        assertTrue(borrower.try_loan_returnFunds(address(loan), 75_000), "Cannot return funds");
 
         assertEq(loan.drawableFunds(), 150_001, "Different drawable funds");
 
@@ -140,7 +143,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #5
         borrower.erc20_transfer(address(token), address(loan), 178_525);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 178_525), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #6
         ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
@@ -156,7 +159,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #6
         borrower.erc20_transfer(address(token), address(loan), 178_525);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 178_525), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment which should not be necessary
         assertEq(loan.paymentsRemaining(), 0, "Different payments remaining");
@@ -190,15 +193,16 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan),  500_000);
+        lender.erc20_approve(address(token), address(loan), 500_000);
 
         assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 
-        borrower.erc20_transfer(address(token), address(loan), 300_000);
+        borrower.erc20_transfer(address(token), address(loan), 150_000);
+        borrower.erc20_approve(address(token), address(loan), 150_000);
 
-        assertTrue(borrower.try_loan_postCollateral(address(loan), 300_000),                      "Cannot post");
+        assertTrue(borrower.try_loan_postCollateral(address(loan), 150_000),                      "Cannot post");
         assertTrue(borrower.try_loan_drawdownFunds(address(loan),  1_000_000, address(borrower)), "Cannot drawdown");
 
         assertEq(loan.drawableFunds(), 0, "Different drawable funds");
@@ -215,9 +219,10 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         hevm.warp(loan.nextPaymentDueDate() - 1);
 
         // Make payment #1
-        borrower.erc20_transfer(address(token), address(loan), 20_000);
+        borrower.erc20_transfer(address(token), address(loan), 10_000);
+        borrower.erc20_approve(address(token), address(loan), 10_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 20_000), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 10_000), "Cannot pay");
 
         // Check details for upcoming payment #2
         ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
@@ -233,7 +238,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #2
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 20_000), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #3
         ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
@@ -249,7 +254,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #3
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 20_000), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #4
         ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
@@ -265,12 +270,13 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #4
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 20_000), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Return some funds and remove some collateral
-        borrower.erc20_transfer(address(token), address(loan), 500_000);
+        borrower.erc20_transfer(address(token), address(loan), 250_000);
+        borrower.erc20_approve(address(token), address(loan), 250_000);
 
-        assertTrue(borrower.try_loan_returnFunds(address(loan), 500_000), "Cannot return funds");
+        assertTrue(borrower.try_loan_returnFunds(address(loan), 250_000), "Cannot return funds");
 
         assertEq(loan.drawableFunds(), 500_000, "Different drawable funds");
 
@@ -295,7 +301,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #5
         borrower.erc20_transfer(address(token), address(loan), 20_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 20_000), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #6
         ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
@@ -311,7 +317,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         // Make payment #6
         borrower.erc20_transfer(address(token), address(loan), 1_020_000);
 
-        assertTrue(borrower.try_loan_makePayment(address(loan), 1_020_000), "Cannot pay");
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment which should not be necessary
         assertEq(loan.paymentsRemaining(), 0, "Different payments remaining");
@@ -344,7 +350,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan),  500_000);
+        lender.erc20_approve(address(token), address(loan), 500_000);
 
         assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
 
@@ -354,7 +360,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         uint256 balanceBefore = token.balanceOf(address(lender));
 
         lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan),  500_000);
+        lender.erc20_approve(address(token), address(loan), 500_000);
 
         assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000));
 

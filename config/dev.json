@@ -1,14 +1,11 @@
 {
     "language": "Solidity",
     "sources": {
-        "contracts/MapleBorrower.sol": {
-            "urls": ["contracts/MapleBorrower.sol"]
-        },
-        "contracts/MapleBorrowerInitializer.sol": {
-            "urls": ["contracts/MapleBorrowerInitializer.sol"]
-        },
         "contracts/MapleLoan.sol": {
             "urls": ["contracts/MapleLoan.sol"]
+        },
+        "contracts/MapleLoanFactory.sol": {
+            "urls": ["contracts/MapleLoanFactory.sol"]
         },
         "contracts/MapleLoanInitializer.sol": {
             "urls": ["contracts/MapleLoanInitializer.sol"]
@@ -24,6 +21,9 @@
         },
         "contracts/test/MapleLoanInternals.t.sol": {
             "urls": ["contracts/test/MapleLoanInternals.t.sol"]
+        },
+        "contracts/test/MapleLoanFactory.t.sol": {
+            "urls": ["contracts/test/MapleLoanFactory.t.sol"]
         },
         "contracts/test/MapleLoanStories.t.sol": {
             "urls": ["contracts/test/MapleLoanStories.t.sol"]

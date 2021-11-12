@@ -102,14 +102,20 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         // Warp to when payment is due and make payment
         hevm.warp(loan.nextPaymentDueDate());
         borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_makePayment(address(loan), paymentAmount);
+        borrower.loan_makePayment(address(loan), 0);
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 
         assertIgnoringDecimals(loan.principal(),  principalRemaining, 13);  // Principal decreasing in accordance with provided values
 
-        assertEq(loan.paymentsRemaining(),  6 - paymentsMade);                                     // Payments remaining increases
-        assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * (paymentsMade + 1));  // Payment due date increases
+        uint256 paymentsRemaining = 6 - paymentsMade;
+
+        assertEq(loan.paymentsRemaining(), paymentsRemaining);  // Payments remaining increases
+
+        assertEq(
+            loan.nextPaymentDueDate(),
+            paymentsRemaining == 0 ? 0 : start + loan.paymentInterval() * (paymentsMade + 1)  // Payment due cleared or increased
+        );
     }
 
     function onTimePaymentsTest(
@@ -637,8 +643,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
         hevm.warp(block.timestamp + 23 days);
 
         // Get amounts for the remaining loan payments
-        (uint256 principalPortion, uint256 interestPortion) = loan.getEarlyPaymentBreakdown();
-
+        ( uint256 principalPortion, uint256 interestPortion ) = loan.getEarlyPaymentBreakdown();
 
         uint256 paymentAmount = principalPortion + interestPortion;
 
@@ -726,7 +731,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
         hevm.warp(block.timestamp + 14 days);
 
         // Get amounts for the remaining loan payments
-        (uint256 principalPortion, uint256 interestPortion) = loan.getEarlyPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion ) = loan.getEarlyPaymentBreakdown();
 
         uint256 paymentAmount = principalPortion + interestPortion;
 
@@ -852,8 +857,8 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
         assertEq(loan.principal(), 0);  // No principal left
 
-        assertEq(loan.paymentsRemaining(),  0);  // Payments remaining increases
-        assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * (6 + 1));  // Payment due date increases
+        assertEq(loan.paymentsRemaining(),  0);  // Payments remaining cleared
+        assertEq(loan.nextPaymentDueDate(), 0);  // Payment due date cleared
     }
 
     function test_payments_lateRepayment_flatRate_case2() external {
@@ -938,7 +943,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = 1_000_000 ether * 1000 * uint256(2 hours) / 365 days / 10_000;  // Add two hours of late interest
-            uint256 lateFee      = uint256(50_000.000000 ether); 
+            uint256 lateFee      = uint256(50_000.000000 ether);
 
             uint256 paymentAmount = principalPortion + interestPortion;
 
@@ -1067,7 +1072,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
             uint256 paymentAmount = principalPortion + interestPortion;
 
-            
+
             assertIgnoringDecimals(paymentAmount, uint256(163_940.067331 ether), 13);  // TODO: Validate this against updated spreadsheet
 
             // Check payment amounts against provided values
@@ -1203,12 +1208,12 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
             uint256 lateInterest = 1_000_000 ether * 1500 * uint256(2 days) / 365 days / 10_000;  // Add two days of late interest (15%)
             uint256 lateFee      = 1_000_000 ether * 0.02e18 / 10 ** 18;
-            assertIgnoringDecimals(lateInterest, 821.917808 ether, 13); 
+            assertIgnoringDecimals(lateInterest, 821.917808 ether, 13);
 
             uint256 paymentAmount = principalPortion + interestPortion;
 
             assertIgnoringDecimals(paymentAmount, uint256(28_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
-       
+
             // Check payment amounts against provided values
             // Five decimals of precision used (six provided with rounding)
             assertIgnoringDecimals(principalPortion, uint256(     0.000000 ether),                13);
