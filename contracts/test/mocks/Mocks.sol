@@ -68,4 +68,36 @@ contract ManipulatableMapleLoan is MapleLoan {
         _drawableFunds = drawableFunds_;
     }
 
+    function setClaimableFunds(uint256 claimableFunds_) external {
+        _claimableFunds = claimableFunds_;
+    }
+
+    function setCommintmentHash(bytes32 hash_) external {
+        _refinanceCommitment = hash_;
+    }
+
+    function setNextPaymentDueDate(uint256 dueDate_) external {
+        _nextPaymentDueDate = dueDate_;
+    }
+
+    function setBorrowerSlot(address borrower_) external {
+        _borrower = borrower_;
+    }
+
+    function setLenderSlot(address lender_) external {
+        _lender = lender_;
+    }
+
+    function setFactorySlot(address factory_) external {
+        _setSlotValue(bytes32(0x7a45a402e4cb6e08ebc196f20f66d5d30e67285a2a8aa80503fa409e727a4af1), bytes32(uint256(uint160(factory_))));
+    }
+
+    function setFundsAsset(address asset_) external {
+        _fundsAsset = asset_;
+    }
+
+    function setCollateralAsset(address asset_) external {
+        _collateralAsset = asset_;
+    }
+
 }
