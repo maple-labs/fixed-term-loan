@@ -7,7 +7,7 @@ import { MockERC20 }                           from "../../modules/erc20/src/tes
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { ConstructableMapleLoan, EmptyContract, ManipulatableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, EmptyContract, LenderMock, ManipulatableMapleLoan, MockFactory } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 
@@ -346,14 +346,60 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.acceptLender();
     }
 
+    function test_skim_acl() external {
+        MockERC20 otherAsset = new MockERC20("OA", "OA", 18);
+
+        otherAsset.mint(address(loan), 1);
+
+        try loan.skim(address(otherAsset), address(this)) { assertTrue(false, "Non-lender or borrower was able to set lender"); } catch { }
+
+        loan.__setLender(address(this));
+
+        assertEq(otherAsset.balanceOf(address(loan)), 1);
+        assertEq(otherAsset.balanceOf(address(1)),    0);
+
+        loan.skim(address(otherAsset), address(1));
+
+        assertEq(otherAsset.balanceOf(address(loan)), 0);
+        assertEq(otherAsset.balanceOf(address(1)),    1);
+
+        loan.__setLender(address(2));
+        loan.__setBorrower(address(this));
+
+        otherAsset.mint(address(loan), 1);
+
+        assertEq(otherAsset.balanceOf(address(loan)), 1);
+        assertEq(otherAsset.balanceOf(address(2)),    0);
+
+        loan.skim(address(otherAsset), address(2));
+
+        assertEq(otherAsset.balanceOf(address(loan)), 0);
+        assertEq(otherAsset.balanceOf(address(2)),    1);
+    }
+
+    function test_upgrade_acl() external {
+        MockFactory factory = new MockFactory();
+
+        loan.__setFactory(address(factory));
+
+        address newImplementation = address(new ManipulatableMapleLoan());
+
+        try loan.upgrade(1, abi.encode(newImplementation)) { assertTrue(false, "Non-borrower was able to set implementation"); } catch { }
+
+        loan.__setBorrower(address(this));
+
+        loan.upgrade(1, abi.encode(newImplementation));
+
+        assertEq(loan.implementation(), newImplementation);
+    }
+
     /***********************/
     /*** Fund Loan Tests ***/
     /***********************/
 
     function test_fundLoan_extraFundsWhileNotActive() external {
-        LenderMock             lender = new LenderMock();
-        ManipulatableMapleLoan loan   = new ManipulatableMapleLoan();
-        MockERC20              token  = new MockERC20("FA", "FundsAsset", 0);
+        LenderMock lender = new LenderMock();
+        MockERC20  token  = new MockERC20("FA", "FundsAsset", 0);
 
         loan.__setFundsAsset(address(token));
         loan.__setPaymentsRemaining(1);
@@ -368,9 +414,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     }
 
     function test_fundLoan_extraFundsWhileActive() external {
-        LenderMock             lender = new LenderMock();
-        ManipulatableMapleLoan loan   = new ManipulatableMapleLoan();
-        MockERC20              token  = new MockERC20("FA", "FundsAsset", 0);
+        LenderMock lender = new LenderMock();
+        MockERC20  token  = new MockERC20("FA", "FundsAsset", 0);
 
         loan.__setFundsAsset(address(token));
         loan.__setLender(address(lender));
@@ -387,10 +432,9 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     }
 
     function test_acceptNewTerms_extraFunds() external {
-        LenderMock             lender     = new LenderMock();
-        ManipulatableMapleLoan loan       = new ManipulatableMapleLoan();
-        MockERC20              token      = new MockERC20("FA", "FundsAsset", 0);
-        EmptyContract          refinancer = new EmptyContract();
+        EmptyContract refinancer = new EmptyContract();
+        LenderMock    lender     = new LenderMock();
+        MockERC20     token      = new MockERC20("FA", "FundsAsset", 0);
 
         loan.__setFundsAsset(address(token));
         loan.__setLender(address(lender));
@@ -408,20 +452,523 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         assertEq(token.balanceOf(address(lender)), 1);
     }
 
-    // TODO: test_upgrade_acl (can mock factory)
-    // TODO: test_skim_acl
-    // TODO: test closeLoan with and without pulling funds
-    // TODO: test drawdownFunds with and without pulling funds
-    // TODO: test drawdownFunds with and without additional collateral required (with and without some unaccounted amount already in the loan)
-    // TODO: test makePayment with and without pulling funds
-    // TODO: test postCollateral with and without pulling funds
-    // TODO: test returnFunds with and without pulling funds
-    // TODO: test acceptNewTerms with and without pulling funds
-    // TODO: test fundLoan with and without pulling funds
-    // TODO: test fundLoan asset redirection if loan is active
-    // TODO: test that skim cannot be used on collateralAsset or fundsAsset
-    // TODO: test that skim fails on transfer fail
-    // TODO: test that superFactory returns factory
+    function test_fundLoan_pullPattern() external {
+        LenderMock lender     = new LenderMock();
+        MockERC20  fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPaymentsRemaining(1);
+
+        fundsAsset.mint(address(this), amount);
+
+        try loan.fundLoan(address(lender), amount) { assertTrue(false, "Able to fund"); } catch { }
+
+        fundsAsset.approve(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.principal(),                    0);
+
+        loan.fundLoan(address(lender), amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.principal(),                    amount);
+    }
+
+    function test_fundLoan_pushPattern() external {
+        LenderMock lender     = new LenderMock();
+        MockERC20  fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPaymentsRemaining(1);
+
+        // Fails without pushing funds
+        try loan.fundLoan(address(lender), uint256(0)) { assertTrue(false, "Able to fund"); } catch { }
+
+        fundsAsset.mint(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.principal(),                    0);
+
+        loan.fundLoan(address(lender), uint256(0));
+
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.principal(),                    amount);
+    }
+
+    function test_fundLoan_overFund_pullPattern() external {
+        LenderMock lender     = new LenderMock();
+        MockERC20  fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 principalRequested = 1_000_000;
+        uint256 fundAmount         = 2_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(principalRequested);
+        loan.__setPaymentsRemaining(1);
+
+        fundsAsset.mint(address(this), fundAmount);
+
+        try loan.fundLoan(address(lender), fundAmount) { assertTrue(false, "Able to fund"); } catch { }
+
+        fundsAsset.approve(address(loan), fundAmount);
+
+        assertEq(fundsAsset.balanceOf(address(this)),   fundAmount);
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)),   0);
+        assertEq(loan.principal(),                      0);
+
+        loan.fundLoan(address(lender), fundAmount);
+
+        assertEq(fundsAsset.balanceOf(address(this)),   0);
+        assertEq(fundsAsset.balanceOf(address(lender)), fundAmount - principalRequested);
+        assertEq(fundsAsset.balanceOf(address(loan)),   principalRequested);
+        assertEq(loan.principal(),                      principalRequested);
+    }
+
+    function test_fundLoan_overFund_pushPattern() external {
+        LenderMock lender     = new LenderMock();
+        MockERC20  fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 principalRequested = 1_000_000;
+        uint256 fundAmount         = 2_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(principalRequested);
+        loan.__setPaymentsRemaining(1);
+
+        // Fails without pushing funds
+        try loan.fundLoan(address(lender), uint256(0)) { assertTrue(false, "Able to fund"); } catch { }
+
+        fundsAsset.mint(address(loan), fundAmount);
+
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)),   fundAmount);
+        assertEq(loan.principal(),                      0);
+
+        loan.fundLoan(address(lender), 0);
+
+        assertEq(fundsAsset.balanceOf(address(lender)), fundAmount - principalRequested);
+        assertEq(fundsAsset.balanceOf(address(loan)),   principalRequested);
+        assertEq(loan.principal(),                      principalRequested);
+    }
+
+    function test_drawdownFunds_pullPattern() external {
+        MockERC20 fundsAsset      = new MockERC20("FA", "FA", 18);
+        MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
+
+        uint256 fundsAssetAmount      = 1_000_000;
+        uint256 collateralAssetAmount = 300_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setPrincipalRequested(fundsAssetAmount);
+        loan.__setCollateralRequired(collateralAssetAmount);
+        loan.__setPrincipal(fundsAssetAmount);
+        loan.__setDrawableFunds(fundsAssetAmount);
+        loan.__setPaymentsRemaining(1);
+        loan.__setBorrower(address(this));
+
+        // Send amount to loan
+        fundsAsset.mint(address(loan), fundsAssetAmount);
+        collateralAsset.mint(address(this), collateralAssetAmount);
+
+        // Fail without approval
+        try loan.drawdownFunds(fundsAssetAmount, address(this)) { assertTrue(false, "Able to drawdown"); } catch { }
+
+        collateralAsset.approve(address(loan), collateralAssetAmount);
+
+        assertEq(fundsAsset.balanceOf(address(this)),      0);
+        assertEq(fundsAsset.balanceOf(address(loan)),      fundsAssetAmount);
+        assertEq(collateralAsset.balanceOf(address(this)), collateralAssetAmount);
+        assertEq(collateralAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.collateral(),                        0);
+        assertEq(loan.drawableFunds(),                     fundsAssetAmount);
+
+        loan.drawdownFunds(fundsAssetAmount, address(this));
+
+        assertEq(fundsAsset.balanceOf(address(this)),      fundsAssetAmount);
+        assertEq(fundsAsset.balanceOf(address(loan)),      0);
+        assertEq(collateralAsset.balanceOf(address(this)), 0);
+        assertEq(collateralAsset.balanceOf(address(loan)), collateralAssetAmount);
+        assertEq(loan.collateral(),                        collateralAssetAmount);
+        assertEq(loan.drawableFunds(),                     0);
+    }
+
+    function test_drawdownFunds_pushPattern() external {
+        MockERC20 fundsAsset      = new MockERC20("FA", "FA", 18);
+        MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
+
+        uint256 fundsAssetAmount      = 1_000_000;
+        uint256 collateralAssetAmount = 300_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setPrincipalRequested(fundsAssetAmount);
+        loan.__setCollateralRequired(collateralAssetAmount);
+        loan.__setPrincipal(fundsAssetAmount);
+        loan.__setDrawableFunds(fundsAssetAmount);
+        loan.__setPaymentsRemaining(1);
+        loan.__setBorrower(address(this));
+
+        // Send amount to loan
+        fundsAsset.mint(address(loan), fundsAssetAmount);
+
+        // Fail without approval
+        try loan.drawdownFunds(fundsAssetAmount, address(this)) { assertTrue(false, "Able to drawdown"); } catch { }
+
+        // "Transfer" funds into the loan
+        collateralAsset.mint(address(loan), collateralAssetAmount);
+
+        assertEq(fundsAsset.balanceOf(address(this)),      0);
+        assertEq(fundsAsset.balanceOf(address(loan)),      fundsAssetAmount);
+        assertEq(collateralAsset.balanceOf(address(loan)), collateralAssetAmount);
+        assertEq(loan.collateral(),                        0);
+        assertEq(loan.drawableFunds(),                     fundsAssetAmount);
+
+        loan.drawdownFunds(fundsAssetAmount, address(this));
+
+        assertEq(fundsAsset.balanceOf(address(this)),      fundsAssetAmount);
+        assertEq(fundsAsset.balanceOf(address(loan)),      0);
+        assertEq(collateralAsset.balanceOf(address(loan)), collateralAssetAmount);
+        assertEq(loan.collateral(),                        collateralAssetAmount);
+        assertEq(loan.drawableFunds(),                     0);
+    }
+
+    function test_drawdownFunds_withoutAdditionalCollateralRequired() external {
+        MockERC20 fundsAsset      = new MockERC20("FA", "FA", 18);
+        MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPrincipal(amount);
+        loan.__setDrawableFunds(amount);
+        loan.__setBorrower(address(this));
+
+        // Send amount to loan
+        fundsAsset.mint(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.drawableFunds(),                amount);
+
+        loan.drawdownFunds(amount, address(this));
+
+        assertEq(fundsAsset.balanceOf(address(this)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.drawableFunds(),                0);
+        
+    }
+
+    function test_postCollateral_pullPattern() external {
+        MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
+
+        loan.__setCollateralAsset(address(collateralAsset));
+
+        uint256 amount = 1_000_000;
+
+        collateralAsset.mint(address(this), amount);
+
+        try loan.postCollateral(amount) { assertTrue(false,"Able to post collateral"); } catch { }
+
+        collateralAsset.approve(address(loan), amount);
+
+        assertEq(collateralAsset.balanceOf(address(this)), amount);
+        assertEq(collateralAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.collateral(),                        0);
+
+        loan.postCollateral(amount);
+
+        assertEq(collateralAsset.balanceOf(address(this)), 0);
+        assertEq(collateralAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.collateral(),                        amount);
+    }
+
+    function test_postCollateral_pushPattern() external {
+        MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
+
+        loan.__setCollateralAsset(address(collateralAsset));
+
+        uint256 amount = 1_000_000;
+
+        collateralAsset.mint(address(loan), amount);
+
+        assertEq(collateralAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.collateral(),                        0);
+
+        loan.postCollateral(0);
+
+        assertEq(collateralAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.collateral(),                        amount);
+    }
+
+    function test_closeLoan_pullPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPrincipal(amount);
+        loan.__setNextPaymentDueDate(block.timestamp + 1); 
+
+        fundsAsset.mint(address(this), amount);
+
+        try loan.closeLoan(amount) { assertTrue(false, "Able to close loan"); } catch { }
+
+        fundsAsset.approve(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.principal(),                    amount);
+
+        loan.closeLoan(amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.principal(),                    0);
+    }
+
+    function test_closeLoan_pushPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPrincipal(amount);
+        loan.__setNextPaymentDueDate(block.timestamp + 1); 
+
+        try loan.closeLoan(0) { assertTrue(false,"Able to close loan"); } catch { }
+        
+        fundsAsset.mint(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.principal(),                    amount);
+
+        loan.closeLoan(0);
+
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.principal(),                    0);
+    }
+
+    function test_makePayment_pullPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 startingPrincipal = 1_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(startingPrincipal);
+        loan.__setPrincipal(startingPrincipal);
+        loan.__setEndingPrincipal(uint(0));
+        loan.__setPaymentsRemaining(3);
+
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint totalPayment = principal + interest;
+
+        fundsAsset.mint(address(this), totalPayment);
+
+        try loan.makePayment(totalPayment) { assertTrue(false, "Able to make payment"); } catch { }
+
+        fundsAsset.approve(address(loan), totalPayment);
+
+        assertEq(fundsAsset.balanceOf(address(this)), totalPayment);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.paymentsRemaining(),            3);
+        assertEq(loan.principal(),                    startingPrincipal);
+
+        loan.makePayment(totalPayment);
+
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)), totalPayment);
+        assertEq(loan.paymentsRemaining(),            2);
+        assertEq(loan.principal(),                    startingPrincipal - principal);
+    }
+
+    function test_makePayment_pushPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 startingPrincipal = 1_000_000;
+
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(startingPrincipal);
+        loan.__setPrincipal(startingPrincipal);
+        loan.__setEndingPrincipal(uint(0));
+        loan.__setPaymentsRemaining(4);
+
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint totalPayment = principal + interest;
+
+        try loan.makePayment(0) { assertTrue(false, "Able to make payment"); } catch { }
+        
+        fundsAsset.mint(address(loan), totalPayment);
+
+        assertEq(fundsAsset.balanceOf(address(loan)), totalPayment);
+        assertEq(loan.paymentsRemaining(),            4);
+        assertEq(loan.principal(),                    startingPrincipal);
+
+        loan.makePayment(0);
+
+        assertEq(fundsAsset.balanceOf(address(loan)), totalPayment);
+        assertEq(loan.paymentsRemaining(),            3);
+        assertEq(loan.principal(),                    startingPrincipal - principal);
+    }
+
+    function test_returnFunds_pullPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        loan.__setFundsAsset(address(fundsAsset));
+
+        uint256 amount = 1_000_000;
+
+        fundsAsset.mint(address(this), amount);
+
+        try loan.returnFunds(amount) { assertTrue(false, "Able to return funds"); } catch { }
+
+        fundsAsset.approve(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.drawableFunds(),                0);
+
+        loan.returnFunds(amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.drawableFunds(),                amount);
+    }
+
+    function test_returnFunds_pushPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        loan.__setFundsAsset(address(fundsAsset));
+
+        uint256 amount = 1_000_000;
+        
+        fundsAsset.mint(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.drawableFunds(),                0);
+
+        loan.returnFunds(0);  // No try catch since returnFunds can pass with zero amount
+
+        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.drawableFunds(),                amount);
+    }
+
+    function test_acceptNewTerms_pullPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setPrincipalRequested(1);
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setLender(address(this));
+
+        address refinancer = address(new EmptyContract());
+        bytes[] memory data = new bytes[](1);
+        data[0] = new bytes(0);
+        bytes32 commitment = keccak256(abi.encode(refinancer, data));
+
+        loan.__setRefinanceCommitmentHash(commitment);
+
+        fundsAsset.mint(address(this), amount);
+
+        try loan.acceptNewTerms(refinancer, data, amount) { assertTrue(false, "Able to accept terms"); } catch { }
+
+        fundsAsset.approve(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.claimableFunds(),               0);
+        assertEq(loan.drawableFunds(),                0);
+
+        loan.acceptNewTerms(refinancer, data, amount);
+        
+        // Does not change, since no increase in principal was done in the loan
+        // All unaccounted amount goes back to the lender at the end of acceptNewTerms
+        assertEq(fundsAsset.balanceOf(address(this)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.claimableFunds(),               0);
+        assertEq(loan.drawableFunds(),                0);
+    }
+
+    function test_superFactory() external {
+        assertEq(loan.factory(), loan.superFactory());
+    }
+
+    function test_fundsRedirect_pullPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+        address lender = address(1);
+
+        // Loan already funded
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+        loan.__setLender(lender);
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(1_000_000);
+        loan.__setPrincipal(1_000_000);
+
+        fundsAsset.mint(address(this), amount);
+        fundsAsset.approve(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(this)),   amount);
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)),   0);
+        assertEq(loan.claimableFunds(),                 0);
+        assertEq(loan.drawableFunds(),                  0);
+
+        loan.fundLoan(address(this), amount);
+
+        // Funds move from sender to lender since no increase in principal was done in the loan
+        // All unaccounted amount goes back to the lender at the end of fundLoan
+        assertEq(fundsAsset.balanceOf(address(this)),   0);
+        assertEq(fundsAsset.balanceOf(address(lender)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)),   0);
+        assertEq(loan.claimableFunds(),                 0);
+        assertEq(loan.drawableFunds(),                  0);
+    }
+
+    function test_fundsRedirect_pushPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+        address lender = address(1);
+
+        // Loan already funded
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+        loan.__setLender(lender);
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(1_000_000);
+        loan.__setPrincipal(1_000_000);
+
+        fundsAsset.mint(address(loan), amount);
+
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)),   amount);
+        assertEq(loan.claimableFunds(),                 0);
+        assertEq(loan.drawableFunds(),                  0);
+
+        loan.fundLoan(address(this), 0);
+
+        // Funds move from sender to lender since no increase in principal was done in the loan
+        // All unaccounted amount goes back to the lender at the end of fundLoan
+        assertEq(fundsAsset.balanceOf(address(lender)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)),   0);
+        assertEq(loan.claimableFunds(),                 0);
+        assertEq(loan.drawableFunds(),                  0);
+    }
 
 }
 

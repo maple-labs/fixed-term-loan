@@ -81,6 +81,10 @@ contract ManipulatableMapleLoan is MapleLoan {
         _fundsAsset = fundsAsset_;
     }
 
+    function __setEndingPrincipal(uint256 endingPrincipal_) external {
+        _endingPrincipal = endingPrincipal_;
+    }
+
     function __setLender(address lender_) external {
         _lender = lender_;
     }
@@ -113,6 +117,17 @@ contract ManipulatableMapleLoan is MapleLoan {
         _refinanceCommitment = refinanceCommitment_;
     }
 
+}
+
+contract MockFactory {
+
+    function upgradeInstance(uint256 , bytes calldata arguments_) external {
+        address implementation = abi.decode(arguments_, (address));
+
+        ( bool success, ) = msg.sender.call(abi.encodeWithSignature("setImplementation(address)", implementation));
+
+        require(success);
+    }
 }
 
 contract SomeAccount {
