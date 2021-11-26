@@ -14,8 +14,10 @@ contract MapleLoanInternals is MapleProxied {
     uint256 private constant SCALED_ONE = uint256(10 ** 18);
 
     // Roles
-    address internal _borrower;  // The address of the borrower.
-    address internal _lender;    // The address of the lender.
+    address internal _borrower;         // The address of the borrower.
+    address internal _lender;           // The address of the lender.
+    address internal _pendingBorrower;  // The address of the pendingBorrower, the only address that can accept the borrower role.
+    address internal _pendingLender;    // The address of the pendingLender, the only address that can accept the lender role.
 
     // Assets
     address internal _collateralAsset;  // The address of the asset used as collateral.
@@ -33,8 +35,8 @@ contract MapleLoanInternals is MapleProxied {
 
     // Requested Amounts
     uint256 internal _collateralRequired;  // The collateral the borrower is expected to put up to draw down all _principalRequested.
-    uint256 internal _endingPrincipal;     // The principal to remain at end of loan.
     uint256 internal _principalRequested;  // The funds the borrowers wants to borrow.
+    uint256 internal _endingPrincipal;     // The principal to remain at end of loan.
 
     // State
     uint256 internal _drawableFunds;       // The amount of funds that can be drawn down.

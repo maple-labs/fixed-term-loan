@@ -101,6 +101,16 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function paymentsRemaining() external view returns (uint256 paymentsRemaining_);
 
     /**
+     *  @dev The address of the pending borrower.
+     */
+    function pendingBorrower() external view returns (address pendingBorrower_);
+
+    /**
+     *  @dev The address of the pending lender.
+     */
+    function pendingLender() external view returns (address pendingLender_);
+
+    /**
      *  @dev The amount of principal owed (initially, the requested amount), which needs to be paid back.
      */
     function principal() external view returns (uint256 principal_);
@@ -118,6 +128,16 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     /********************************/
     /*** State Changing Functions ***/
     /********************************/
+
+    /**
+     *  @dev Accept the borrower role, must be called by pendingBorrower.
+     */
+    function acceptBorrower() external;
+
+    /**
+     *  @dev Accept the lender role, must be called by pendingLender.
+     */
+    function acceptLender() external;
 
     /**
      *  @dev   Accept the proposed terms ans trigger refinance execution
@@ -203,16 +223,16 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
 
     /**
-     *  @dev   Set the borrower to a new account.
-     *  @param borrower_ The address of the new borrower.
+     *  @dev   Set the pendingBorrower to a new account.
+     *  @param pendingBorrower_ The address of the new pendingBorrower.
      */
-    function setBorrower(address borrower_) external;
+    function setPendingBorrower(address pendingBorrower_) external;
 
     /**
-     *  @dev   Set the lender to a new account.
-     *  @param lender_ The address of the new lender.
+     *  @dev   Set the pendingLender to a new account.
+     *  @param pendingLender_ The address of the new pendingLender.
      */
-    function setLender(address lender_) external;
+    function setPendingLender(address pendingLender_) external;
 
     /**
      *  @dev    Remove some token (neither fundsAsset nor collateralAsset) from the loan.

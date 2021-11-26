@@ -7,7 +7,7 @@ import { MockERC20 }                           from "../../modules/erc20/src/tes
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { ManipulatableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, ManipulatableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 
@@ -257,11 +257,21 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     }
 
     function test_setBorrower_acl() external {
-        try loan.setBorrower(address(1)) { assertTrue(false, "Non-borrower was able to set borrower"); } catch { }
+        try loan.setPendingBorrower(address(1)) { assertTrue(false, "Non-borrower was able to set borrower"); } catch { }
 
         loan.__setBorrower(address(this));
 
-        loan.setBorrower(address(1));
+        loan.setPendingBorrower(address(1));
+    }
+
+    function test_acceptBorrower_acl() external {
+        loan.__setPendingBorrower(address(1));
+
+        try loan.acceptBorrower() { assertTrue(false, "Non-pendingBorrower was able to set borrower"); } catch { }
+
+        loan.__setPendingBorrower(address(this));
+
+        loan.acceptBorrower();
     }
 
     function test_acceptNewTerms_acl() external {
@@ -308,11 +318,21 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     }
 
     function test_setLender_acl() external {
-        try loan.setLender(address(this)) {  assertTrue(false, "Non-lender was able to set lender"); } catch { }
+        try loan.setPendingLender(address(this)) {  assertTrue(false, "Non-lender was able to set lender"); } catch { }
 
         loan.__setLender(address(this));
 
-        loan.setLender(address(this));
+        loan.setPendingLender(address(this));
+    }
+
+    function test_acceptLender_acl() external {
+        loan.__setPendingLender(address(1));
+
+        try loan.acceptLender() { assertTrue(false, "Non-pendingLender was able to set borrower"); } catch { }
+
+        loan.__setPendingLender(address(this));
+
+        loan.acceptLender();
     }
 
     // TODO: test_upgrade_acl (can mock factory)
@@ -330,4 +350,98 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     // TODO: test that skim fails on transfer fail
     // TODO: test that superFactory returns factory
 
+}
+
+contract MapleLoanRoleTests is TestUtils {
+
+    Borrower   borrower;
+    LenderMock lender;
+    MockERC20  token;
+
+    ConstructableMapleLoan loan;
+    
+    function setUp() public {
+        borrower = new Borrower();
+        lender   = new LenderMock();
+        token    = new MockERC20("Test", "TST", 0);
+
+        address[2] memory assets      = [address(token),   address(token)];
+        uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
+        uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
+        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
+
+        loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
+    }
+
+    function test_transferBorrowerRole() public {
+        Borrower newBorrower = new Borrower();
+
+        assertEq(loan.pendingBorrower(), address(0));
+        assertEq(loan.borrower(),        address(borrower));
+
+        // Only borrower can call setPendingBorrower
+        assertTrue(!newBorrower.try_loan_setPendingBorrower(address(loan), address(newBorrower)));
+        assertTrue(    borrower.try_loan_setPendingBorrower(address(loan), address(newBorrower)));
+
+        assertEq(loan.pendingBorrower(), address(newBorrower));
+
+        // Pending borrower can't call setPendingBorrower
+        assertTrue(!newBorrower.try_loan_setPendingBorrower(address(loan), address(1)));
+        assertTrue(    borrower.try_loan_setPendingBorrower(address(loan), address(1)));
+
+        assertEq(loan.pendingBorrower(), address(1));
+
+        // Can be reset if mistake is made
+        assertTrue(borrower.try_loan_setPendingBorrower(address(loan), address(newBorrower)));
+
+        assertEq(loan.pendingBorrower(), address(newBorrower));
+        assertEq(loan.borrower(),        address(borrower));
+
+        // Pending borrower is the only one who can call acceptBorrower
+        assertTrue(  !borrower.try_loan_acceptBorrower(address(loan)));
+        assertTrue(newBorrower.try_loan_acceptBorrower(address(loan)));
+
+        // Pending borrower is set to zero
+        assertEq(loan.pendingBorrower(), address(0));
+        assertEq(loan.borrower(),        address(newBorrower));
+    }
+
+    function test_transferLenderRole() public {
+
+        // Fund the loan to set the lender
+        token.mint(address(lender), 1_000_000);
+        lender.erc20_approve(address(token), address(loan),   1_000_000);
+        lender.loan_fundLoan(address(loan),  address(lender), 1_000_000);
+
+        LenderMock newLender = new LenderMock();
+
+        assertEq(loan.pendingLender(), address(0));
+        assertEq(loan.lender(),        address(lender));
+
+        // Only lender can call setPendingLender
+        assertTrue(!newLender.try_loan_setPendingLender(address(loan), address(newLender)));
+        assertTrue(    lender.try_loan_setPendingLender(address(loan), address(newLender)));
+
+        assertEq(loan.pendingLender(), address(newLender));
+
+        // Pending lender can't call setPendingLender
+        assertTrue(!newLender.try_loan_setPendingLender(address(loan), address(1)));
+        assertTrue(    lender.try_loan_setPendingLender(address(loan), address(1)));
+
+        assertEq(loan.pendingLender(), address(1));
+
+        // Can be reset if mistake is made
+        assertTrue(lender.try_loan_setPendingLender(address(loan), address(newLender)));
+
+        assertEq(loan.pendingLender(), address(newLender));
+        assertEq(loan.lender(),        address(lender));
+
+        // Pending lender is the only one who can call acceptLender
+        assertTrue(  !lender.try_loan_acceptLender(address(loan)));
+        assertTrue(newLender.try_loan_acceptLender(address(loan)));
+
+        // Pending lender is set to zero
+        assertEq(loan.pendingLender(), address(0));
+        assertEq(loan.lender(),        address(newLender));
+    }
 }

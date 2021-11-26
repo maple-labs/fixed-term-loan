@@ -5,10 +5,10 @@ pragma solidity ^0.8.7;
 interface IMapleLoanEvents {
 
     /**
-     *  @dev   Borrower was set to a new account.
+     *  @dev   Borrower was accepted, and set to a new account.
      *  @param borrower_ The address of the new borrower.
      */
-    event BorrowerSet(address indexed borrower_);
+    event BorrowerAccepted(address indexed borrower_);
 
     /**
      *  @dev   Collateral was posted.
@@ -81,15 +81,15 @@ interface IMapleLoanEvents {
     event Initialized(address indexed borrower_, address[2] assets_, uint256[3] termDetails_, uint256[3] amounts_, uint256[4] rates_);
 
     /**
-     *  @dev   Lender was set to a new account.
+     *  @dev   Lender was accepted, and set to a new account.
      *  @param lender_ The address of the new lender.
      */
-    event LenderSet(address indexed lender_);
+    event LenderAccepted(address indexed lender_);
 
     /**
      *  @dev   Loan was repaid early and closed.
-     *  @param principalPaid_    The portion of the total amount that went towards principal.
-     *  @param interestPaid_     The portion of the total amount that went towards interest fees.
+     *  @param principalPaid_ The portion of the total amount that went towards principal.
+     *  @param interestPaid_  The portion of the total amount that went towards interest fees.
      */
     event LoanClosed(uint256 principalPaid_, uint256 interestPaid_);
 
@@ -111,10 +111,22 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Payments were made.
-     *  @param principalPaid_    The portion of the total amount that went towards principal.
-     *  @param interestPaid_     The portion of the total amount that went towards interest fees.
+     *  @param principalPaid_ The portion of the total amount that went towards principal.
+     *  @param interestPaid_  The portion of the total amount that went towards interest fees.
      */
     event PaymentMade(uint256 principalPaid_, uint256 interestPaid_);
+
+    /**
+     *  @dev   Pending borrower was set.
+     *  @param pendingBorrower_ Address that can accept the borrower role.
+     */
+    event PendingBorrowerSet(address pendingBorrower_);
+
+    /**
+     *  @dev   Pending lender was set.
+     *  @param pendingLender_ Address that can accept the lender role.
+     */
+    event PendingLenderSet(address pendingLender_);
 
     /**
      *  @dev   The loan was in default and funds and collateral was repossessed by the lender.

@@ -39,6 +39,14 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /*** Borrow Functions ***/
     /************************/
 
+    function acceptBorrower() external override {
+        require(msg.sender == _pendingBorrower, "ML:AB:NOT_PENDING_BORROWER");
+
+        _pendingBorrower = address(0);
+
+        emit BorrowerAccepted(_borrower = msg.sender);
+    }
+
     function closeLoan(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
@@ -106,15 +114,23 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit FundsReturned(fundsReturned_ = _returnFunds());
     }
 
-    function setBorrower(address borrower_) external override {
-        require(msg.sender == _borrower, "ML:TB:NOT_BORROWER");
+    function setPendingBorrower(address pendingBorrower_) external override {
+        require(msg.sender == _borrower, "ML:SPB:NOT_BORROWER");
 
-        emit BorrowerSet(_borrower = borrower_);
+        emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
     }
 
     /**********************/
     /*** Lend Functions ***/
     /**********************/
+
+    function acceptLender() external override {
+        require(msg.sender == _pendingLender, "ML:AL:NOT_PENDING_LENDER");
+
+        _pendingLender = address(0);
+
+        emit LenderAccepted(_lender = msg.sender);
+    }
 
     function acceptNewTerms(address refinancer_, bytes[] calldata calls_, uint256 amount_) external override {
         require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
@@ -157,10 +173,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit Repossessed(collateralRepossessed_, fundsRepossessed_, destination_);
     }
 
-    function setLender(address lender_) external override {
-        require(msg.sender == _lender, "ML:TL:NOT_LENDER");
+    function setPendingLender(address pendingLender_) external override {
+        require(msg.sender == _lender, "ML:SPL:NOT_LENDER");
 
-        emit LenderSet(_lender = lender_);
+        emit PendingLenderSet(_pendingLender = pendingLender_);
     }
 
     /*******************************/
@@ -278,6 +294,14 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function paymentsRemaining() external view override returns (uint256 paymentsRemaining_) {
         return _paymentsRemaining;
+    }
+
+    function pendingBorrower() external view override returns (address pendingBorrower_) {
+        return _pendingBorrower;
+    }
+
+    function pendingLender() external view override returns (address pendingLender_) {
+        return _pendingLender;
     }
 
     function principalRequested() external view override returns (uint256 principalRequested_) {

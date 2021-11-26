@@ -11,6 +11,10 @@ contract Lender is LoanUser {
     /*** Direct Functions ***/
     /************************/
 
+    function loan_acceptLender(address loan_) external {
+        IMapleLoan(loan_).acceptLender();
+    }
+
     function loan_acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_, uint256 amount_) external {
         IMapleLoan(loan_).acceptNewTerms(refinancer_, calls_, amount_);
     }
@@ -23,8 +27,8 @@ contract Lender is LoanUser {
         return IMapleLoan(loan_).repossess(destination_);
     }
 
-    function loan_setLender(address loan_, address lender_) external {
-        IMapleLoan(loan_).setLender(lender_);
+    function loan_setPendingLender(address loan_, address lender_) external {
+        IMapleLoan(loan_).setPendingLender(lender_);
     }
 
     /*********************/
@@ -43,8 +47,12 @@ contract Lender is LoanUser {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.repossess.selector, destination_));
     }
 
-    function try_loan_setLender(address loan_, address lender_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.setLender.selector, lender_));
+    function try_loan_setPendingLender(address loan_, address lender_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.setPendingLender.selector, lender_));
+    }
+
+    function try_loan_acceptLender(address loan_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptLender.selector));
     }
 
 }

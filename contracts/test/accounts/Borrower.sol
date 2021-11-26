@@ -13,6 +13,10 @@ contract Borrower is LoanUser, ProxyUser {
     /*** Direct Functions ***/
     /************************/
 
+    function loan_acceptBorrower(address loan_) external {
+        IMapleLoan(loan_).acceptBorrower();
+    }
+
     function loan_drawdownFunds(address loan_, uint256 amount_, address destination_) external returns (uint256 collateralPosted_) {
         return IMapleLoan(loan_).drawdownFunds(amount_, destination_);
     }
@@ -25,8 +29,8 @@ contract Borrower is LoanUser, ProxyUser {
         IMapleLoan(loan_).removeCollateral(amount_, destination_);
     }
 
-    function loan_setBorrower(address loan_, address borrower_) external {
-        IMapleLoan(loan_).setBorrower(borrower_);
+    function loan_setPendingBorrower(address loan_, address borrower_) external {
+        IMapleLoan(loan_).setPendingBorrower(borrower_);
     }
 
     function loan_upgrade(address loan_, uint256 toVersion_, bytes calldata arguments_) external {
@@ -36,6 +40,10 @@ contract Borrower is LoanUser, ProxyUser {
     /*********************/
     /*** Try Functions ***/
     /*********************/
+
+    function try_loan_acceptBorrower(address loan_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptBorrower.selector));
+    }
 
     function try_loan_drawdownFunds(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.drawdownFunds.selector, amount_, destination_));
@@ -49,8 +57,8 @@ contract Borrower is LoanUser, ProxyUser {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.removeCollateral.selector, amount_, destination_));
     }
 
-    function try_loan_setBorrower(address loan_, address borrower_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.setBorrower.selector, borrower_));
+    function try_loan_setPendingBorrower(address loan_, address borrower_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.setPendingBorrower.selector, borrower_));
     }
 
     function try_loan_upgrade(address loan_, uint256 toVersion_, bytes calldata arguments_) external returns (bool ok_) {
