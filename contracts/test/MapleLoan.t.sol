@@ -7,7 +7,9 @@ import { MockERC20 }                           from "../../modules/erc20/src/tes
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { ConstructableMapleLoan, ManipulatableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
+import { Refinancer } from "../Refinancer.sol";
+
+import { ConstructableMapleLoan, EmptyContract, ManipulatableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 
@@ -197,11 +199,13 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     /****************************/
 
     function test_migrate_acl() external {
-        try loan.migrate(address(0), new bytes(0)) { assertTrue(false, "Non-factory was able to migrate"); } catch { }
+        address mockMigrator = address(new EmptyContract());
+
+        try loan.migrate(mockMigrator, new bytes(0)) { assertTrue(false, "Non-factory was able to migrate"); } catch { }
 
         loan.__setFactory(address(this));
 
-        loan.migrate(address(0), new bytes(0));
+        loan.migrate(mockMigrator, new bytes(0));
     }
 
     function test_setImplementation_acl() external {
@@ -229,7 +233,7 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     }
 
     function test_proposeNewTerms_acl() external {
-        address refinancer = address(1);
+        address refinancer = address(new Refinancer());
         bytes[] memory data = new bytes[](1);
         data[0] = abi.encodeWithSignature("increasePrincipal(uint256)", uint256(1));
 
@@ -277,21 +281,26 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     function test_acceptNewTerms_acl() external {
         loan.__setPrincipalRequested(1);  // Needed for the collateralMaintained check
 
-        address refinancer = address(1);
+        address mockRefinancer = address(new EmptyContract());
         bytes[] memory data = new bytes[](1);
         data[0] = new bytes(0);
-        bytes32 refinanceCommitmentHash = keccak256(abi.encode(refinancer, data));
+        bytes32 refinanceCommitmentHash = keccak256(abi.encode(mockRefinancer, data));
 
         loan.__setRefinanceCommitmentHash(refinanceCommitmentHash);
 
-        try loan.acceptNewTerms(refinancer, data, uint(0)) { assertTrue(false, "Non-lender was able to accept terms"); } catch { }
+        try loan.acceptNewTerms(mockRefinancer, data, uint(0)) { assertTrue(false, "Non-lender was able to accept terms"); } catch { }
 
         loan.__setLender(address(this));
 
-        loan.acceptNewTerms(refinancer, data, uint(0));
+        loan.acceptNewTerms(mockRefinancer, data, uint(0));
     }
 
     function test_claimFunds_acl() external {
+        MockERC20 fundsAsset = new MockERC20("Funds Asset", "FA", 18);
+
+        fundsAsset.mint(address(loan), 200_000);
+
+        loan.__setFundsAsset(address(fundsAsset));
         loan.__setClaimableFunds(uint256(200_000));
 
         try loan.claimFunds(uint256(200_000), address(this)) { assertTrue(false, "Non-lender was able to claim funds"); } catch { }

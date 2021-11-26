@@ -741,3 +741,19 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
     }
 
 }
+
+contract RefinanceMiscellaneousTests is BaseRefinanceTest {
+
+    function testFail_refinance_invalidRefinancer() external {
+        setUpOngoingLoan(1, 1, 1, 1, 1, 1, 1);
+
+        bytes[] memory data = new bytes[](1);
+        data[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", 0);
+
+        // Executing refinance
+        loan.proposeNewTerms(address(1), data);
+
+        lender.loan_acceptNewTerms(address(loan), address(1), data, 0);
+    }
+
+}

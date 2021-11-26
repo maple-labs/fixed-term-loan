@@ -209,6 +209,14 @@ contract MapleLoanInternals is MapleProxied {
         // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
         require(_refinanceCommitment == (acceptedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, calls_)), "MLI:ANT:COMMITMENT_MISMATCH");
 
+        uint256 size;
+
+        assembly {
+            size := extcodesize(refinancer_)
+        }
+
+        require(size != uint256(0), "MLI:ANT:INVALID_REFINANCER");
+
         uint256 callCount = calls_.length;
 
         for (uint256 i; i < callCount; ++i) {
