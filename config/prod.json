@@ -9,6 +9,9 @@
         },
         "contracts/MapleLoanInitializer.sol": {
             "urls": ["contracts/MapleLoanInitializer.sol"]
+        },
+        "contracts/Refinancer.sol": {
+            "urls": ["contracts/Refinancer.sol"]
         }
     },
     "settings": {

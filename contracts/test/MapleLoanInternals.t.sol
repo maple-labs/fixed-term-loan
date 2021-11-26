@@ -191,6 +191,8 @@ contract MapleLoanInternals_GetInstallmentTests is TestUtils {
         assertEq(interestAmount_,  2739726027397260000000000000);
     }
 
+    // TODO: test where `raisedRate <= SCALED_ONE`?
+
 }
 
 contract MapleLoanInternals_ScaledExponentTests is TestUtils {
@@ -234,7 +236,7 @@ contract MapleLoanInternals_ScaledExponentTests is TestUtils {
 
 }
 
-contract MapleLoanInternals_GetUnaccountedAmount is TestUtils {
+contract MapleLoanInternals_GetUnaccountedAmountTests is TestUtils {
 
     MapleLoanInternalsHarness internal _loan;
     MockERC20                 internal _token;
@@ -368,6 +370,14 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
         assertEq(_loan.getUnaccountedAmount(address(collateralAsset)), 1);
     }
 
+    // TODO: testFail_fundLoan_noNextPaymentDueDate
+
+    // TODO: testFail_fundLoan_hasPaymentsRemaining
+
+    // TODO: testFail_fundLoan_transferFailedToTreasury
+
+    // TODO: testFail_fundLoan_transferFailedToPoolDelegate
+
 }
 
 contract MapleLoanInternals_PostCollateralTests is TestUtils {
@@ -478,7 +488,7 @@ contract MapleLoanInternals_RemoveCollateralTests is TestUtils {
         assertEq(_collateralAsset.balanceOf(address(this)),  removedAmount_);
     }
 
-    function testFail_removeCollateral_excessAmountWithNoEncumbrances(uint256 collateral_) external {
+    function testFail_removeCollateral_insufficientCollateralWithNoEncumbrances(uint256 collateral_) external {
         collateral_ = constrictToRange(collateral_, MIN_COLLATERAL, MAX_COLLATERAL);
 
         _collateralAsset.mint(address(_loan), collateral_);
@@ -514,13 +524,19 @@ contract MapleLoanInternals_RemoveCollateralTests is TestUtils {
         assertEq(_collateralAsset.balanceOf(address(this)),  collateral_);
     }
 
-    // TODO: test_removeCollateral_withEncumbrances
+    // TODO: test_removeCollateral_fullAmountWithEncumbrances
 
-    // TODO: testFail_removeCollateral_withEncumbrances
+    // TODO: test_removeCollateral_partialAmountWithEncumbrances
+
+    // TODO: testFail_removeCollateral_fullAmountWithEncumbrances
+
+    // TODO: testFail_removeCollateral_partialAmountWithEncumbrances
+
+    // TODO: testFail_removeCollateral_transferFailed?
 
 }
 
-contract MapleLoanInternals_DrawdownTests is TestUtils {
+contract MapleLoanInternals_DrawdownFundsTests is TestUtils {
 
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
@@ -576,7 +592,7 @@ contract MapleLoanInternals_DrawdownTests is TestUtils {
         assertEq(_fundsAsset.balanceOf(address(this)),  drawdownAmount_);
     }
 
-    function testFail_drawdownFunds_moreThenDrawableAmount(uint256 principalRequested_, uint256 extraAmount_) external {
+    function testFail_drawdownFunds_insufficientDrawableFunds(uint256 principalRequested_, uint256 extraAmount_) external {
         principalRequested_ = constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
         extraAmount_        = constrictToRange(extraAmount_,        1, MAX_TOKEN_AMOUNT);
 
@@ -586,6 +602,8 @@ contract MapleLoanInternals_DrawdownTests is TestUtils {
 
         _loan.drawdownFunds(principalRequested_ + extraAmount_, address(this));
     }
+
+    // TODO: testFail_drawdownFunds_transferFailed?
 
     function test_drawdownFunds_multipleDrawdowns(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
         // Must have non-zero collateral and principal amounts to cause failure
@@ -694,6 +712,10 @@ contract MapleLoanInternals_RepossessTests is TestUtils {
         _loan.repossess(address(this));
     }
 
+    // TODO: testFail_repossess_collateralTransferFailed?
+
+    // TODO: testFail_repossess_fundsTransferFailed?
+
 }
 
 contract MapleLoanInternals_ReturnFundsTests is TestUtils {
@@ -780,9 +802,11 @@ contract MapleLoanInternals_ClaimFundsTests is TestUtils {
         _loan.claimFunds(amountToClaim_, address(this));
     }
 
+    // TODO: testFail_claimFunds_transferFail?
+
 }
 
-contract MapleLoanInternals_MakePaymentsTests is TestUtils {
+contract MapleLoanInternals_MakePaymentTests is TestUtils {
 
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
@@ -817,7 +841,7 @@ contract MapleLoanInternals_MakePaymentsTests is TestUtils {
         _fundsAsset.mint(address(_loan), principalRequested_);
     }
 
-    function test_makePayments_withDrawableFunds(
+    function test_makePayment_withDrawableFunds(
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
         uint256 interestRate_,
@@ -859,7 +883,7 @@ contract MapleLoanInternals_MakePaymentsTests is TestUtils {
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
     }
 
-    function test_makePayments(
+    function test_makePayment(
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
         uint256 interestRate_,
@@ -897,9 +921,15 @@ contract MapleLoanInternals_MakePaymentsTests is TestUtils {
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
     }
 
+    // TODO: testFail_makePayment_insufficientAmount
+
+    // TODO: test_makePayment_overPay
+
+    // TODO: test_makePayment_lastPaymentClearsLoan
+
 }
 
-contract MapleLoanInternals_CloseLoan is StateManipulations, TestUtils {
+contract MapleLoanInternals_CloseLoanTests is StateManipulations, TestUtils {
 
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
@@ -1122,7 +1152,7 @@ contract MapleLoanInternals_CloseLoan is StateManipulations, TestUtils {
 
 }
 
-contract MapleLoanInternals_GetCollateralForTests is TestUtils {
+contract MapleLoanInternals_GetCollateralRequiredForTests is TestUtils {
 
     MapleLoanInternalsHarness internal loan;
 
@@ -1148,3 +1178,17 @@ contract MapleLoanInternals_GetCollateralForTests is TestUtils {
     }
 
 }
+
+// TODO: MapleLoanInternals_AcceptNewTermsTests
+
+// TODO: MapleLoanInternals_InitializeTests
+
+// TODO: MapleLoanInternals_ProposeNewTermsTests
+
+// TODO: MapleLoanInternals_GetEarlyPaymentBreakdownTests
+
+// TODO: MapleLoanInternals_GetNextPaymentBreakdownTests
+
+// TODO: MapleLoanInternals_SsCollateralMaintainedTests
+
+// TODO: MapleLoanInternals_GetRefinanceCommitmentTests

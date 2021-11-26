@@ -52,7 +52,7 @@ contract MapleLoanInternals is MapleProxied {
     /**********************************/
 
     /// @dev Clears all state variables to end a loan, but keep borrower and lender withdrawal functionality intact.
-    function _clearLoan() internal {
+    function _clearLoanAccounting() internal {
         _gracePeriod     = uint256(0);
         _paymentInterval = uint256(0);
 
@@ -139,7 +139,7 @@ contract MapleLoanInternals is MapleProxied {
 
         _claimableFunds += totalPaid_;
 
-        _clearLoan();
+        _clearLoanAccounting();
     }
 
     /// @dev Sends `amount_` of `_drawableFunds` to `destination_`.
@@ -163,7 +163,7 @@ contract MapleLoanInternals is MapleProxied {
         _claimableFunds += totalPaid_;
 
         if (_paymentsRemaining == uint256(1)) {
-            _clearLoan();  // Assumes `_getNextPaymentBreakdown` returns a `principal_` that is `_principal`.
+            _clearLoanAccounting();  // Assumes `_getNextPaymentBreakdown` returns a `principal_` that is `_principal`.
         } else {
             _nextPaymentDueDate += _paymentInterval;
             _principal          -= principal_;
@@ -172,8 +172,8 @@ contract MapleLoanInternals is MapleProxied {
     }
 
     /// @dev Registers the delivery of an amount of collateral to be posted.
-    function _postCollateral() internal returns (uint256 amount_) {
-        _collateral += (amount_ = _getUnaccountedAmount(_collateralAsset));
+    function _postCollateral() internal returns (uint256 collateralPosted_) {
+        _collateral += (collateralPosted_ = _getUnaccountedAmount(_collateralAsset));
     }
 
     /// @dev Sets refinance commitment given refinance operations.
@@ -194,8 +194,8 @@ contract MapleLoanInternals is MapleProxied {
     }
 
     /// @dev Registers the delivery of an amount of funds to be returned as `_drawableFunds`.
-    function _returnFunds() internal returns (uint256 amount_) {
-        _drawableFunds += (amount_ = _getUnaccountedAmount(_fundsAsset));
+    function _returnFunds() internal returns (uint256 fundsReturned_) {
+        _drawableFunds += (fundsReturned_ = _getUnaccountedAmount(_fundsAsset));
     }
 
     /************************************/
@@ -230,7 +230,7 @@ contract MapleLoanInternals is MapleProxied {
     }
 
     /// @dev Fund the loan and kick off the repayment requirements.
-    function _fundLoan(address lender_) internal returns (uint256 amount_) {
+    function _fundLoan(address lender_) internal returns (uint256 fundsLent_) {
         // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
         require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "MLI:FL:LOAN_ACTIVE");
 
@@ -238,13 +238,13 @@ contract MapleLoanInternals is MapleProxied {
         _nextPaymentDueDate = block.timestamp + _paymentInterval;
 
         // Amount funded and principal are as requested.
-        amount_ = _principal = _principalRequested;
+        fundsLent_ = _principal = _principalRequested;
 
         // Cannot under/over fund loan, so that accounting works in context of PoolV1
-        require(_getUnaccountedAmount(_fundsAsset) == amount_, "MLI:FL:WRONG_FUND_AMOUNT");
+        require(_getUnaccountedAmount(_fundsAsset) == fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
 
         // Transfer the annualized treasury fee, if any, to the Maple treasury, and decrement drawable funds.
-        uint256 treasuryFee = (amount_ * ILenderLike(lender_).treasuryFee() * _paymentInterval * _paymentsRemaining) / uint256(365 days * 10_000);
+        uint256 treasuryFee = (fundsLent_ * ILenderLike(lender_).treasuryFee() * _paymentInterval * _paymentsRemaining) / uint256(365 days * 10_000);
 
         require(
             treasuryFee == uint256(0) || ERC20Helper.transfer(_fundsAsset, ILenderLike(lender_).mapleTreasury(), treasuryFee),
@@ -252,7 +252,7 @@ contract MapleLoanInternals is MapleProxied {
         );
 
         // Transfer delegate fee, if any, to the pool delegate, and decrement drawable funds.
-        uint256 delegateFee = (amount_ * ILenderLike(lender_).investorFee() * _paymentInterval * _paymentsRemaining) / uint256(365 days * 10_000);
+        uint256 delegateFee = (fundsLent_ * ILenderLike(lender_).investorFee() * _paymentInterval * _paymentsRemaining) / uint256(365 days * 10_000);
 
         require(
             delegateFee == uint256(0) || ERC20Helper.transfer(_fundsAsset, ILenderLike(lender_).poolDelegate(), delegateFee),
@@ -260,7 +260,7 @@ contract MapleLoanInternals is MapleProxied {
         );
 
         // Drawable funds is the amount funded, minus any fees.
-        _drawableFunds = amount_ - treasuryFee - delegateFee;
+        _drawableFunds = fundsLent_ - treasuryFee - delegateFee;
     }
 
     /// @dev Reset all state variables in order to release funds and collateral of a loan in default.
@@ -272,7 +272,7 @@ contract MapleLoanInternals is MapleProxied {
             "MLI:R:NOT_IN_DEFAULT"
         );
 
-        _clearLoan();
+        _clearLoanAccounting();
 
         // Uniquely in `_repossess`, stop accounting for all funds so that they can be swept.
         _collateral     = uint256(0);
@@ -280,11 +280,11 @@ contract MapleLoanInternals is MapleProxied {
         _drawableFunds  = uint256(0);
 
         if ((collateralRepossessed_ = _getUnaccountedAmount(_collateralAsset)) > uint256(0)) {
-            ERC20Helper.transfer(_collateralAsset, destination_, collateralRepossessed_);
+            require(ERC20Helper.transfer(_collateralAsset, destination_, collateralRepossessed_), "MLI:R:COLLATERAL_TRANSFER_FAILED");
         }
 
         if ((fundsRepossessed_ = _getUnaccountedAmount(_fundsAsset)) > uint256(0)) {
-            ERC20Helper.transfer(_fundsAsset, destination_, fundsRepossessed_);
+            require(ERC20Helper.transfer(_fundsAsset, destination_, fundsRepossessed_), "MLI:R:FUNDS_TRANSFER_FAILED");
         }
     }
 
@@ -319,7 +319,7 @@ contract MapleLoanInternals is MapleProxied {
     }
 
     /// @dev Returns the amount of an `asset_` that this contract owns, which is not currently accounted for by its state variables.
-    function _getUnaccountedAmount(address asset_) internal view virtual returns (uint256 amount_) {
+    function _getUnaccountedAmount(address asset_) internal view virtual returns (uint256 unaccountedAmount_) {
         return IERC20(asset_).balanceOf(address(this))
             - (asset_ == _collateralAsset ? _collateral : uint256(0))                   // `_collateral` is `_collateralAsset` accounted for.
             - (asset_ == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));  // `_claimableFunds` and `_drawableFunds` are `_fundsAsset` accounted for.

@@ -3,7 +3,8 @@ pragma solidity ^0.8.7;
 
 import { MapleLoan } from "../../MapleLoan.sol";
 
-import { IMapleLoan } from "../../interfaces/IMapleLoan.sol";
+import { IMapleLoan }        from "../../interfaces/IMapleLoan.sol";
+import { IMapleLoanFactory } from "../../interfaces/IMapleLoanFactory.sol";
 
 import { Lender } from "../accounts/Lender.sol";
 
@@ -48,56 +49,64 @@ contract LenderMock is Lender {
 
 contract ManipulatableMapleLoan is MapleLoan {
 
-    function setCollateralRequired(uint256 collateralRequired_) external {
-        _collateralRequired = collateralRequired_;
-    }
-
-    function setPrincipalRequested(uint256 principalRequested_) external {
-        _principalRequested = principalRequested_;
-    }
-
-    function setPrincipal(uint256 principal_) external {
-        _principal = principal_;
-    }
-
-    function setCollateral(uint256 collateral_) external {
-        _collateral = collateral_;
-    }
-
-    function setDrawableFunds(uint256 drawableFunds_) external {
-        _drawableFunds = drawableFunds_;
-    }
-
-    function setClaimableFunds(uint256 claimableFunds_) external {
-        _claimableFunds = claimableFunds_;
-    }
-
-    function setCommintmentHash(bytes32 hash_) external {
-        _refinanceCommitment = hash_;
-    }
-
-    function setNextPaymentDueDate(uint256 dueDate_) external {
-        _nextPaymentDueDate = dueDate_;
-    }
-
-    function setBorrowerSlot(address borrower_) external {
+    function __setBorrower(address borrower_) external {
         _borrower = borrower_;
     }
 
-    function setLenderSlot(address lender_) external {
-        _lender = lender_;
+    function __setClaimableFunds(uint256 claimableFunds_) external {
+        _claimableFunds = claimableFunds_;
     }
 
-    function setFactorySlot(address factory_) external {
+    function __setCollateral(uint256 collateral_) external {
+        _collateral = collateral_;
+    }
+
+    function __setCollateralAsset(address collateralAsset_) external {
+        _collateralAsset = collateralAsset_;
+    }
+
+    function __setCollateralRequired(uint256 collateralRequired_) external {
+        _collateralRequired = collateralRequired_;
+    }
+
+    function __setDrawableFunds(uint256 drawableFunds_) external {
+        _drawableFunds = drawableFunds_;
+    }
+
+    function __setFactory(address factory_) external {
         _setSlotValue(bytes32(0x7a45a402e4cb6e08ebc196f20f66d5d30e67285a2a8aa80503fa409e727a4af1), bytes32(uint256(uint160(factory_))));
     }
 
-    function setFundsAsset(address asset_) external {
-        _fundsAsset = asset_;
+    function __setFundsAsset(address fundsAsset_) external {
+        _fundsAsset = fundsAsset_;
     }
 
-    function setCollateralAsset(address asset_) external {
-        _collateralAsset = asset_;
+    function __setLender(address lender_) external {
+        _lender = lender_;
+    }
+
+    function __setNextPaymentDueDate(uint256 nextPaymentDueDate_) external {
+        _nextPaymentDueDate = nextPaymentDueDate_;
+    }
+
+    function __setPrincipal(uint256 principal_) external {
+        _principal = principal_;
+    }
+
+    function __setPrincipalRequested(uint256 principalRequested_) external {
+        _principalRequested = principalRequested_;
+    }
+
+    function __setRefinanceCommitmentHash(bytes32 refinanceCommitment_) external {
+        _refinanceCommitment = refinanceCommitment_;
+    }
+
+}
+
+contract SomeAccount {
+
+    function createLoan(address factory_, bytes calldata arguments_, bytes32 salt_) external returns (address loan_) {
+        return IMapleLoanFactory(factory_).createInstance(arguments_, salt_);
     }
 
 }

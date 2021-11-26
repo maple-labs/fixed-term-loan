@@ -64,9 +64,10 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         fundsAsset.mint(address(borrower),      requests[1]);  // Mint more than enough for borrower to make payments
 
         bytes memory arguments = initializer.encodeArguments(address(borrower), assets, termDetails, requests, rates);
+        bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create Loan
-        loan = MapleLoan(factory.createInstance(arguments));
+        loan = MapleLoan(factory.createInstance(arguments, salt));
 
         // Approve and fund Loan
         lender.erc20_approve(address(fundsAsset), address(loan),   requests[1]);

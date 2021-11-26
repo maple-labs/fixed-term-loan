@@ -1,4 +1,13 @@
 name: loan
-version: 2.0.0
+version: 2.0.0-beta.0
 source: contracts
-customDescription: Loan Artifacts and ABIs
+packages:
+  - path: contracts/MapleLoan.sol
+    contractName: MapleLoan
+  - path: contracts/MapleLoanInitializer.sol
+    contractName: MapleLoanInitializer
+  - path: contracts/MapleLoanFactory.sol
+    contractName: MapleLoanFactory
+  - path: contracts/Refinancer.sol
+    contractName: Refinancer
+customDescription: Maple Loan Artifacts and ABIs

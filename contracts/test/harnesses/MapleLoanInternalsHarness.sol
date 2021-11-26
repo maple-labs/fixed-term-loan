@@ -17,6 +17,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _claimFunds(amount_, destination_);
     }
 
+    function clearLoanAccounting() external {
+        _clearLoanAccounting();
+    }
+
     function closeLoan() external returns (uint256 principal_, uint256 interest_) {
         return _closeLoan();
     }
@@ -35,7 +39,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _initialize(borrower_, assets_, termDetails_, requests_, rates_) ;
     }
 
-    function fundLoan(address lender_) external returns (uint256 amount_) {
+    function fundLoan(address lender_) external returns (uint256 fundsLent_) {
         return _fundLoan(lender_);
     }
 
@@ -43,7 +47,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _makePayment();
     }
 
-    function postCollateral() external returns (uint256 amount_) {
+    function postCollateral() external returns (uint256 collateralPosted_) {
         return _postCollateral();
     }
 
@@ -59,7 +63,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _repossess(destination_);
     }
 
-    function returnFunds() external returns (uint256 amount_) {
+    function returnFunds() external returns (uint256 fundsReturned_) {
         return _returnFunds();
     }
 
@@ -71,15 +75,11 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _getEarlyPaymentBreakdown();
     }
 
-    function getRefinanceCommitment(address refinancer_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
-        return _getRefinanceCommitment(refinancer_, calls_);
-    }
-
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
         return _getNextPaymentBreakdown();
     }
 
-    function getUnaccountedAmount(address asset_) external view returns (uint256 amount_) {
+    function getUnaccountedAmount(address asset_) external view returns (uint256 unaccountedAmount_) {
         return _getUnaccountedAmount(asset_);
     }
 
@@ -311,6 +311,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
 
     function getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) external pure returns (uint256 periodicInterestRate_) {
         return _getPeriodicInterestRate(interestRate_, interval_);
+    }
+
+    function getRefinanceCommitment(address refinancer_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
+        return _getRefinanceCommitment(refinancer_, calls_);
     }
 
     function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 result_) {

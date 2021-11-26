@@ -13,9 +13,6 @@
         "contracts/Refinancer.sol": {
             "urls": ["contracts/Refinancer.sol"]
         },
-        "contracts/test/LoanPrimitive.t.sol": {
-            "urls": ["contracts/test/LoanPrimitive.t.sol"]
-        },
         "contracts/test/MapleLoan.t.sol": {
             "urls": ["contracts/test/MapleLoan.t.sol"]
         },
