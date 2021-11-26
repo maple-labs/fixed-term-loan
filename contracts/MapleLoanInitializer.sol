@@ -45,9 +45,9 @@ contract MapleLoanInitializer is IMapleLoanEvents, MapleLoanInternals {
             uint256[4] memory rates_
         ) = decodeArguments(msg.data);
 
-        _initialize(borrower_, assets_, termDetails_, amounts_, rates_);
-
         emit Initialized(borrower_, assets_, termDetails_, amounts_, rates_);
+
+        _initialize(borrower_, assets_, termDetails_, amounts_, rates_);
     }
 
 }

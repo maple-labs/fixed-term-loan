@@ -30,9 +30,9 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
         require(msg.sender == _borrower, "ML:U:NOT_BORROWER");
 
-        IMapleProxyFactory(_factory()).upgradeInstance(toVersion_, arguments_);
-
         emit Upgraded(toVersion_, arguments_);
+
+        IMapleProxyFactory(_factory()).upgradeInstance(toVersion_, arguments_);
     }
 
     /************************/
@@ -59,6 +59,8 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function drawdownFunds(uint256 amount_, address destination_) external override returns (uint256 collateralPosted_) {
         require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
 
+        emit FundsDrawnDown(amount_, destination_);
+
         // Post additional collateral required to facilitate this drawdown, if needed.
         uint256 additionalCollateralRequired = getAdditionalCollateralRequiredFor(amount_);
 
@@ -73,8 +75,6 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         }
 
         _drawdownFunds(amount_, destination_);
-
-        emit FundsDrawnDown(amount_, destination_);
     }
 
     function makePayment(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
@@ -88,7 +88,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function postCollateral(uint256 amount_) public override returns (uint256 collateralPosted_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
-        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_), "ML:PC:TRANSFER_FROM_FAILED");
+        require(
+            amount_ == uint256(0) || ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_),
+            "ML:PC:TRANSFER_FROM_FAILED"
+        );
 
         emit CollateralPosted(collateralPosted_ = _postCollateral());
     }
@@ -102,9 +105,9 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function removeCollateral(uint256 amount_, address destination_) external override {
         require(msg.sender == _borrower, "ML:RC:NOT_BORROWER");
 
-        _removeCollateral(amount_, destination_);
-
         emit CollateralRemoved(amount_, destination_);
+
+        _removeCollateral(amount_, destination_);
     }
 
     function returnFunds(uint256 amount_) public override returns (uint256 fundsReturned_) {
@@ -144,9 +147,9 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     function claimFunds(uint256 amount_, address destination_) external override {
         require(msg.sender == _lender, "ML:CF:NOT_LENDER");
 
-        _claimFunds(amount_, destination_);
-
         emit FundsClaimed(amount_, destination_);
+
+        _claimFunds(amount_, destination_);
     }
 
     function fundLoan(address lender_, uint256 amount_) external override returns (uint256 fundsLent_) {
@@ -184,11 +187,12 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /*******************************/
 
     function skim(address token_, address destination_) external override returns (uint256 skimmed_) {
-        require((msg.sender == _borrower) || (msg.sender == _lender),                                           "L:S:NO_AUTH");
-        require((token_ != _fundsAsset) && (token_ != _collateralAsset),                                        "L:S:INVALID_TOKEN");
-        require(ERC20Helper.transfer(token_, destination_, skimmed_ = IERC20(token_).balanceOf(address(this))), "L:S:TRANSFER_FAILED");
+        require((msg.sender == _borrower) || (msg.sender == _lender),    "L:S:NO_AUTH");
+        require((token_ != _fundsAsset) && (token_ != _collateralAsset), "L:S:INVALID_TOKEN");
 
-        emit Skimmed(token_, skimmed_, destination_);
+        emit Skimmed(token_, skimmed_ = IERC20(token_).balanceOf(address(this)), destination_);
+
+        require(ERC20Helper.transfer(token_, destination_, skimmed_), "L:S:TRANSFER_FAILED");
     }
 
     /**********************/
