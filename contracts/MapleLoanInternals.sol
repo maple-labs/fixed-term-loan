@@ -250,8 +250,8 @@ contract MapleLoanInternals is MapleProxied {
         // Amount funded and principal are as requested.
         fundsLent_ = _principal = _principalRequested;
 
-        // Cannot under/over fund loan, so that accounting works in context of PoolV1
-        require(_getUnaccountedAmount(_fundsAsset) == fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
+        // Cannot under-fund loan, but over-funding results in additional funds left unaccounted for.
+        require(_getUnaccountedAmount(_fundsAsset) >= fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
 
         // Transfer the annualized treasury fee, if any, to the Maple treasury, and decrement drawable funds.
         uint256 treasuryFee = (fundsLent_ * ILenderLike(lender_).treasuryFee() * _paymentInterval * _paymentsRemaining) / uint256(365 days * 10_000);

@@ -89,6 +89,10 @@ contract ManipulatableMapleLoan is MapleLoan {
         _nextPaymentDueDate = nextPaymentDueDate_;
     }
 
+    function __setPaymentsRemaining(uint256 paymentsRemaining_) external {
+        _paymentsRemaining = paymentsRemaining_;
+    }
+
     function __setPendingBorrower(address pendingBorrower_) external {
         _pendingBorrower = pendingBorrower_;
     }

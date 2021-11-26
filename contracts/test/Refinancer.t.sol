@@ -564,14 +564,15 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         token.mint(address(loan), extraCollateral);
         loan.postCollateral(0);
 
-        // Sending extra funds
-        token.mint(address(loan), principalIncrease_);
+        // Sending additional funds (plus 1 too much)
+        token.mint(address(loan), principalIncrease_ + 1);
 
         lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
 
-        assertEq(loan.principalRequested(), principalRequested_ + principalIncrease_);
-        assertEq(loan.principal(),          initialPrincipal + principalIncrease_);
-        assertEq(loan.drawableFunds(),      initialDrawable + principalIncrease_);
+        assertEq(loan.principalRequested(),        principalRequested_ + principalIncrease_);
+        assertEq(loan.principal(),                 initialPrincipal + principalIncrease_);
+        assertEq(loan.drawableFunds(),             initialDrawable + principalIncrease_);
+        assertEq(token.balanceOf(address(lender)), 1);
     }
 
     function testFail_refinance_increasePrincipalRequested(
@@ -615,8 +616,8 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         token.mint(address(loan), extraCollateral);
         loan.postCollateral(0);
 
-        // Sending too much, causes revert
-        token.mint(address(loan), principalIncrease_ + 1);
+        // Sending 1 too little, causes revert
+        token.mint(address(loan), principalIncrease_ - 1);
 
         lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
     }

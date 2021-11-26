@@ -7,8 +7,6 @@ import { MockERC20 }                           from "../../modules/erc20/src/tes
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { Refinancer } from "../Refinancer.sol";
-
 import { ConstructableMapleLoan, EmptyContract, ManipulatableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
@@ -233,15 +231,15 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     }
 
     function test_proposeNewTerms_acl() external {
-        address refinancer = address(new Refinancer());
+        address mockRefinancer = address(new EmptyContract());
         bytes[] memory data = new bytes[](1);
-        data[0] = abi.encodeWithSignature("increasePrincipal(uint256)", uint256(1));
+        data[0] = new bytes(0);
 
-        try loan.proposeNewTerms(refinancer, data) { assertTrue(false, "Non-borrower was able to propose new terms"); } catch { }
+        try loan.proposeNewTerms(mockRefinancer, data) { assertTrue(false, "Non-borrower was able to propose new terms"); } catch { }
 
         loan.__setBorrower(address(this));
 
-        loan.proposeNewTerms(refinancer, data);
+        loan.proposeNewTerms(mockRefinancer, data);
     }
 
     function test_removeCollateral_acl() external {
@@ -279,7 +277,11 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     }
 
     function test_acceptNewTerms_acl() external {
-        loan.__setPrincipalRequested(1);  // Needed for the collateralMaintained check
+        MockERC20 token = new MockERC20("MockToken", "MA", 18);
+
+        loan.__setPrincipalRequested(1);            // Needed for the collateralMaintained check
+        loan.__setCollateralAsset(address(token));  // Needed for the getUnaccountedAmount check
+        loan.__setFundsAsset(address(token));       // Needed for the getUnaccountedAmount check
 
         address mockRefinancer = address(new EmptyContract());
         bytes[] memory data = new bytes[](1);
@@ -342,6 +344,68 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setPendingLender(address(this));
 
         loan.acceptLender();
+    }
+
+    /***********************/
+    /*** Fund Loan Tests ***/
+    /***********************/
+
+    function test_fundLoan_extraFundsWhileNotActive() external {
+        LenderMock             lender = new LenderMock();
+        ManipulatableMapleLoan loan   = new ManipulatableMapleLoan();
+        MockERC20              token  = new MockERC20("FA", "FundsAsset", 0);
+
+        loan.__setFundsAsset(address(token));
+        loan.__setPaymentsRemaining(1);
+        loan.__setPrincipalRequested(1_000_000);
+
+        token.mint(address(loan), 1_000_000 + 1);
+
+        loan.fundLoan(address(lender), 0);
+
+        assertEq(token.balanceOf(address(loan)),   1_000_000);
+        assertEq(token.balanceOf(address(lender)), 1);
+    }
+
+    function test_fundLoan_extraFundsWhileActive() external {
+        LenderMock             lender = new LenderMock();
+        ManipulatableMapleLoan loan   = new ManipulatableMapleLoan();
+        MockERC20              token  = new MockERC20("FA", "FundsAsset", 0);
+
+        loan.__setFundsAsset(address(token));
+        loan.__setLender(address(lender));
+        loan.__setNextPaymentDueDate(1);
+        loan.__setPaymentsRemaining(1);
+        loan.__setPrincipalRequested(1_000_000);
+
+        token.mint(address(loan), 1_000_000 + 1);
+
+        loan.fundLoan(address(lender), 0);
+
+        assertEq(token.balanceOf(address(loan)),   0);
+        assertEq(token.balanceOf(address(lender)), 1_000_001);
+    }
+
+    function test_acceptNewTerms_extraFunds() external {
+        LenderMock             lender     = new LenderMock();
+        ManipulatableMapleLoan loan       = new ManipulatableMapleLoan();
+        MockERC20              token      = new MockERC20("FA", "FundsAsset", 0);
+        EmptyContract          refinancer = new EmptyContract();
+
+        loan.__setFundsAsset(address(token));
+        loan.__setLender(address(lender));
+        loan.__setPrincipalRequested(1_000_000);  // This is needed so that _getCollateralRequiredFor doesn't divide by zero.
+
+        token.mint(address(loan), 1);
+
+        bytes[] memory calls = new bytes[](0);
+
+        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(address(refinancer), calls)));
+
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), calls, 0);
+
+        assertEq(token.balanceOf(address(loan)),   0);
+        assertEq(token.balanceOf(address(lender)), 1);
     }
 
     // TODO: test_upgrade_acl (can mock factory)

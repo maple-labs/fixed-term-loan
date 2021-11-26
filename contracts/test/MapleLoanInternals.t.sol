@@ -300,14 +300,21 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
         assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), 0);
     }
 
-    function testFail_fundLoan_overFunding(uint256 principalRequested_) external {
+    function test_fundLoan_overFunding(uint256 principalRequested_, uint256 extraAmount_) external {
         principalRequested_ = constrictToRange(principalRequested_, MIN_PRINCIPAL, MAX_PRINCIPAL);
+        extraAmount_        = constrictToRange(extraAmount_,        MIN_PRINCIPAL, MAX_PRINCIPAL - principalRequested_);
 
         _loan.setPrincipalRequested(principalRequested_);
 
-        _fundsAsset.mint(address(_loan), principalRequested_ + 1);
+        _fundsAsset.mint(address(_loan), principalRequested_ + extraAmount_);
 
-        _loan.fundLoan(address(_lender));
+        assertEq(_loan.fundLoan(address(_lender)),                 principalRequested_);
+        assertEq(_loan.lender(),                                   address(_lender));
+        assertEq(_loan.nextPaymentDueDate(),                       block.timestamp + _loan.paymentInterval());
+        assertEq(_loan.principal(),                                principalRequested_);
+        assertEq(_loan.drawableFunds(),                            principalRequested_);
+        assertEq(_loan.claimableFunds(),                           0);
+        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), extraAmount_);
     }
 
     function testFail_fundLoan_partialFunding(uint256 principalRequested_) external {

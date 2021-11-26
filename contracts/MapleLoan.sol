@@ -142,6 +142,14 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:ACT:TRANSFER_FROM_FAILED");
 
         emit NewTermsAccepted(_acceptNewTerms(refinancer_, calls_), refinancer_, calls_);
+
+        uint256 extra = _getUnaccountedAmount(_fundsAsset);
+
+        // NOTE: This block ensures unaccounted funds (pre-existing or due to over-funding) gets redirected to the lender.
+        if (extra > uint256(0)) {
+            emit FundsRedirected(extra, _lender);
+            require(ERC20Helper.transfer(_fundsAsset, _lender, extra), "ML:ANT:TRANSFER_FAILED");
+        }
     }
 
     function claimFunds(uint256 amount_, address destination_) external override {
@@ -153,19 +161,22 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     }
 
     function fundLoan(address lender_, uint256 amount_) external override returns (uint256 fundsLent_) {
+        // The amount specified is an optional amount to be transferred from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:FL:TRANSFER_FROM_FAILED");
 
-        // NOTE: This block is a stopgap solution to allow a LiquidityLockerV1 to send funds to a DebtLocker, while maintaining PoolV1 accounting.
-        if (_nextPaymentDueDate > 0) {
-            // If the loan is active, send any unaccounted amount of funds asset to the internally saved lender.
-            require(ERC20Helper.transfer(_fundsAsset, _lender, fundsLent_ = _getUnaccountedAmount(_fundsAsset)), "ML:FL:TRANSFER_FAILED");
-
-            emit FundsRedirected(fundsLent_, _lender);
-
-            return fundsLent_;
+        // If the loan is not active, fund it.
+        if (_nextPaymentDueDate == uint256(0)) {
+            emit Funded(lender_, fundsLent_ = _fundLoan(lender_), _nextPaymentDueDate);
         }
 
-        emit Funded(lender_, fundsLent_ = _fundLoan(lender_), _nextPaymentDueDate);
+        uint256 extra = _getUnaccountedAmount(_fundsAsset);
+
+        // NOTE: This block is not only a stopgap solution to allow a LiquidityLockerV1 to send funds to a DebtLocker, while maintaining PoolV1 accounting,
+        //       but also ensures unaccounted funds (pre-existing or due to over-funding) gets redirected to the lender.
+        if (extra > uint256(0)) {
+            emit FundsRedirected(extra, _lender);
+            require(ERC20Helper.transfer(_fundsAsset, _lender, extra), "ML:FL:TRANSFER_FAILED");
+        }
     }
 
     function repossess(address destination_) external override returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
