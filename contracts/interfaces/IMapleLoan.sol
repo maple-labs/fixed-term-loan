@@ -279,4 +279,10 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
         uint256 totalInterestFees_
     );
 
+    /**
+     *  @dev    Returns whether the protocol is paused.
+     *  @return paused_ A boolean indicating if protocol is paused.
+     */
+    function isProtocolPaused() external view returns (bool paused_);
+
 }

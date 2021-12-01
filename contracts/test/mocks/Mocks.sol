@@ -11,9 +11,14 @@ import { Lender } from "../accounts/Lender.sol";
 contract MapleGlobalsMock {
 
     address public governor;
+    bool    public protocolPaused;
 
     constructor (address governor_) {
         governor = governor_;
+    }
+
+    function setProtocolPaused(bool paused_) external {
+        protocolPaused = paused_;
     }
 
 }
@@ -33,6 +38,10 @@ contract ConstructableMapleLoan is MapleLoan {
         external pure returns (uint256 collateral_)
     {
         return _getCollateralRequiredFor(principal_, drawableFunds_, principalRequested_, collateralRequired_);
+    }
+
+    function __setFactory(address factory_) external {
+        _setSlotValue(bytes32(0x7a45a402e4cb6e08ebc196f20f66d5d30e67285a2a8aa80503fa409e727a4af1), bytes32(uint256(uint160(factory_))));
     }
 
 }
@@ -120,6 +129,12 @@ contract ManipulatableMapleLoan is MapleLoan {
 }
 
 contract MockFactory {
+
+    address public mapleGlobals;
+
+    function setGlobals(address globals_) external {
+        mapleGlobals = globals_;
+    }
 
     function upgradeInstance(uint256 , bytes calldata arguments_) external {
         address implementation = abi.decode(arguments_, (address));

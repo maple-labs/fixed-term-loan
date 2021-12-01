@@ -6,7 +6,7 @@ import { MockERC20 }                     from "../../modules/erc20/src/test/mock
 
 import { Refinancer } from "../Refinancer.sol";
 
-import { ConstructableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, LenderMock, MockFactory, MapleGlobalsMock } from "./mocks/Mocks.sol";
 
 // Helper contract with common functionality
 contract BaseRefinanceTest is TestUtils, StateManipulations {
@@ -20,12 +20,19 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
 
     ConstructableMapleLoan loan;
     LenderMock             lender;
+    MapleGlobalsMock       globals;
     MockERC20              token;
+    MockFactory            factory;
     Refinancer             refinancer;
+    
 
     function setUp() external {
         lender     = new LenderMock();
         refinancer = new Refinancer();
+        globals    = new MapleGlobalsMock(address(this));
+        factory    = new MockFactory();
+
+        factory.setGlobals(address(globals));
     }
 
     function setUpOngoingLoan(
@@ -47,6 +54,8 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
         uint256[4] memory rates       = [interestRate_, uint256(0.10 ether), uint256(0.15 ether), uint256(0)];
 
         loan = new ConstructableMapleLoan(address(this), assets, termDetails, requests, rates);
+
+        loan.__setFactory(address(factory));
 
         token.mint(address(this), principalRequested_);
         token.approve(address(loan), principalRequested_);

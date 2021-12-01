@@ -5,17 +5,30 @@ import { TestUtils, Hevm, StateManipulations } from "../../modules/contract-test
 import { IERC20 }                              from "../../modules/erc20/src/interfaces/IERC20.sol";
 import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
-import { ConstructableMapleLoan, LenderMock } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, LenderMock, MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 
 contract MapleLoanStoryTests is StateManipulations, TestUtils {
 
-    function test_story_fullyAmortized() external {
-        Borrower   borrower = new Borrower();
-        LenderMock lender   = new LenderMock();
-        MockERC20  token    = new MockERC20("Test", "TST", 0);
+    Borrower         borrower;
+    LenderMock       lender;
+    MapleGlobalsMock globals;
+    MockERC20        token;
+    MockFactory      factory;
 
+    function setUp() external {
+        borrower = new Borrower();
+        lender   = new LenderMock();
+        globals  = new MapleGlobalsMock(address(this));
+        token    = new MockERC20("Test", "TST", 0);
+        factory  = new MockFactory();
+
+        factory.setGlobals(address(globals));
+    }
+
+    function test_story_fullyAmortized() external {
+        
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
 
@@ -25,6 +38,8 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
+
+        loan.__setFactory(address(factory));
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
@@ -177,10 +192,6 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
     }
 
     function test_story_interestOnly() external {
-        Borrower   borrower = new Borrower();
-        LenderMock lender   = new LenderMock();
-        MockERC20  token    = new MockERC20("Test", "TST", 0);
-
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
 
@@ -190,6 +201,8 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
+
+        loan.__setFactory(address(factory));
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
@@ -334,10 +347,6 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
     }
 
     function test_story_redirectFundsToLender() external {
-        Borrower   borrower = new Borrower();
-        LenderMock lender   = new LenderMock();
-        MockERC20  token    = new MockERC20("Test", "TST", 0);
-
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   2_000_000);
 
@@ -347,6 +356,8 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
+
+        loan.__setFactory(address(factory));
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
