@@ -54,29 +54,29 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
     function createLoanFundAndDrawdown(
         address[2] memory assets,
         uint256[3] memory termDetails,
-        uint256[3] memory requests,
+        uint256[3] memory amounts,
         uint256[4] memory rates
     )
         internal returns (MapleLoan loan)
     {
-        collateralAsset.mint(address(borrower), requests[0]);
-        fundsAsset.mint(address(lender),        requests[1]);
-        fundsAsset.mint(address(borrower),      requests[1]);  // Mint more than enough for borrower to make payments
+        collateralAsset.mint(address(borrower), amounts[0]);
+        fundsAsset.mint(address(lender),        amounts[1]);
+        fundsAsset.mint(address(borrower),      amounts[1]);  // Mint more than enough for borrower to make payments
 
-        bytes memory arguments = initializer.encodeArguments(address(borrower), assets, termDetails, requests, rates);
+        bytes memory arguments = initializer.encodeArguments(address(borrower), assets, termDetails, amounts, rates);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create Loan
         loan = MapleLoan(factory.createInstance(arguments, salt));
 
         // Approve and fund Loan
-        lender.erc20_approve(address(fundsAsset), address(loan),   requests[1]);
-        lender.loan_fundLoan(address(loan),       address(lender), requests[1]);
+        lender.erc20_approve(address(fundsAsset), address(loan),   amounts[1]);
+        lender.loan_fundLoan(address(loan),       address(lender), amounts[1]);
 
         // Transfer and post collateral and drawdown
-        borrower.erc20_transfer(address(collateralAsset), address(loan), requests[0]);
+        borrower.erc20_transfer(address(collateralAsset), address(loan), amounts[0]);
         borrower.loan_postCollateral(address(loan), 0);
-        borrower.loan_drawdownFunds(address(loan), requests[1], address(borrower));
+        borrower.loan_drawdownFunds(address(loan), amounts[1], address(borrower));
     }
 
     function assertOnTimePayment(
@@ -121,7 +121,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
 
     function onTimePaymentsTest(
         MapleLoan loan,
-        uint256[3] memory requests,
+        uint256[3] memory amounts,
         uint256[6] memory principalPortions,
         uint256[6] memory interestPortions,
         uint256[6] memory principalRemaining,
@@ -134,7 +134,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
 
         assertEq(loan.claimableFunds(),     0);
         assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval());
-        assertEq(loan.principal(),          requests[1]);
+        assertEq(loan.principal(),          amounts[1]);
         assertEq(loan.paymentsRemaining(),  6);  // Using six payments for all tests since array lengths are fixed
 
         uint256 grandTotalPaid;
@@ -182,7 +182,7 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
         uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
@@ -224,9 +224,9 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_028_963.344948 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
-        onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 
     function test_payments_fullyAmortized_case2() external {
@@ -250,7 +250,7 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
         uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
 
@@ -292,9 +292,9 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_021_685.831922 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
-        onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 }
 
@@ -321,7 +321,7 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
         uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
@@ -363,9 +363,9 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_045_244.723784 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
-        onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 
     function test_payments_partiallyAmortized_case2() external {
@@ -389,7 +389,7 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0), uint256(0)];
 
@@ -432,9 +432,9 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_023_427.253459 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
-        onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 }
 
@@ -459,7 +459,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
         uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
@@ -501,9 +501,9 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_049_315.068493 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
-        onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 
     function test_payments_interestOnly_case2() external {
@@ -525,7 +525,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
         uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
 
@@ -567,9 +567,9 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
         uint256 grandTotal = 1_036_986.3013699 ether;
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
-        onTimePaymentsTest(loan, requests, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 }
 
@@ -596,7 +596,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for early repayment
 
@@ -624,7 +624,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
             uint256(901_594.102603 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
         uint256 grandTotalPaid;
 
@@ -688,7 +688,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for early repayment
 
@@ -712,7 +712,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
             uint256(670_212.454289 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
         uint256 grandTotalPaid;
 
@@ -780,7 +780,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal
 
@@ -816,7 +816,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(459_781.508613 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
         uint256 grandTotalPaid;  // TODO: Add grand totals to sheet and add checks
 
@@ -883,7 +883,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
         uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal
 
@@ -920,7 +920,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(        0.000000 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
         uint256 grandTotalPaid;
 
@@ -1001,7 +1001,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0.05e18)];  // 5% Late fee flat rate on principal, 5% premium
 
@@ -1042,7 +1042,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(0.000000       ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
         uint256 grandTotalPaid;
 
@@ -1158,7 +1158,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(6)
         ];
 
-        uint256[3] memory requests = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
         uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
 
@@ -1195,7 +1195,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             uint256(        0.000000 ether)
         ];
 
-        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, requests, rates);
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
         uint256 grandTotalPaid;
 

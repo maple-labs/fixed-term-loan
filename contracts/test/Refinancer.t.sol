@@ -49,11 +49,11 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
         token = new MockERC20("Test", "TST", 0);
 
         address[2] memory assets      = [address(token), address(token)];
-        uint256[3] memory requests    = [collateralRequired_, principalRequested_, endingPrincipal_];
+        uint256[3] memory amounts    = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
         uint256[4] memory rates       = [interestRate_, uint256(0.10 ether), uint256(0.15 ether), uint256(0)];
 
-        loan = new ConstructableMapleLoan(address(this), assets, termDetails, requests, rates);
+        loan = new ConstructableMapleLoan(address(this), assets, termDetails, amounts, rates);
 
         loan.__setFactory(address(factory));
 

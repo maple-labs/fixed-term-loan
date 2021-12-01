@@ -33,10 +33,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         address borrower_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
-        uint256[3] memory requests_,
+        uint256[3] memory amounts_,
         uint256[4] memory rates_
     ) external {
-        return _initialize(borrower_, assets_, termDetails_, requests_, rates_) ;
+        return _initialize(borrower_, assets_, termDetails_, amounts_, rates_) ;
     }
 
     function fundLoan(address lender_) external returns (uint256 fundsLent_) {

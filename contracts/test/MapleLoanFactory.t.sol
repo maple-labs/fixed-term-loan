@@ -29,10 +29,10 @@ contract MapleLoanFactoryTest is TestUtils {
     function test_createInstance(bytes32 someAccountSalt_) external {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
-        uint256[3] memory requests    = [uint256(1), uint256(1), uint256(0)];
+        uint256[3] memory amounts    = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), assets, termDetails, requests, rates);
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), assets, termDetails, amounts, rates);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create a "random" loan creator from some fuzzed salt.
@@ -41,7 +41,7 @@ contract MapleLoanFactoryTest is TestUtils {
         address loan = account.createLoan(address(factory), arguments, salt);
 
         // NOTE: Check that the loan address is deterministic, and does not depend on the account that calls `createInstance` at the factory.
-        assertTrue(loan == address(0x130E8002F53D4dA0248822B63c6Da65cA8F5F1aD));
+        assertTrue(loan == address(0xF8d9797a897ED3C709659cf8F14541D88a20696B));
         assertTrue(!factory.isLoan(address(1)));
         assertTrue( factory.isLoan(loan));
     }
@@ -49,10 +49,10 @@ contract MapleLoanFactoryTest is TestUtils {
     function testFail_createInstance_saltAndArgumentsCollision() external {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
-        uint256[3] memory requests    = [uint256(1), uint256(1), uint256(0)];
+        uint256[3] memory amounts    = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), assets, termDetails, requests, rates);
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), assets, termDetails, amounts, rates);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         factory.createInstance(arguments, salt);
