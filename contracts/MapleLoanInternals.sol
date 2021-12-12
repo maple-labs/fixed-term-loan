@@ -105,7 +105,7 @@ contract MapleLoanInternals is MapleProxied {
         // Ending principal needs to be less than or equal to principal requested.
         require(amounts_[2] <= amounts_[1], "MLI:I:INVALID_ENDING_PRINCIPAL");
 
-        _borrower = borrower_;
+        require((_borrower = borrower_) != address(0), "MLI:I:INVALID_BORROWER");
 
         _collateralAsset = assets_[0];
         _fundsAsset      = assets_[1];
