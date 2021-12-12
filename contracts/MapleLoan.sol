@@ -116,7 +116,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         _removeCollateral(amount_, destination_);
     }
 
-    function returnFunds(uint256 amount_) public override whenProtocolNotPaused returns (uint256 fundsReturned_) {
+    function returnFunds(uint256 amount_) external override whenProtocolNotPaused returns (uint256 fundsReturned_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:RF:TRANSFER_FROM_FAILED");
 
