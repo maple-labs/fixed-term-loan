@@ -241,34 +241,40 @@ contract MapleLoanInternals is MapleProxied {
 
     /// @dev Fund the loan and kick off the repayment requirements.
     function _fundLoan(address lender_) internal returns (uint256 fundsLent_) {
+        uint256 paymentsRemaining = _paymentsRemaining;
+
         // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
-        require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "MLI:FL:LOAN_ACTIVE");
+        require((_nextPaymentDueDate == uint256(0)) && (paymentsRemaining != uint256(0)), "MLI:FL:LOAN_ACTIVE");
+
+        uint256 paymentInterval = _paymentInterval;
 
         _lender             = lender_;
-        _nextPaymentDueDate = block.timestamp + _paymentInterval;
+        _nextPaymentDueDate = block.timestamp + paymentInterval;
 
         // Amount funded and principal are as requested.
         fundsLent_ = _principal = _principalRequested;
 
+        address fundsAsset = _fundsAsset;
+
         // Cannot under-fund loan, but over-funding results in additional funds left unaccounted for.
-        require(_getUnaccountedAmount(_fundsAsset) >= fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
+        require(_getUnaccountedAmount(fundsAsset) >= fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
 
         // Transfer the annualized treasury fee, if any, to the Maple treasury, and decrement drawable funds.
-        uint256 treasuryFee = (fundsLent_ * ILenderLike(lender_).treasuryFee() * _paymentInterval * _paymentsRemaining) / uint256(365 days * 10_000);
+        uint256 treasuryFee = (fundsLent_ * ILenderLike(lender_).treasuryFee() * paymentInterval * paymentsRemaining) / uint256(365 days * 10_000);
 
         // Transfer delegate fee, if any, to the pool delegate, and decrement drawable funds.
-        uint256 delegateFee = (fundsLent_ * ILenderLike(lender_).investorFee() * _paymentInterval * _paymentsRemaining) / uint256(365 days * 10_000);
+        uint256 delegateFee = (fundsLent_ * ILenderLike(lender_).investorFee() * paymentInterval * paymentsRemaining) / uint256(365 days * 10_000);
 
         // Drawable funds is the amount funded, minus any fees.
         _drawableFunds = fundsLent_ - treasuryFee - delegateFee;
 
         require(
-            treasuryFee == uint256(0) || ERC20Helper.transfer(_fundsAsset, ILenderLike(lender_).mapleTreasury(), treasuryFee),
+            treasuryFee == uint256(0) || ERC20Helper.transfer(fundsAsset, ILenderLike(lender_).mapleTreasury(), treasuryFee),
             "MLI:FL:T_TRANSFER_FAILED"
         );
 
         require(
-            delegateFee == uint256(0) || ERC20Helper.transfer(_fundsAsset, ILenderLike(lender_).poolDelegate(), delegateFee),
+            delegateFee == uint256(0) || ERC20Helper.transfer(fundsAsset, ILenderLike(lender_).poolDelegate(), delegateFee),
             "MLI:FL:PD_TRANSFER_FAILED"
         );
     }
