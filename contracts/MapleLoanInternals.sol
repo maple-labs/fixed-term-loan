@@ -315,8 +315,7 @@ contract MapleLoanInternals is MapleProxied {
 
     /// @dev Get principal and interest breakdown for paying off the entire loan early.
     function _getEarlyPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
-        principal_ = _principal;
-        interest_  = (_principal * _earlyFeeRate) / SCALED_ONE;
+        interest_ = ((principal_ = _principal) * _earlyFeeRate) / SCALED_ONE;
     }
 
     /// @dev Get principal and interest breakdown for next standard payment.
