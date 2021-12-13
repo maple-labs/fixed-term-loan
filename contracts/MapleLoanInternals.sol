@@ -164,12 +164,14 @@ contract MapleLoanInternals is MapleProxied {
 
         _claimableFunds += totalPaid_;
 
-        if (_paymentsRemaining == uint256(1)) {
+        uint256 paymentsRemaining = _paymentsRemaining;
+
+        if (paymentsRemaining == uint256(1)) {
             _clearLoanAccounting();  // Assumes `_getNextPaymentBreakdown` returns a `principal_` that is `_principal`.
         } else {
             _nextPaymentDueDate += _paymentInterval;
             _principal          -= principal_;
-            _paymentsRemaining--;
+            _paymentsRemaining   = paymentsRemaining - uint256(1);
         }
     }
 
@@ -297,17 +299,21 @@ contract MapleLoanInternals is MapleProxied {
         _claimableFunds = uint256(0);
         _drawableFunds  = uint256(0);
 
+        address collateralAsset = _collateralAsset;
+
         // Either there is no collateral to repossess, or the transfer of the collateral succeeds.
         require(
-            (collateralRepossessed_ = _getUnaccountedAmount(_collateralAsset)) == uint256(0) ||
-            ERC20Helper.transfer(_collateralAsset, destination_, collateralRepossessed_),
+            (collateralRepossessed_ = _getUnaccountedAmount(collateralAsset)) == uint256(0) ||
+            ERC20Helper.transfer(collateralAsset, destination_, collateralRepossessed_),
             "MLI:R:C_TRANSFER_FAILED"
         );
 
+        address fundsAsset = _fundsAsset;
+
         // Either there are no funds to repossess, or the transfer of the funds succeeds.
         require(
-            (fundsRepossessed_ = _getUnaccountedAmount(_fundsAsset)) == uint256(0) ||
-            ERC20Helper.transfer(_fundsAsset, destination_, fundsRepossessed_),
+            (fundsRepossessed_ = _getUnaccountedAmount(fundsAsset)) == uint256(0) ||
+            ERC20Helper.transfer(fundsAsset, destination_, fundsRepossessed_),
             "MLI:R:F_TRANSFER_FAILED"
         );
     }
