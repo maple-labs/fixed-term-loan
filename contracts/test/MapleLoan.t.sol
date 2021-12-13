@@ -1001,14 +1001,82 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         // This should fail since it will require 1 from drawableFunds.
         assertTrue(!user.try_loan_closeLoan(address(loan), 0));
 
-        fundsAsset.mint(address(borrower), totalPayment - 1);
-        borrower.erc20_transfer(address(fundsAsset), address(loan), totalPayment - 1);
-
-        // This should succeed since it the borrower can use drawableFunds.
+        // This should succeed since the borrower can use drawableFunds, and there is already unaccounted amount thanks to the previous user transfer.
         assertTrue(borrower.try_loan_closeLoan(address(loan), 0));
     }
 
-    function test_makePayment_pullPattern() external {
+    function test_makePayment_pullPatternAsBorrower() external {
+        Borrower  borrower   = new Borrower();
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 startingPrincipal = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(startingPrincipal);
+        loan.__setPrincipal(startingPrincipal);
+        loan.__setEndingPrincipal(uint256(0));
+        loan.__setPaymentsRemaining(3);
+
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
+
+        fundsAsset.mint(address(borrower), totalPayment);
+
+        assertEq(fundsAsset.balanceOf(address(borrower)), totalPayment);
+        assertEq(fundsAsset.balanceOf(address(loan)),     0);
+        assertEq(loan.paymentsRemaining(),                3);
+        assertEq(loan.principal(),                        startingPrincipal);
+
+        assertTrue(!borrower.try_loan_makePayment(address(loan), totalPayment));
+
+        borrower.erc20_approve(address(fundsAsset), address(loan), totalPayment);
+
+        assertTrue(borrower.try_loan_makePayment(address(loan), totalPayment));
+
+        assertEq(fundsAsset.balanceOf(address(borrower)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)),     totalPayment);
+        assertEq(loan.paymentsRemaining(),                2);
+        assertEq(loan.principal(),                        startingPrincipal - principal);
+    }
+
+    function test_makePayment_pushPatternAsBorrower() external {
+        Borrower  borrower   = new Borrower();
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 startingPrincipal = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(startingPrincipal);
+        loan.__setPrincipal(startingPrincipal);
+        loan.__setEndingPrincipal(uint256(0));
+        loan.__setPaymentsRemaining(3);
+
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
+
+        fundsAsset.mint(address(borrower), totalPayment);
+
+        assertEq(fundsAsset.balanceOf(address(borrower)), totalPayment);
+        assertEq(fundsAsset.balanceOf(address(loan)),     0);
+        assertEq(loan.paymentsRemaining(),                3);
+        assertEq(loan.principal(),                        startingPrincipal);
+
+        assertTrue(!borrower.try_loan_makePayment(address(loan), 0));
+
+        borrower.erc20_transfer(address(fundsAsset), address(loan), totalPayment);
+
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0));
+
+        assertEq(fundsAsset.balanceOf(address(borrower)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)),     totalPayment);
+        assertEq(loan.paymentsRemaining(),                2);
+        assertEq(loan.principal(),                        startingPrincipal - principal);
+    }
+
+    function test_makePayment_pullPatternAsNonBorrower() external {
+        LoanUser  user       = new LoanUser();
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 startingPrincipal = 1_000_000;
@@ -1022,26 +1090,27 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
-        fundsAsset.mint(address(this), totalPayment);
+        fundsAsset.mint(address(user), totalPayment);
 
-        try loan.makePayment(totalPayment) { assertTrue(false, "Able to make payment"); } catch { }
-
-        fundsAsset.approve(address(loan), totalPayment);
-
-        assertEq(fundsAsset.balanceOf(address(this)), totalPayment);
+        assertEq(fundsAsset.balanceOf(address(user)), totalPayment);
         assertEq(fundsAsset.balanceOf(address(loan)), 0);
         assertEq(loan.paymentsRemaining(),            3);
         assertEq(loan.principal(),                    startingPrincipal);
 
-        loan.makePayment(totalPayment);
+        assertTrue(!user.try_loan_makePayment(address(loan), totalPayment));
 
-        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        user.erc20_approve(address(fundsAsset), address(loan), totalPayment);
+
+        assertTrue(user.try_loan_makePayment(address(loan), totalPayment));
+
+        assertEq(fundsAsset.balanceOf(address(user)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), totalPayment);
         assertEq(loan.paymentsRemaining(),            2);
         assertEq(loan.principal(),                    startingPrincipal - principal);
     }
 
-    function test_makePayment_pushPattern() external {
+    function test_makePayment_pushPatternAsNonBorrower() external {
+        LoanUser  user       = new LoanUser();
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 startingPrincipal = 1_000_000;
@@ -1050,24 +1119,91 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setPrincipalRequested(startingPrincipal);
         loan.__setPrincipal(startingPrincipal);
         loan.__setEndingPrincipal(uint256(0));
-        loan.__setPaymentsRemaining(4);
+        loan.__setPaymentsRemaining(3);
 
         ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
-        try loan.makePayment(0) { assertTrue(false, "Able to make payment"); } catch { }
+        fundsAsset.mint(address(user), totalPayment);
 
-        fundsAsset.mint(address(loan), totalPayment);
-
-        assertEq(fundsAsset.balanceOf(address(loan)), totalPayment);
-        assertEq(loan.paymentsRemaining(),            4);
+        assertEq(fundsAsset.balanceOf(address(user)), totalPayment);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.paymentsRemaining(),            3);
         assertEq(loan.principal(),                    startingPrincipal);
 
-        loan.makePayment(0);
+        assertTrue(!user.try_loan_makePayment(address(loan), 0));
 
+        user.erc20_transfer(address(fundsAsset), address(loan), totalPayment);
+
+        assertTrue(user.try_loan_makePayment(address(loan), 0));
+
+        assertEq(fundsAsset.balanceOf(address(user)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), totalPayment);
-        assertEq(loan.paymentsRemaining(),            3);
+        assertEq(loan.paymentsRemaining(),            2);
         assertEq(loan.principal(),                    startingPrincipal - principal);
+    }
+
+    function test_makePayment_pullPatternUsingDrawable() external {
+        Borrower  borrower   = new Borrower();
+        LoanUser  user       = new LoanUser();
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 startingPrincipal = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(startingPrincipal);
+        loan.__setPrincipal(startingPrincipal);
+        loan.__setEndingPrincipal(uint256(0));
+        loan.__setPaymentsRemaining(3);
+
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
+
+        fundsAsset.mint(address(loan), 1);
+        loan.__setDrawableFunds(1);
+
+        fundsAsset.mint(address(user), totalPayment - 1);
+        user.erc20_approve(address(fundsAsset), address(loan), totalPayment - 1);
+
+        // This should fail since it will require 1 from drawableFunds.
+        assertTrue(!user.try_loan_makePayment(address(loan), totalPayment - 1));
+
+        fundsAsset.mint(address(borrower), totalPayment - 1);
+        borrower.erc20_approve(address(fundsAsset), address(loan), totalPayment - 1);
+
+        // This should succeed since it the borrower can use drawableFunds.
+        assertTrue(borrower.try_loan_makePayment(address(loan), totalPayment - 1));
+    }
+
+    function test_makePayment_pushPatternUsingDrawable() external {
+        Borrower  borrower   = new Borrower();
+        LoanUser  user       = new LoanUser();
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 startingPrincipal = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(startingPrincipal);
+        loan.__setPrincipal(startingPrincipal);
+        loan.__setEndingPrincipal(uint256(0));
+        loan.__setPaymentsRemaining(3);
+
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
+
+        fundsAsset.mint(address(loan), 1);
+        loan.__setDrawableFunds(1);
+
+        fundsAsset.mint(address(user), totalPayment - 1);
+        user.erc20_transfer(address(fundsAsset), address(loan), totalPayment - 1);
+
+        // This should fail since it will require 1 from drawableFunds.
+        assertTrue(!user.try_loan_makePayment(address(loan), 0));
+
+        // This should succeed since the borrower can use drawableFunds, and there is already unaccounted amount thanks to the previous user transfer.
+        assertTrue(borrower.try_loan_makePayment(address(loan), 0));
     }
 
     function test_postCollateral_pullPattern() external assertFailureWhenPaused {
