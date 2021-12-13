@@ -498,8 +498,6 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         assertEq(loan.claimableFunds(),               0);
         assertEq(loan.drawableFunds(),                0);
 
-        try loan.acceptNewTerms(refinancer, data, 0) { assertTrue(false, "Able to accept terms"); } catch { }
-
         fundsAsset.transfer(address(loan), 1);
 
         loan.acceptNewTerms(refinancer, data, 0);
