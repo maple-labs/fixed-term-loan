@@ -57,6 +57,12 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
 
+        // If the caller is not the borrower, require that the transferred amount be sufficient to close the loan without touching `_drawableFunds`;
+        if (msg.sender != _borrower) {
+            ( principal_, interest_ ) = _getEarlyPaymentBreakdown();
+            require(_getUnaccountedAmount(_fundsAsset) >= principal_ + interest_, "ML:CL:CANNOT_USE_DRAWABLE");
+        }
+
         ( principal_, interest_ ) = _closeLoan();
 
         emit LoanClosed(principal_, interest_);

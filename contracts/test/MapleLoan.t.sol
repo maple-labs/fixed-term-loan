@@ -10,6 +10,7 @@ import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 import { ConstructableMapleLoan, EmptyContract, LenderMock, ManipulatableMapleLoan, MockFactory, MapleGlobalsMock } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
+import { LoanUser } from "./accounts/LoanUser.sol";
 
 contract MapleLoanTests is StateManipulations, TestUtils {
 
@@ -825,7 +826,68 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         assertEq(loan.drawableFunds(),                     0);
     }
 
-    function test_closeLoan_pullPattern() external {
+    function test_closeLoan_pullPatternAsBorrower() external {
+        Borrower  borrower   = new Borrower();
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPrincipal(amount);
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+
+        fundsAsset.mint(address(borrower), amount);
+
+        assertEq(fundsAsset.balanceOf(address(borrower)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)),     0);
+        assertEq(loan.principal(),                        amount);
+
+        assertTrue(!borrower.try_loan_closeLoan(address(loan), amount));
+
+        borrower.erc20_approve(address(fundsAsset), address(loan), amount);
+
+        assertTrue(borrower.try_loan_closeLoan(address(loan), amount));
+
+        assertEq(fundsAsset.balanceOf(address(borrower)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)),     amount);
+        assertEq(loan.paymentsRemaining(),                0);
+        assertEq(loan.principal(),                        0);
+    }
+
+    function test_closeLoan_pushPatternAsBorrower() external {
+        Borrower  borrower   = new Borrower();
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPrincipal(amount);
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+
+        fundsAsset.mint(address(borrower), amount);
+
+        assertEq(fundsAsset.balanceOf(address(borrower)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)),     0);
+        assertEq(loan.principal(),                        amount);
+
+        assertTrue(!borrower.try_loan_closeLoan(address(loan), 0));
+
+        borrower.erc20_transfer(address(fundsAsset), address(loan), amount);
+
+        assertTrue(borrower.try_loan_closeLoan(address(loan), 0));
+
+        assertEq(fundsAsset.balanceOf(address(borrower)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)),     amount);
+        assertEq(loan.paymentsRemaining(),                0);
+        assertEq(loan.principal(),                        0);
+    }
+
+    function test_closeLoan_pullPatternAsNonBorrower() external {
+        LoanUser  user       = new LoanUser();
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 amount = 1_000_000;
@@ -835,24 +897,26 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        fundsAsset.mint(address(this), amount);
+        fundsAsset.mint(address(user), amount);
 
-        try loan.closeLoan(amount) { assertTrue(false, "Able to close loan"); } catch { }
-
-        fundsAsset.approve(address(loan), amount);
-
-        assertEq(fundsAsset.balanceOf(address(this)), amount);
+        assertEq(fundsAsset.balanceOf(address(user)), amount);
         assertEq(fundsAsset.balanceOf(address(loan)), 0);
         assertEq(loan.principal(),                    amount);
 
-        loan.closeLoan(amount);
+        assertTrue(!user.try_loan_closeLoan(address(loan), amount));
 
-        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        user.erc20_approve(address(fundsAsset), address(loan), amount);
+
+        assertTrue(user.try_loan_closeLoan(address(loan), amount));
+
+        assertEq(fundsAsset.balanceOf(address(user)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.paymentsRemaining(),            0);
         assertEq(loan.principal(),                    0);
     }
 
-    function test_closeLoan_pushPattern() external {
+    function test_closeLoan_pushPatternAsNonBorrower() external {
+        LoanUser  user       = new LoanUser();
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 amount = 1_000_000;
@@ -862,17 +926,86 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        try loan.closeLoan(0) { assertTrue(false,"Able to close loan"); } catch { }
+        fundsAsset.mint(address(user), amount);
 
-        fundsAsset.mint(address(loan), amount);
-
-        assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(fundsAsset.balanceOf(address(user)), amount);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
         assertEq(loan.principal(),                    amount);
 
-        loan.closeLoan(0);
+        assertTrue(!user.try_loan_closeLoan(address(loan), 0));
 
+        user.erc20_transfer(address(fundsAsset), address(loan), amount);
+
+        assertTrue(user.try_loan_closeLoan(address(loan), 0));
+
+        assertEq(fundsAsset.balanceOf(address(user)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), amount);
+        assertEq(loan.paymentsRemaining(),            0);
         assertEq(loan.principal(),                    0);
+    }
+
+    function test_closeLoan_pullPatternUsingDrawable() external {
+        Borrower  borrower   = new Borrower();
+        LoanUser  user       = new LoanUser();
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPrincipal(amount);
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+
+        ( uint256 principal, uint256 interest ) = loan.getEarlyPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
+
+        fundsAsset.mint(address(loan), 1);
+        loan.__setDrawableFunds(1);
+
+        fundsAsset.mint(address(user), totalPayment - 1);
+        user.erc20_approve(address(fundsAsset), address(loan), totalPayment - 1);
+
+        // This should fail since it will require 1 from drawableFunds.
+        assertTrue(!user.try_loan_closeLoan(address(loan), totalPayment - 1));
+
+        fundsAsset.mint(address(borrower), totalPayment - 1);
+        borrower.erc20_approve(address(fundsAsset), address(loan), totalPayment - 1);
+
+        // This should succeed since it the borrower can use drawableFunds.
+        assertTrue(borrower.try_loan_closeLoan(address(loan), totalPayment - 1));
+    }
+
+    function test_closeLoan_pushPatternUsingDrawable() external {
+        Borrower  borrower   = new Borrower();
+        LoanUser  user       = new LoanUser();
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(amount);
+        loan.__setPrincipal(amount);
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+
+        ( uint256 principal, uint256 interest ) = loan.getEarlyPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
+
+        fundsAsset.mint(address(loan), 1);
+        loan.__setDrawableFunds(1);
+
+        fundsAsset.mint(address(user), totalPayment - 1);
+        user.erc20_transfer(address(fundsAsset), address(loan), totalPayment - 1);
+
+        // This should fail since it will require 1 from drawableFunds.
+        assertTrue(!user.try_loan_closeLoan(address(loan), 0));
+
+        fundsAsset.mint(address(borrower), totalPayment - 1);
+        borrower.erc20_transfer(address(fundsAsset), address(loan), totalPayment - 1);
+
+        // This should succeed since it the borrower can use drawableFunds.
+        assertTrue(borrower.try_loan_closeLoan(address(loan), 0));
     }
 
     function test_makePayment_pullPattern() external {
