@@ -29,7 +29,7 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
     function setUp() external {
         lender     = new LenderMock();
         refinancer = new Refinancer();
-        globals    = new MapleGlobalsMock(address(this));
+        globals    = new MapleGlobalsMock(address(this), address(0), 0, 0);
         factory    = new MockFactory();
 
         factory.setGlobals(address(globals));

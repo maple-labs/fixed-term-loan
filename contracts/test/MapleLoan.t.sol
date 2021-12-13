@@ -20,7 +20,7 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     bool locked;  // Helper state variable to avoid infinite loops when using the modifier.
 
     function setUp() external {
-        globals = new MapleGlobalsMock(address(this));
+        globals = new MapleGlobalsMock(address(this), address(0), 0, 0);
 
         MockFactory factoryMock = new MockFactory();
         factoryMock.setGlobals(address(globals));
@@ -1320,7 +1320,7 @@ contract MapleLoanRoleTests is TestUtils {
 
         loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
 
-        address globalsMock = address(new MapleGlobalsMock(address(this)));
+        address globalsMock = address(new MapleGlobalsMock(address(this), address(0), 0, 0));
 
         MockFactory factoryMock = new MockFactory();
         factoryMock.setGlobals(globalsMock);

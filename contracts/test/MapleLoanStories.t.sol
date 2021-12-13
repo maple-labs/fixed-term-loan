@@ -20,7 +20,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
     function setUp() external {
         borrower = new Borrower();
         lender   = new LenderMock();
-        globals  = new MapleGlobalsMock(address(this));
+        globals  = new MapleGlobalsMock(address(this), address(0), 0, 0);
         token    = new MockERC20("Test", "TST", 0);
         factory  = new MockFactory();
 

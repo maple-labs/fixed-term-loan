@@ -6,7 +6,8 @@ import { IERC20 } from "../modules/erc20/src/interfaces/IERC20.sol";
 import { ERC20Helper }  from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { MapleProxied } from "../modules/maple-proxy-factory/contracts/MapleProxied.sol";
 
-import { ILenderLike } from "./interfaces/Interfaces.sol";
+import { ILenderLike, IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
+import { IMapleLoanFactory }              from "./interfaces/IMapleLoanFactory.sol";
 
 /// @title MapleLoanInternals defines the storage layout and internal logic of MapleLoan.
 contract MapleLoanInternals is MapleProxied {
@@ -263,17 +264,19 @@ contract MapleLoanInternals is MapleProxied {
         // Cannot under-fund loan, but over-funding results in additional funds left unaccounted for.
         require(_getUnaccountedAmount(fundsAsset) >= fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
 
+        IMapleGlobalsLike globals = IMapleGlobalsLike(IMapleLoanFactory(_factory()).mapleGlobals());
+
         // Transfer the annualized treasury fee, if any, to the Maple treasury, and decrement drawable funds.
-        uint256 treasuryFee = (fundsLent_ * ILenderLike(lender_).treasuryFee() * paymentInterval * paymentsRemaining) / uint256(365 days * 10_000);
+        uint256 treasuryFee = (fundsLent_ * globals.treasuryFee() * paymentInterval * paymentsRemaining) / uint256(365 days * 10_000);
 
         // Transfer delegate fee, if any, to the pool delegate, and decrement drawable funds.
-        uint256 delegateFee = (fundsLent_ * ILenderLike(lender_).investorFee() * paymentInterval * paymentsRemaining) / uint256(365 days * 10_000);
+        uint256 delegateFee = (fundsLent_ * globals.investorFee() * paymentInterval * paymentsRemaining) / uint256(365 days * 10_000);
 
         // Drawable funds is the amount funded, minus any fees.
         _drawableFunds = fundsLent_ - treasuryFee - delegateFee;
 
         require(
-            treasuryFee == uint256(0) || ERC20Helper.transfer(fundsAsset, ILenderLike(lender_).mapleTreasury(), treasuryFee),
+            treasuryFee == uint256(0) || ERC20Helper.transfer(fundsAsset, globals.mapleTreasury(), treasuryFee),
             "MLI:FL:T_TRANSFER_FAILED"
         );
 

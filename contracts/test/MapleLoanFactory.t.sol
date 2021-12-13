@@ -17,7 +17,7 @@ contract MapleLoanFactoryTest is TestUtils {
     address          internal initializer;
 
     function setUp() external {
-        globals        = new MapleGlobalsMock(address(this));
+        globals        = new MapleGlobalsMock(address(this), address(0), 0, 0);
         factory        = new MapleLoanFactory(address(globals));
         implementation = address(new MapleLoan());
         initializer    = address(new MapleLoanInitializer());

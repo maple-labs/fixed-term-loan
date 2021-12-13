@@ -6,7 +6,7 @@ import { MockERC20 }                           from "../../modules/erc20/src/tes
 
 import { MapleLoanInternalsHarness } from "./harnesses/MapleLoanInternalsHarness.sol";
 
-import { LenderMock } from "./mocks/Mocks.sol";
+import { LenderMock, MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
 
 contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
 
@@ -268,13 +268,20 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
 
     LenderMock                internal _lender;
     MapleLoanInternalsHarness internal _loan;
+    MapleGlobalsMock          internal _globals;
     MockERC20                 internal _fundsAsset;
+    MockFactory               internal _factory;
 
     function setUp() external {
+        _factory     = new MockFactory();
+        _globals     = new MapleGlobalsMock(address(0), address(0), 0, 0);
         _lender      = new LenderMock();
         _loan        = new MapleLoanInternalsHarness();
         _fundsAsset  = new MockERC20("FundsAsset", "FA", 0);
 
+        _factory.setGlobals(address(_globals));
+
+        _loan.setFactory(address(_factory));
         _loan.setFundsAsset(address(_fundsAsset));
         _loan.setPaymentsRemaining(1);
     }

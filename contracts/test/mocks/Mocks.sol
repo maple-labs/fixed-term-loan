@@ -11,10 +11,18 @@ import { Lender } from "../accounts/Lender.sol";
 contract MapleGlobalsMock {
 
     address public governor;
-    bool    public protocolPaused;
+    address public mapleTreasury;
 
-    constructor (address governor_) {
-        governor = governor_;
+    bool public protocolPaused;
+
+    uint256 public investorFee;
+    uint256 public treasuryFee;
+
+    constructor (address governor_, address mapleTreasury_, uint256 investorFee_, uint256 treasuryFee_) {
+        governor      = governor_;
+        mapleTreasury = mapleTreasury_;
+        investorFee   = investorFee_;
+        treasuryFee   = treasuryFee_;
     }
 
     function setProtocolPaused(bool paused_) external {
@@ -48,11 +56,7 @@ contract ConstructableMapleLoan is MapleLoan {
 
 contract LenderMock is Lender {
 
-    address public mapleTreasury = address(9);
-    address public poolDelegate  = address(8);
-
-    uint256 public investorFee = uint256(0);
-    uint256 public treasuryFee = uint256(0);
+    address public poolDelegate = address(8);
 
 }
 

@@ -16,9 +16,6 @@ import { MapleGlobalsMock, LenderMock } from "./mocks/Mocks.sol";
 
 contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
 
-    address constant mapleTreasury = address(8181);
-    address constant poolDelegate  = address(6161);
-
     uint256 start;
 
     Borrower             borrower;
@@ -41,7 +38,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
 
-        globals = new MapleGlobalsMock(address(governor));
+        globals = new MapleGlobalsMock(address(governor), address(0), 0, 0);
 
         factory        = new MapleProxyFactory(address(globals));
         implementation = new MapleLoan();

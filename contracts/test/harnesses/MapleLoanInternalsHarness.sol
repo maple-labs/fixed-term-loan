@@ -200,6 +200,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _endingPrincipal = endingPrincipal_;
     }
 
+    function setFactory(address factory_) external {
+        _setFactory(factory_);
+    }
+
     function setFundsAsset(address fundsAsset_) external {
         _fundsAsset = fundsAsset_;
     }
