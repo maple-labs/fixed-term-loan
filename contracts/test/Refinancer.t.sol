@@ -24,7 +24,7 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
     MockERC20              token;
     MockFactory            factory;
     Refinancer             refinancer;
-    
+
 
     function setUp() external {
         lender     = new LenderMock();

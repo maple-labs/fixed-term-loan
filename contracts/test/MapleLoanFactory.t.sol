@@ -29,7 +29,7 @@ contract MapleLoanFactoryTest is TestUtils {
     function test_createInstance(bytes32 someAccountSalt_) external {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
-        uint256[3] memory amounts    = [uint256(1), uint256(1), uint256(0)];
+        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), assets, termDetails, amounts, rates);
@@ -41,7 +41,7 @@ contract MapleLoanFactoryTest is TestUtils {
         address loan = account.createLoan(address(factory), arguments, salt);
 
         // NOTE: Check that the loan address is deterministic, and does not depend on the account that calls `createInstance` at the factory.
-        assertTrue(loan == address(0xF8d9797a897ED3C709659cf8F14541D88a20696B));
+        assertTrue(loan == address(0x76BAd74058267C4a37FC5E4786F71A8bB89cE4Be));
         assertTrue(!factory.isLoan(address(1)));
         assertTrue( factory.isLoan(loan));
     }
@@ -49,7 +49,7 @@ contract MapleLoanFactoryTest is TestUtils {
     function testFail_createInstance_saltAndArgumentsCollision() external {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
-        uint256[3] memory amounts    = [uint256(1), uint256(1), uint256(0)];
+        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), assets, termDetails, amounts, rates);

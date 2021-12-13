@@ -248,7 +248,9 @@ contract MapleLoanInternals is MapleProxied {
 
         uint256 paymentInterval = _paymentInterval;
 
-        _lender             = lender_;
+        // NOTE: Don't need to check if lender_ is nonzero or valid, since it is done implicitly in calls to `lender_` below.
+        _lender = lender_;
+
         _nextPaymentDueDate = block.timestamp + paymentInterval;
 
         // Amount funded and principal are as requested.
@@ -415,7 +417,7 @@ contract MapleLoanInternals is MapleProxied {
         internal pure virtual
         returns (uint256 principalAmount_, uint256 interestAmount_)
     {
-        ( principalAmount_,interestAmount_ ) = _getInstallment(
+        ( principalAmount_, interestAmount_ ) = _getInstallment(
             principal_,
             endingPrincipal_,
             interestRate_,

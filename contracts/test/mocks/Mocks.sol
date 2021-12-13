@@ -154,7 +154,7 @@ contract SomeAccount {
 }
 
 contract EmptyContract {
-    
+
     fallback() external { }
-    
+
 }

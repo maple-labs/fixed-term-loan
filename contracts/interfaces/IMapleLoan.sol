@@ -43,8 +43,8 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function drawableFunds() external view returns (uint256 drawableFunds_);
 
     /**
-     *  @dev The rate charged at early payments. 
-     *  @dev This value should be configured so that it is less expensive to close a loan with more than one payment remaining, but 
+     *  @dev The rate charged at early payments.
+     *  @dev This value should be configured so that it is less expensive to close a loan with more than one payment remaining, but
      *       more expensive to close it if on the last payment.
      */
     function earlyFeeRate() external view returns (uint256 earlyFeeRate_);

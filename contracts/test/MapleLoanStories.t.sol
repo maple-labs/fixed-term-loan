@@ -28,7 +28,7 @@ contract MapleLoanStoryTests is StateManipulations, TestUtils {
     }
 
     function test_story_fullyAmortized() external {
-        
+
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
 
