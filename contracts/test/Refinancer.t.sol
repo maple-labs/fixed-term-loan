@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { TestUtils, StateManipulations } from "../../modules/contract-test-utils/contracts/test.sol";
+import { StateManipulations, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }                     from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 
 import { Refinancer } from "../Refinancer.sol";
@@ -9,7 +9,7 @@ import { Refinancer } from "../Refinancer.sol";
 import { ConstructableMapleLoan, LenderMock, MockFactory, MapleGlobalsMock } from "./mocks/Mocks.sol";
 
 // Helper contract with common functionality
-contract BaseRefinanceTest is TestUtils, StateManipulations {
+contract BaseRefinanceTest is StateManipulations, TestUtils {
 
     // Loan Boundaries
     uint256 internal constant MAX_RATE         = 1.00 ether;       // 100 %
@@ -49,7 +49,7 @@ contract BaseRefinanceTest is TestUtils, StateManipulations {
         token = new MockERC20("Test", "TST", 0);
 
         address[2] memory assets      = [address(token), address(token)];
-        uint256[3] memory amounts    = [collateralRequired_, principalRequested_, endingPrincipal_];
+        uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
         uint256[4] memory rates       = [interestRate_, uint256(0.10 ether), uint256(0.15 ether), uint256(0)];
 
@@ -704,10 +704,10 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
 
         // Asserting state
         assertEq(loan.collateralRequired(), collateralRequired_);
-        assertEq(loan.endingPrincipal(), endingPrincipal_);
-        assertEq(loan.gracePeriod(),     gracePeriod_);
-        assertEq(loan.interestRate(),    interestRate_);
-        assertEq(loan.paymentInterval(), paymentInterval_);
+        assertEq(loan.endingPrincipal(),    endingPrincipal_);
+        assertEq(loan.gracePeriod(),        gracePeriod_);
+        assertEq(loan.interestRate(),       interestRate_);
+        assertEq(loan.paymentInterval(),    paymentInterval_);
         assertEq(loan.principalRequested(), principalRequested_);
 
         uint256 currentPrincipal = loan.principal();

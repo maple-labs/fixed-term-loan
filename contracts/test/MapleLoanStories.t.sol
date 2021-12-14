@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { TestUtils, Hevm, StateManipulations } from "../../modules/contract-test-utils/contracts/test.sol";
+import { Hevm, StateManipulations, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
 import { IERC20 }                              from "../../modules/erc20/src/interfaces/IERC20.sol";
 import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
 

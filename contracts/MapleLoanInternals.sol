@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { IERC20 } from "../modules/erc20/src/interfaces/IERC20.sol";
-
+import { IERC20 }       from "../modules/erc20/src/interfaces/IERC20.sol";
 import { ERC20Helper }  from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { MapleProxied } from "../modules/maple-proxy-factory/contracts/MapleProxied.sol";
 
@@ -135,12 +134,12 @@ contract MapleLoanInternals is MapleProxied {
 
         ( principal_, interest_ ) = _getEarlyPaymentBreakdown();
 
-        uint256 totalPaid_ = principal_ + interest_;
+        uint256 totalPaid = principal_ + interest_;
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
-        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid_;
+        _drawableFunds = _drawableFunds + _getUnaccountedAmount(_fundsAsset) - totalPaid;
 
-        _claimableFunds += totalPaid_;
+        _claimableFunds += totalPaid;
 
         _clearLoanAccounting();
     }
@@ -157,13 +156,13 @@ contract MapleLoanInternals is MapleProxied {
     function _makePayment() internal returns (uint256 principal_, uint256 interest_) {
         ( principal_, interest_ ) = _getNextPaymentBreakdown();
 
-        uint256 totalPaid_ = principal_ + interest_;
+        uint256 totalPaid = principal_ + interest_;
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + _getUnaccountedAmount(_fundsAsset)) - totalPaid_;
+        _drawableFunds = (_drawableFunds + _getUnaccountedAmount(_fundsAsset)) - totalPaid;
 
-        _claimableFunds += totalPaid_;
+        _claimableFunds += totalPaid;
 
         uint256 paymentsRemaining = _paymentsRemaining;
 

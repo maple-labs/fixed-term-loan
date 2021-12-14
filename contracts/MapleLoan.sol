@@ -2,11 +2,10 @@
 pragma solidity 0.8.7;
 
 import { IERC20 }             from "../modules/erc20/src/interfaces/IERC20.sol";
+import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
-
-import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
+import { IMapleLoan }        from "./interfaces/IMapleLoan.sol";
 import { IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanInternals } from "./MapleLoanInternals.sol";

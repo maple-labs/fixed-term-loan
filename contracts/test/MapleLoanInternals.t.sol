@@ -273,11 +273,11 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
     MockFactory               internal _factory;
 
     function setUp() external {
-        _factory     = new MockFactory();
-        _globals     = new MapleGlobalsMock(address(0), address(0), 0, 0);
-        _lender      = new LenderMock();
-        _loan        = new MapleLoanInternalsHarness();
-        _fundsAsset  = new MockERC20("FundsAsset", "FA", 0);
+        _factory    = new MockFactory();
+        _fundsAsset = new MockERC20("FundsAsset", "FA", 0);
+        _globals    = new MapleGlobalsMock(address(0), address(0), 0, 0);
+        _lender     = new LenderMock();
+        _loan       = new MapleLoanInternalsHarness();
 
         _factory.setGlobals(address(_globals));
 
@@ -1061,11 +1061,11 @@ contract MapleLoanInternals_CloseLoanTests is StateManipulations, TestUtils {
         uint256 totalPaid = principal + interest;
 
         assertEq(totalPaid - principalRequested_, closingAmount);
-        assertEq(_loan.claimableFunds(),           totalPaid);
-        assertEq(_loan.drawableFunds(),            0);
-        assertEq(_loan.principal(),                0);
-        assertEq(_loan.nextPaymentDueDate(),       0);
-        assertEq(_loan.paymentsRemaining(),        0);
+        assertEq(_loan.claimableFunds(),          totalPaid);
+        assertEq(_loan.drawableFunds(),           0);
+        assertEq(_loan.principal(),               0);
+        assertEq(_loan.nextPaymentDueDate(),      0);
+        assertEq(_loan.paymentsRemaining(),       0);
     }
 
     function test_closeLoan_withRemainderAsDrawableFunds(

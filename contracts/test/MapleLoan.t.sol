@@ -7,7 +7,7 @@ import { MockERC20 }                           from "../../modules/erc20/src/tes
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { ConstructableMapleLoan, EmptyContract, LenderMock, ManipulatableMapleLoan, MockFactory, MapleGlobalsMock } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, EmptyContract, LenderMock, ManipulatableMapleLoan, MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { LoanUser } from "./accounts/LoanUser.sol";

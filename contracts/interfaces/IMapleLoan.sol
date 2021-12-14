@@ -66,7 +66,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function gracePeriod() external view returns (uint256 gracePeriod_);
 
     /**
-     *  @dev The annualized interest rate (APR), in basis points, scaled by 100 (i.e. 1% is 10_000).
+     *  @dev The annualized interest rate (APR), in units of 1e18, (i.e. 1% is 0.01e18).
      */
     function interestRate() external view returns (uint256 interestRate_);
 
