@@ -835,7 +835,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         // Get amounts for the remaining loan payments
         ( uint256 principalPortion, uint256 interestPortion)  = loan.getNextPaymentBreakdown();
 
-        uint256 lateInterest = principalPortion * 1300 * uint256(1 seconds) / 365 days / 10_000;  // Add one second of late interest
+        uint256 lateInterest = principalPortion * 1300 * uint256(1 days) / 365 days / 10_000;  // Add one day of late payment (one second = one day of late interest)
         uint256 lateFee      = 22_989.075431 ether;
 
         uint256 paymentAmount = principalPortion + interestPortion;
@@ -940,7 +940,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             // Get amounts for the remaining loan payments
             ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
-            uint256 lateInterest = 1_000_000 ether * 1000 * uint256(2 hours) / 365 days / 10_000;  // Add two hours of late interest
+            uint256 lateInterest = 1_000_000 ether * 1000 * uint256(1 days) / 365 days / 10_000;  // Add two hours of late interest (which is 1 day of defualt interest)
             uint256 lateFee      = uint256(50_000.000000 ether);
 
             uint256 paymentAmount = principalPortion + interestPortion;
@@ -1238,4 +1238,41 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         }
     }
 
+    function test_payments_dailyInterestAccrual() external {
+
+        address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
+
+        uint256[3] memory termDetails = [
+            uint256(10 days),
+            uint256(30 days),
+            uint256(6)
+        ];
+
+        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+
+        uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
+
+        MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
+
+        // On day 0, warp to day 30 plus one second (one second late)
+        hevm.warp(start + 30 days + 1 seconds);
+
+        // Get amounts for the remaining loan payments
+        ( , uint256 interestPortion1 ) = loan.getNextPaymentBreakdown();
+
+        // Warp to day 31 (one day late exactly)
+        hevm.warp(start  + 31 days);
+
+        ( , uint256 interestPortion2 ) = loan.getNextPaymentBreakdown();
+
+        assertEq(interestPortion1, interestPortion2);  // Same entire day
+
+        // Warp one more second (one day plus one second late)
+        hevm.warp(start  + 31 days + 1 seconds);
+
+        // Get amounts for the remaining loan payments
+        ( , uint256 interestPortion3 ) = loan.getNextPaymentBreakdown();
+
+        assertTrue(interestPortion3 > interestPortion1);  // Default interest gets updated on the day
+    }
 }

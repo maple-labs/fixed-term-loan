@@ -436,7 +436,9 @@ contract MapleLoanInternals is MapleProxied {
         principalAmount_ = paymentsRemaining_ == uint256(1) ? principal_ : principalAmount_;
 
         if (currentTime_ > nextPaymentDueDate_) {
-            interestAmount_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, currentTime_ - nextPaymentDueDate_);
+            uint256 daysLate = (((currentTime_ - nextPaymentDueDate_ - 1) / 1 days) + 1) * 1 days; 
+
+            interestAmount_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, daysLate);
             interestAmount_ += (lateFeeRate_ * principal_) / SCALED_ONE;
         }
     }
