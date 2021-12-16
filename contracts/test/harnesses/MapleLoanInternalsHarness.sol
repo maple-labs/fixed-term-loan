@@ -135,7 +135,6 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _interestRate;
     }
 
-
     function lateFeeRate() external view returns (uint256 lateFeeRate_) {
         return _lateFeeRate;
     }

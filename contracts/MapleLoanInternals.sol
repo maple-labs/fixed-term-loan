@@ -99,7 +99,7 @@ contract MapleLoanInternals is MapleProxied {
     )
         internal
     {
-        // Principal requested need to be non-zero (see `_getCollateralRequiredFor` math).
+        // Principal requested needs to be non-zero (see `_getCollateralRequiredFor` math).
         require(amounts_[1] > uint256(0), "MLI:I:INVALID_PRINCIPAL");
 
         // Ending principal needs to be less than or equal to principal requested.

@@ -1168,29 +1168,120 @@ contract MapleLoanInternals_CloseLoanTests is StateManipulations, TestUtils {
 
 contract MapleLoanInternals_GetCollateralRequiredForTests is TestUtils {
 
-    MapleLoanInternalsHarness internal loan;
+    MapleLoanInternalsHarness internal _loan;
 
     function setUp() external {
-        loan = new MapleLoanInternalsHarness();
+        _loan = new MapleLoanInternalsHarness();
     }
 
     function test_getCollateralRequiredFor() external {
         // No principal.
-        assertEq(loan.getCollateralRequiredFor(0, 10_000, 4_000_000, 500_000), 0);
+        assertEq(_loan.getCollateralRequiredFor(0, 10_000, 4_000_000, 500_000), 0);
 
         // No outstanding principal.
-        assertEq(loan.getCollateralRequiredFor(10_000, 10_000, 4_000_000, 500_000), 0);
+        assertEq(_loan.getCollateralRequiredFor(10_000, 10_000, 4_000_000, 500_000), 0);
 
         // No collateral required.
-        assertEq(loan.getCollateralRequiredFor(10_000, 1_000, 4_000_000, 0), 0);
+        assertEq(_loan.getCollateralRequiredFor(10_000, 1_000, 4_000_000, 0), 0);
 
         // 1125 = (500_000 * (10_000 > 1_000 ? 10_000 - 1_000 : 0)) / 4_000_000;
-        assertEq(loan.getCollateralRequiredFor(10_000, 1_000, 4_000_000, 500_000), 1125);
+        assertEq(_loan.getCollateralRequiredFor(10_000, 1_000, 4_000_000, 500_000), 1125);
 
         // 500_000 = (500_000 * (4_500_000 > 500_000 ? 4_500_000 - 500_000 : 0)) / 4_000_000;
-        assertEq(loan.getCollateralRequiredFor(4_500_000, 500_000, 4_000_000, 500_000), 500_000);
+        assertEq(_loan.getCollateralRequiredFor(4_500_000, 500_000, 4_000_000, 500_000), 500_000);
     }
 
+}
+
+contract MapleLoanInternals_InitializeTests is TestUtils {
+
+    MapleLoanInternalsHarness internal _loan;
+    MockERC20                 internal _token0;
+    MockERC20                 internal _token1;
+    address                   internal _defaultBorrower;
+    address[2]                internal _defaultAssets;
+    uint256[3]                internal _defaultTermDetails;
+    uint256[3]                internal _defaultAmounts;
+    uint256[4]                internal _defaultRates;
+
+    function setUp() external {
+        _loan = new MapleLoanInternalsHarness();
+
+        _token0 = new MockERC20("Token0", "T0", 0);
+        _token1 = new MockERC20("Token1", "T1", 0);
+        
+        // Happy path dummy arguments to pass to initialize().
+        _defaultBorrower    = address(1);
+        _defaultAssets      = [address(_token0), address(_token1)]; 
+        _defaultTermDetails = [uint256(1), uint256(2), uint256(3)];
+        _defaultAmounts     = [uint256(5), uint256(4)];
+        _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
+    }
+
+    function test_initialize_happyPath() external {
+        // Call initialize() with all happy path arguments, should not revert().
+        _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
+
+        assertEq(_loan.collateralAsset(),     _defaultAssets[0]);
+        assertEq(_loan.fundsAsset(),          _defaultAssets[1]);
+                                             
+        assertEq(_loan.gracePeriod(),         _defaultTermDetails[0]);
+        assertEq(_loan.paymentInterval(),     _defaultTermDetails[1]);
+        assertEq(_loan.paymentsRemaining(),   _defaultTermDetails[2]);
+                                             
+        assertEq(_loan.collateralRequired(),  _defaultAmounts[0]);
+        assertEq(_loan.principalRequested(),  _defaultAmounts[1]);
+        assertEq(_loan.endingPrincipal(),     _defaultAmounts[2]);
+                                             
+        assertEq(_loan.interestRate(),        _defaultRates[0]);
+        assertEq(_loan.earlyFeeRate(),        _defaultRates[1]);
+        assertEq(_loan.lateFeeRate(),         _defaultRates[2]);
+        assertEq(_loan.lateInterestPremium(), _defaultRates[3]);
+    }
+
+    function test_initialize_invalidPrincipal() external {
+        uint256[3] memory amounts; 
+
+        // Set principal requested to invalid amount.
+        amounts[1] = 0;
+
+        // Call initialize, expecting to revert with correct error message. 
+        try _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) { 
+            assertTrue(false, "Principal requested must be non-zero."); 
+        } 
+        catch Error(string memory reason) {
+            assertEq(reason, "MLI:I:INVALID_PRINCIPAL"); 
+        }
+    }
+
+    function test_initialize_invalidEndingPrincipal() external {
+        uint256[3] memory amounts; 
+
+        // Set ending principal to invalid amount. 
+        amounts[1] = 12;
+        amounts[2] = 24;
+
+        // Call initialize(), expecting to revert with correct error message. 
+        try _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
+            assertTrue(false, "Ending principal needs to be less than or equal to principal requested."); 
+        } 
+        catch Error(string memory reason) {
+            assertEq(reason, "MLI:I:INVALID_ENDING_PRINCIPAL"); 
+        }
+    }
+
+    function test_initialize_invalidBorrower() external {
+        // Define invalid borrower.
+        address invalidBorrower = address(0);
+
+        // Call initialize, expecting to revert with correct error message.
+        try _loan.initialize(invalidBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates) {
+            assertTrue(false, "Borrow cannot be address(0)."); 
+        } 
+        catch Error(string memory reason) {
+            assertEq(reason, "MLI:I:INVALID_BORROWER"); 
+        }
+    }
 }
 
 // TODO: MapleLoanInternals_AcceptNewTermsTests
