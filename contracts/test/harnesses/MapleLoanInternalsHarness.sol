@@ -167,6 +167,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _principalRequested;
     }
 
+    function refinanceCommitment() external view returns (bytes32 refinanceCommitment_) {
+        return _refinanceCommitment;
+    }
+
     /**********************/
     /*** State Setters ****/
     /**********************/

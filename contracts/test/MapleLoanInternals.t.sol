@@ -240,25 +240,224 @@ contract MapleLoanInternals_GetUnaccountedAmountTests is TestUtils {
 
     MapleLoanInternalsHarness internal _loan;
     MockERC20                 internal _token;
+    MockERC20                 internal _collateralAsset;
+    MockERC20                 internal _fundsAsset;
 
     function setUp() external {
-        _loan  = new MapleLoanInternalsHarness();
-        _token = new MockERC20("Token", "T", 0);
+        _loan            = new MapleLoanInternalsHarness();
+        _token           = new MockERC20("Token", "T", 18);
+        _collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
+        _fundsAsset      = new MockERC20("Funds Asset", "FA", 6);
+
+        _loan.setCollateralAsset(address(_collateralAsset));
+        _loan.setFundsAsset(address(_fundsAsset));
     }
 
-    function test_getUnaccountedAmount() external {
+    function test_getUnaccountedAmount_randomToken() external {
         assertEq(_loan.getUnaccountedAmount(address(_token)), 0);
 
-        _token.mint(address(_loan), 1);
+        _token.mint(address(_loan), 100);
 
-        assertEq(_loan.getUnaccountedAmount(address(_token)), 1);
+        assertEq(_loan.getUnaccountedAmount(address(_token)), 100);
 
-        _token.mint(address(_loan), type(uint256).max - 1);
+        _loan.setDrawableFunds(10);
+
+        assertEq(_loan.getUnaccountedAmount(address(_token)), 100);  // No change
+
+        _loan.setDrawableFunds(0);
+        _loan.setClaimableFunds(10);
+
+        assertEq(_loan.getUnaccountedAmount(address(_token)), 100);  // No change
+
+        _loan.setDrawableFunds(0);
+        _loan.setCollateral(10);
+
+        assertEq(_loan.getUnaccountedAmount(address(_token)), 100);  // No change
+
+        _token.mint(address(_loan), type(uint256).max - 100);
 
         assertEq(_loan.getUnaccountedAmount(address(_token)), type(uint256).max);
     }
 
-    // TODO: test with _drawableFunds, _claimableFunds, and _collateral set
+    function test_getUnaccountedAmount_collateralAsset() external {
+        assertEq(_loan.getUnaccountedAmount(address(_collateralAsset)), 0);
+
+        _collateralAsset.mint(address(_loan), 1);
+
+        assertEq(_loan.getUnaccountedAmount(address(_collateralAsset)), 1);
+
+        _collateralAsset.mint(address(_loan), type(uint256).max - 1);
+
+        assertEq(_loan.getUnaccountedAmount(address(_collateralAsset)), type(uint256).max);
+    }
+
+    function test_getUnaccountedAmount_fundsAsset() external {
+        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), 0);
+
+        _fundsAsset.mint(address(_loan), 1);
+
+        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), 1);
+
+        _fundsAsset.mint(address(_loan), type(uint256).max - 1);
+
+        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), type(uint256).max);
+    }
+
+    function test_getUnaccountedAmount_newFundsLtDrawableFunds(uint256 drawableFunds) external { 
+        drawableFunds = constrictToRange(drawableFunds, 1, type(uint256).max);
+
+        _loan.setDrawableFunds(drawableFunds);
+        
+        _fundsAsset.mint(address(_loan), drawableFunds - 1);
+
+        try _loan.getUnaccountedAmount(address(_fundsAsset)) { assertTrue(false, "Did not underflow"); } catch {}
+
+        _fundsAsset.mint(address(_loan), 1);  // Mint just enough to not underflow
+
+        _loan.getUnaccountedAmount(address(_fundsAsset));
+    }
+
+    function test_getUnaccountedAmount_newFundsLtClaimableFunds(uint256 claimableFunds) external {
+        claimableFunds = constrictToRange(claimableFunds, 1, type(uint256).max);
+
+        _loan.setClaimableFunds(claimableFunds);
+        
+        _fundsAsset.mint(address(_loan), claimableFunds - 1);
+
+        try _loan.getUnaccountedAmount(address(_fundsAsset)) { assertTrue(false, "Did not underflow"); } catch {}
+
+        _fundsAsset.mint(address(_loan), 1);  // Mint just enough to not underflow
+
+        _loan.getUnaccountedAmount(address(_fundsAsset));
+    }
+
+    function test_getUnaccountedAmount_newFundsLtCollateral(uint256 collateral) external { 
+        collateral = constrictToRange(collateral, 1, type(uint256).max);
+
+        _loan.setCollateral(collateral);
+        
+        _collateralAsset.mint(address(_loan), collateral - 1);
+
+        try _loan.getUnaccountedAmount(address(_collateralAsset)) { assertTrue(false, "Did not underflow"); } catch {}
+
+        _collateralAsset.mint(address(_loan), 1);  // Mint just enough to not underflow
+
+        _loan.getUnaccountedAmount(address(_collateralAsset));
+    }
+
+    function test_getUnaccountedAmount_drawableFunds(uint256 drawableFunds, uint256 newFunds) external {  
+        drawableFunds = constrictToRange(drawableFunds, 1,             type(uint256).max / 2);
+        newFunds      = constrictToRange(newFunds,      drawableFunds, type(uint256).max - drawableFunds);
+
+        _loan.setDrawableFunds(drawableFunds);
+        
+        _fundsAsset.mint(address(_loan), newFunds);
+
+        uint256 unaccountedAmount = _loan.getUnaccountedAmount(address(_fundsAsset));
+
+        assertEq(unaccountedAmount, newFunds - drawableFunds);
+    } 
+
+    function test_getUnaccountedAmount_claimableFunds(uint256 claimableFunds, uint256 newFunds) external {
+        claimableFunds = constrictToRange(claimableFunds, 1,              type(uint256).max / 2);
+        newFunds       = constrictToRange(newFunds,       claimableFunds, type(uint256).max - claimableFunds);
+
+        _loan.setClaimableFunds(claimableFunds);
+        
+        _fundsAsset.mint(address(_loan), newFunds);
+
+        uint256 unaccountedAmount = _loan.getUnaccountedAmount(address(_fundsAsset));
+
+        assertEq(unaccountedAmount, newFunds - claimableFunds);
+    } 
+
+    function test_getUnaccountedAmount_collateral(uint256 collateral, uint256 newCollateral) external {    
+        collateral    = constrictToRange(collateral,    1,          type(uint256).max / 2);
+        newCollateral = constrictToRange(newCollateral, collateral, type(uint256).max - collateral);
+
+        _loan.setCollateral(collateral);
+        
+        _collateralAsset.mint(address(_loan), newCollateral);
+
+        uint256 unaccountedAmount = _loan.getUnaccountedAmount(address(_collateralAsset));
+
+        assertEq(unaccountedAmount, newCollateral - collateral);
+    }
+
+    function test_getUnaccountedAmount_drawableFundsAndClaimableFunds(uint256 drawableFunds, uint256 claimableFunds, uint256 newFunds) external {   
+        drawableFunds  = constrictToRange(drawableFunds,  1,                              type(uint256).max / 4);
+        claimableFunds = constrictToRange(claimableFunds, 1,                              type(uint256).max / 4);
+        newFunds       = constrictToRange(newFunds,       drawableFunds + claimableFunds, type(uint256).max - (drawableFunds + claimableFunds));
+
+        _loan.setDrawableFunds(drawableFunds);
+        _loan.setClaimableFunds(claimableFunds);
+        
+        _fundsAsset.mint(address(_loan), newFunds);
+
+        uint256 unaccountedAmount = _loan.getUnaccountedAmount(address(_fundsAsset));
+
+        assertEq(unaccountedAmount, newFunds - drawableFunds - claimableFunds);
+    } 
+
+    function test_getUnaccountedAmount_drawableFundsAndClaimableFundsAndCollateral(
+        uint256 drawableFunds, 
+        uint256 claimableFunds, 
+        uint256 collateral,
+        uint256 newFunds, 
+        uint256 newCollateral
+    ) 
+        external 
+    {   
+        drawableFunds  = constrictToRange(drawableFunds,  1,                              type(uint256).max / 4);
+        claimableFunds = constrictToRange(claimableFunds, 1,                              type(uint256).max / 4);
+        collateral     = constrictToRange(collateral,     1,                              type(uint256).max / 2);
+        newFunds       = constrictToRange(newFunds,       drawableFunds + claimableFunds, type(uint256).max - (drawableFunds + claimableFunds));
+        newCollateral  = constrictToRange(newCollateral,  collateral,                     type(uint256).max - collateral);
+
+        _loan.setDrawableFunds(drawableFunds);
+        _loan.setClaimableFunds(claimableFunds);
+        _loan.setCollateral(collateral);
+        
+        _fundsAsset.mint(address(_loan), newFunds);
+        _collateralAsset.mint(address(_loan), newCollateral);
+
+        uint256 unaccountedAmount_fundsAsset      = _loan.getUnaccountedAmount(address(_fundsAsset));
+        uint256 unaccountedAmount_collateralAsset = _loan.getUnaccountedAmount(address(_collateralAsset));
+
+        assertEq(unaccountedAmount_fundsAsset,      newFunds - drawableFunds - claimableFunds);
+        assertEq(unaccountedAmount_collateralAsset, newCollateral - collateral);
+    } 
+
+    function test_getUnaccountedAmount_drawableFundsAndClaimableFundsAndCollateral_fundsAssetEqCollateralAsset(
+        uint256 drawableFunds, 
+        uint256 claimableFunds, 
+        uint256 collateral,
+        uint256 newFunds
+    ) 
+        external 
+    {
+        _loan.setCollateralAsset(address(_fundsAsset));
+        
+        drawableFunds  = constrictToRange(drawableFunds,  1, type(uint256).max / 6);  // Sum of maxes must be less than half of type(uint256).max
+        claimableFunds = constrictToRange(claimableFunds, 1, type(uint256).max / 6);
+        collateral     = constrictToRange(collateral,     1, type(uint256).max / 6);
+
+        newFunds = constrictToRange(
+            newFunds, 
+            drawableFunds + claimableFunds + collateral, 
+            type(uint256).max - (drawableFunds + claimableFunds + collateral)
+        );
+
+        _loan.setDrawableFunds(drawableFunds);
+        _loan.setClaimableFunds(claimableFunds);
+        _loan.setCollateral(collateral);
+        
+        _fundsAsset.mint(address(_loan), newFunds);
+
+        uint256 unaccountedAmount = _loan.getUnaccountedAmount(address(_fundsAsset));
+
+        assertEq(unaccountedAmount, newFunds - drawableFunds - claimableFunds - collateral);
+    } 
 }
 
 contract MapleLoanInternals_FundLoanTests is TestUtils {
@@ -1330,13 +1529,40 @@ contract MapleLoanInternals_InitializeTests is TestUtils {
             assertEq(reason, "MLI:I:INVALID_BORROWER"); 
         }
     }
+
+}
+
+contract MapleLoanInternals_ProposeNewTermsTests is TestUtils {
+
+    MapleLoanInternalsHarness internal _loan;
+
+    function setUp() external {
+        _loan = new MapleLoanInternalsHarness();
+    }
+
+    function test_proposeNewTerms(address refinancer_, uint256 newCollateralRequired_, uint256 newEndingPrincipal_, uint256 newInterestRate_) external {
+        bytes[] memory data = new bytes[](3);
+        data[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", newCollateralRequired_);
+        data[1] = abi.encodeWithSignature("setEndingPrincipal(uint256)",    newEndingPrincipal_);
+        data[2] = abi.encodeWithSignature("setInterestRate(uint256)",       newInterestRate_);
+
+        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, data);
+        assertEq(proposedRefinanceCommitment, keccak256(abi.encode(refinancer_, data)));
+        assertEq(_loan.refinanceCommitment(), keccak256(abi.encode(refinancer_, data)));
+    }
+
+    function test_proposeNewTerms_emptyArray(address refinancer_) external {
+        bytes[] memory data = new bytes[](0);
+
+        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, data);
+        assertEq(proposedRefinanceCommitment, bytes32(0));
+        assertEq(_loan.refinanceCommitment(), bytes32(0));
+    }
 }
 
 // TODO: MapleLoanInternals_AcceptNewTermsTests
 
 // TODO: MapleLoanInternals_InitializeTests
-
-// TODO: MapleLoanInternals_ProposeNewTermsTests
 
 // TODO: MapleLoanInternals_GetEarlyPaymentBreakdownTests
 
