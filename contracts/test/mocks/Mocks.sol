@@ -8,6 +8,8 @@ import { IMapleLoanFactory } from "../../interfaces/IMapleLoanFactory.sol";
 
 import { Lender } from "../accounts/Lender.sol";
 
+import { ERC20 } from "../../../modules/erc20/src/test/mocks/MockERC20.sol";
+
 contract MapleGlobalsMock {
 
     address public governor;
@@ -27,6 +29,14 @@ contract MapleGlobalsMock {
 
     function setProtocolPaused(bool paused_) external {
         protocolPaused = paused_;
+    }
+
+    function setInvestorFee(uint256 investorFee_) external {
+        investorFee = investorFee_;
+    }
+
+    function setTreasuryFee(uint256 treasuryFee_) external {
+        treasuryFee = treasuryFee_;
     }
 
 }
@@ -160,5 +170,19 @@ contract SomeAccount {
 contract EmptyContract {
 
     fallback() external { }
+
+}
+
+contract RevertingERC20 {
+
+    mapping(address => uint256) public balanceOf;
+
+    function mint(address to_, uint256 value_) external {
+        balanceOf[to_] += value_;
+    }
+
+    function transfer(address, uint256) external pure returns (bool) {
+        revert();
+    }
 
 }

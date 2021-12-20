@@ -6,7 +6,7 @@ import { MockERC20 }                           from "../../modules/erc20/src/tes
 
 import { MapleLoanInternalsHarness } from "./harnesses/MapleLoanInternalsHarness.sol";
 
-import { LenderMock, MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
+import { LenderMock, MapleGlobalsMock, MockFactory, RevertingERC20 } from "./mocks/Mocks.sol";
 
 contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
 
@@ -384,13 +384,61 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
         assertEq(_loan.getUnaccountedAmount(address(collateralAsset)), 1);
     }
 
-    // TODO: testFail_fundLoan_noNextPaymentDueDate
+    function test_fundLoan_nextPaymentDueDateAlreadySet() external {
+        _loan.setNextPaymentDueDate(1);
 
-    // TODO: testFail_fundLoan_hasPaymentsRemaining
+        try _loan.fundLoan(address(_lender)) {
+            assertTrue(false, "Next payment due date must not be set.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:FL:LOAN_ACTIVE");
+        }
+    }
 
-    // TODO: testFail_fundLoan_transferFailedToTreasury
+    function test_fundLoan_noPaymentsRemaining() external {
+        _loan.setPaymentsRemaining(0);
 
-    // TODO: testFail_fundLoan_transferFailedToPoolDelegate
+        try _loan.fundLoan(address(_lender)) {
+            assertTrue(false, "Number of remaining payments must be greater than zero.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:FL:LOAN_ACTIVE");
+        }
+    }
+
+    function test_fundLoan_transferFailedToTreasury() external {
+        RevertingERC20 fundsAsset = new RevertingERC20();
+
+        _loan.setFundsAsset(address(fundsAsset));
+        _loan.setPrincipalRequested(1);
+        _loan.setPaymentInterval(365 days);
+
+        _globals.setTreasuryFee(10_000);
+
+        fundsAsset.mint(address(_loan), 1);
+
+        try _loan.fundLoan(address(_lender)) {
+            assertTrue(false, "Funds must not be sent to the treasury.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:FL:T_TRANSFER_FAILED");
+        }
+    }
+
+    function test_fundLoan_transferFailedToPoolDelegate() external {
+        RevertingERC20 fundsAsset = new RevertingERC20();
+
+        _loan.setFundsAsset(address(fundsAsset));
+        _loan.setPrincipalRequested(1);
+        _loan.setPaymentInterval(365 days);
+
+        _globals.setInvestorFee(10_000);
+
+        fundsAsset.mint(address(_loan), 1);
+
+        try _loan.fundLoan(address(_lender)) {
+            assertTrue(false, "Funds must not be sent to the pool delegate.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:FL:PD_TRANSFER_FAILED");
+        }
+    }
 
 }
 
