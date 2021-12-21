@@ -866,7 +866,16 @@ contract MapleLoanInternals_DrawdownFundsTests is TestUtils {
         _loan.drawdownFunds(principalRequested_ + extraAmount_, address(this));
     }
 
-    // TODO: testFail_drawdownFunds_transferFailed?
+    function test_drawdownFunds_transferFailed() external {
+        // DrawableFunds is set, but the loan doesn't actually have any tokens which causes the transfer to fail.
+        _loan.setDrawableFunds(1);
+
+        try _loan.drawdownFunds(1, address(this)) {
+            assertTrue(false, "Funds must not be transferred.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:DF:TRANSFER_FAILED");
+        }
+    }
 
     function test_drawdownFunds_multipleDrawdowns(uint256 collateralRequired_, uint256 principalRequested_, uint256 drawdownAmount_) external {
         // Must have non-zero collateral and principal amounts to cause failure
