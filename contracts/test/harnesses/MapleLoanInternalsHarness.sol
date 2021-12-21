@@ -71,7 +71,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
     /*** View Functions ****/
     /***********************/
 
-    function getEarlyPaymentBreakdown() internal view returns (uint256 principalAmount_, uint256 interestAmount_) {
+    function getEarlyPaymentBreakdown() external view returns (uint256 principalAmount_, uint256 interestAmount_) {
         return _getEarlyPaymentBreakdown();
     }
 

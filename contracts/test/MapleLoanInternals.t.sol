@@ -1481,7 +1481,7 @@ contract MapleLoanInternals_InitializeTests is TestUtils {
         _defaultBorrower    = address(1);
         _defaultAssets      = [address(_token0), address(_token1)]; 
         _defaultTermDetails = [uint256(1), uint256(2), uint256(3)];
-        _defaultAmounts     = [uint256(5), uint256(4)];
+        _defaultAmounts     = [uint256(5), uint256(4), uint256(0)];
         _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
     }
 
@@ -1603,7 +1603,7 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         _defaultBorrower    = address(1);
         _defaultAssets      = [address(_token0), address(_token1)]; 
         _defaultTermDetails = [uint256(1), uint256(2), uint256(3)];
-        _defaultAmounts     = [uint256(5), uint256(4)];
+        _defaultAmounts     = [uint256(5), uint256(4), uint256(0)];
         _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
 
         _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
@@ -1768,7 +1768,53 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
     }
 }
 
-// TODO: MapleLoanInternals_GetEarlyPaymentBreakdownTests
+contract MapleLoanInternals_GetEarlyPaymentBreakdownTests is TestUtils {
+    uint256 private constant SCALED_ONE = uint256(10 ** 18);
+
+    address    internal _defaultBorrower;
+    address[2] internal _defaultAssets;
+    uint256[3] internal _defaultTermDetails;
+
+    MapleLoanInternalsHarness internal _loan;
+    Refinancer                internal _refinancer;
+    MockERC20                 internal _token0;
+    MockERC20                 internal _token1;
+
+    function setUp() external {
+        _loan       = new MapleLoanInternalsHarness();
+        _refinancer = new Refinancer();
+        
+        // Set _initialize() parameters.
+        _token0 = new MockERC20("Token0", "T0", 0);
+        _token1 = new MockERC20("Token1", "T1", 0);
+
+        _defaultBorrower    = address(1);
+        _defaultAssets      = [address(_token0), address(_token1)]; 
+        _defaultTermDetails = [uint256(1), uint256(2), uint256(3)];
+    }
+
+    function test_getEarlyPaymentBreakdown(uint256 principal_, uint256 earlyFeeRate_) external {
+        uint256 maxEarlyFeeRateForTestCase = 1 * SCALED_ONE; // 100%
+
+        principal_    = constrictToRange(principal_,    1, type(uint256).max / maxEarlyFeeRateForTestCase);
+        earlyFeeRate_ = constrictToRange(earlyFeeRate_, 1, maxEarlyFeeRateForTestCase);
+
+        // Set principal and earlyFeeRate for _initialize().
+        uint256[3] memory amounts = [uint256(5), principal_, uint256(0)];
+        uint256[4] memory rates   = [uint256(0.05 ether), earlyFeeRate_, uint256(0.15 ether), uint256(20)];
+
+        _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, rates);
+        _loan.setPrincipal(amounts[1]);
+
+        ( uint256 principal, uint256 interest ) = _loan.getEarlyPaymentBreakdown();
+
+        uint256 expectedPrincipal = amounts[1];
+        uint256 expectedInterest  = expectedPrincipal * rates[1] / SCALED_ONE;
+
+        assertEq(principal, expectedPrincipal);
+        assertEq(interest,  expectedInterest);
+    } 
+}
 
 // TODO: MapleLoanInternals_GetNextPaymentBreakdownTests
 
