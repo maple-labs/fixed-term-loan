@@ -815,7 +815,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
-        uint256 grandTotalPaid;  // TODO: Add grand totals to sheet and add checks
+        uint256 grandTotalPaid;
 
         // Make first five on time payments
         for (uint256 i = 0; i < 5; i++) {
@@ -835,7 +835,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         // Get amounts for the remaining loan payments
         ( uint256 principalPortion, uint256 interestPortion)  = loan.getNextPaymentBreakdown();
 
-        uint256 lateInterest = principalPortion * 1300 * uint256(1 days) / 365 days / 10_000;  // Add one day of late payment (one second = one day of late interest)
+        uint256 lateInterest = loan.principal() * 1300 * uint256(1 days) / 365 days / 10_000;  // Add one day of late payment (one second = one day of late interest)
         uint256 lateFee      = 22_989.075431 ether;
 
         uint256 paymentAmount = principalPortion + interestPortion;
@@ -940,7 +940,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             // Get amounts for the remaining loan payments
             ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
-            uint256 lateInterest = 1_000_000 ether * 1000 * uint256(1 days) / 365 days / 10_000;  // Add two hours of late interest (which is 1 day of defualt interest)
+            uint256 lateInterest = loan.principal() * 1000 * uint256(1 days) / 365 days / 10_000;  // Add two hours of late interest (which is 1 day of defualt interest)
             uint256 lateFee      = uint256(50_000.000000 ether);
 
             uint256 paymentAmount = principalPortion + interestPortion;
@@ -1063,15 +1063,14 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             // Get amounts for the remaining loan payments
             ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
-            uint256 lateInterest = loan.principal() * 1800 * uint256(16 days) / 365 days / 10_000;  // Add sixteen days of late interest TODO: update to principal() for all
+            uint256 lateInterest = loan.principal() * 1800 * uint256(16 days) / 365 days / 10_000;  // Add sixteen days of late interest
             uint256 lateFee      = loan.principal() * 500 / 10_000;
 
             assertIgnoringDecimals(lateInterest, 7046.962245 ether, 13);
 
             uint256 paymentAmount = principalPortion + interestPortion;
 
-
-            assertIgnoringDecimals(paymentAmount, uint256(163_940.067331 ether), 13);  // TODO: Validate this against updated spreadsheet
+            assertIgnoringDecimals(paymentAmount, uint256(163_940.067331 ether), 13);
 
             // Check payment amounts against provided values
             // Five decimals of precision used (six provided with rounding)
@@ -1095,14 +1094,14 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             // Get amounts for the remaining loan payments
             ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
-            uint256 lateInterest = loan.principal() * 1800 * uint256(1 days) / 365 days / 10_000;  // Add one day of late interest TODO: update to principal() for all
+            uint256 lateInterest = loan.principal() * 1800 * uint256(1 days) / 365 days / 10_000;  // Add one day of late interest
             uint256 lateFee      = loan.principal() * 500 / 10_000;
 
             assertIgnoringDecimals(lateInterest, 387.437964 ether, 13);
 
             uint256 paymentAmount = principalPortion + interestPortion;
 
-            assertIgnoringDecimals(paymentAmount, uint256(151_907.218305 ether), 13);  // TODO: Validate this against updated spreadsheet
+            assertIgnoringDecimals(paymentAmount, uint256(151_907.218305 ether), 13);
 
             // Check payment amounts against provided values
             // Five decimals of precision used (six provided with rounding)
@@ -1204,8 +1203,8 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
 
-            uint256 lateInterest = 1_000_000 ether * 1500 * uint256(2 days) / 365 days / 10_000;  // Add two days of late interest (15%)
-            uint256 lateFee      = 1_000_000 ether * 0.02e18 / 10 ** 18;
+            uint256 lateInterest = loan.principal() * 1500 * uint256(2 days) / 365 days / 10_000;  // Add two days of late interest (15%)
+            uint256 lateFee      = loan.principal() * 0.02e18 / 10 ** 18;
             assertIgnoringDecimals(lateInterest, 821.917808 ether, 13);
 
             uint256 paymentAmount = principalPortion + interestPortion;
