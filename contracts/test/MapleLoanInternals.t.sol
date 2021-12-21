@@ -1074,7 +1074,16 @@ contract MapleLoanInternals_ClaimFundsTests is TestUtils {
         _loan.claimFunds(amountToClaim_, address(this));
     }
 
-    // TODO: testFail_claimFunds_transferFail?
+    function test_claimFunds_transferFail() external {
+        // ClaimableFunds is set, but the loan doesn't actually have any tokens, which causes the transfer to fail.
+        _loan.setClaimableFunds(1);
+
+        try _loan.claimFunds(1, address(this)) {
+            assertTrue(false, "Funds must not be transferred.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:CF:TRANSFER_FAILED");
+        }
+    }
 
 }
 
