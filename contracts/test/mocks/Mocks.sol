@@ -68,6 +68,10 @@ contract LenderMock is Lender {
 
     address public poolDelegate = address(8);
 
+    function setPoolDelegate(address poolDelegate_) external {
+        poolDelegate = poolDelegate_;
+    }
+
 }
 
 contract ManipulatableMapleLoan is MapleLoan {
