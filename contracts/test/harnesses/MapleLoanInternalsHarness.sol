@@ -255,6 +255,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _principalRequested = principalRequested_;
     }
 
+    function setRefinanceCommitment(bytes32 refinanceCommitment_) external {
+        _refinanceCommitment = refinanceCommitment_;
+    }
+
     /***********************/
     /*** Pure Functions ****/
     /***********************/
