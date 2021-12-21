@@ -18,7 +18,7 @@ contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
         _loan = address(new MapleLoanInternalsHarness());
     }
 
-    function _getPaymentsBreakdownWith(
+    function _getPaymentBreakdownWith(
         address loan_,
         uint256 currentTime_,
         uint256 nextPaymentDueDate_
@@ -42,8 +42,8 @@ contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
         );
     }
 
-    function test_getPaymentsBreakdown_onePaymentOnePeriodBeforeDue() external {
-        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+    function test_getPaymentBreakdown_onePaymentOnePeriodBeforeDue() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentBreakdownWith(
             _loan,
             10_000_000 - 30 days,
             10_000_000
@@ -53,8 +53,8 @@ contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
         assertEq(interestFees,     9_863);  // 1_000_000 * 0.12 * 30/365 = 9_863
     }
 
-    function test_getPaymentsBreakdown_onePaymentOneSecondBeforeDue() external {
-        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+    function test_getPaymentBreakdown_onePaymentOneSecondBeforeDue() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentBreakdownWith(
             _loan,
             10_000_000 - 1,
             10_000_000
@@ -64,8 +64,8 @@ contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
         assertEq(interestFees,     9_863);
     }
 
-    function test_getPaymentsBreakdown_onePaymentOnePeriodLate() external {
-        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+    function test_getPaymentBreakdown_onePaymentOnePeriodLate() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentBreakdownWith(
             _loan,
             10_000_000 + 30 days,
             10_000_000
@@ -75,8 +75,8 @@ contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
         assertEq(interestFees,    23_013);  // 9_863 + (1_000_000 * 0.16 * (1 * 30/365)) = 9_863 + 13_150
     }
 
-    function test_getPaymentsBreakdown_onePaymentTwoPeriodsLate() external {
-        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+    function test_getPaymentBreakdown_onePaymentTwoPeriodsLate() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentBreakdownWith(
             _loan,
             10_000_000 + (2 * 30 days),
             10_000_000
@@ -86,8 +86,8 @@ contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
         assertEq(interestFees,    36_164);  // 9_863 + (1_000_000 * 0.16 * (2 * 30/365)) = 9_863 + 26_301
     }
 
-    function test_getPaymentsBreakdown_onePaymentThreePeriodsLate() external {
-        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+    function test_getPaymentBreakdown_onePaymentThreePeriodsLate() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentBreakdownWith(
             _loan,
             10_000_000 + (3 * 30 days),
             10_000_000
@@ -97,8 +97,8 @@ contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
         assertEq(interestFees,    49_315);  // 9_863 + (1_000_000 * 0.16 * (3 * 30/365)) = 9_863 + 39_452
     }
 
-    function test_getPaymentsBreakdown_onePaymentFourPeriodsLate() external {
-        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentsBreakdownWith(
+    function test_getPaymentBreakdown_onePaymentFourPeriodsLate() external {
+        ( uint256 principalAmount, uint256 interestFees ) = _getPaymentBreakdownWith(
             _loan,
             10_000_000 + (4 * 30 days),
             10_000_000
