@@ -1211,9 +1211,35 @@ contract MapleLoanInternals_RepossessTests is TestUtils {
         _loan.repossess(address(this));
     }
 
-    // TODO: testFail_repossess_collateralTransferFailed?
+    function test_repossess_fundsTransferFailed() external {
+        RevertingERC20 token = new RevertingERC20();
+        
+        _loan.setNextPaymentDueDate(block.timestamp - 11);
+        _loan.setFundsAsset(address(token));
 
-    // TODO: testFail_repossess_fundsTransferFailed?
+        token.mint(address(_loan), 1);
+ 
+        try _loan.repossess(address(this)) { 
+            assertTrue(false, "Able to repossess"); 
+        } catch Error(string memory reason) { 
+            assertEq(reason, "MLI:R:F_TRANSFER_FAILED");
+        }
+    }
+
+    function test_repossess_collateralTransferFailed() external {
+        RevertingERC20 token = new RevertingERC20();
+
+        _loan.setNextPaymentDueDate(block.timestamp - 11);
+        _loan.setCollateralAsset(address(token));
+
+        token.mint(address(_loan), 1);
+        
+        try _loan.repossess(address(this)) { 
+            assertTrue(false, "Able to repossess"); 
+        } catch Error(string memory reason) { 
+            assertEq(reason, "MLI:R:C_TRANSFER_FAILED");
+        }
+    }
 
 }
 
