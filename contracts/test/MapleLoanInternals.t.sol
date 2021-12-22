@@ -1457,10 +1457,46 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
 
     // TODO: testFail_makePayment_insufficientAmount
 
-    // TODO: test_makePayment_overPay
+    function test_makePayment_overPay(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 endingPrincipal_,
+        uint256 amountToOverpay_ 
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,   50);
+        interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
+        amountToOverpay_    = constrictToRange(amountToOverpay_,    1,   MAX_TOKEN_AMOUNT);
+
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
+
+        // Drawdown all loan funds.
+        _loan.drawdownFunds(_loan.drawableFunds(), address(this));
+
+        ( uint256 expectedPrincipal, uint256 expectedInterest ) = _loan.getNextPaymentBreakdown();
+
+        uint256 installmentToPay         = expectedPrincipal + expectedInterest;
+        uint256 fundsForPaymentWithExtra = installmentToPay + amountToOverpay_;
+
+        _fundsAsset.mint(address(_loan), fundsForPaymentWithExtra);
+
+        // Pay off loan with amountToOverpay_ left over.
+        ( uint256 actualPrincipal, uint256 actualInterest ) = _loan.makePayment();
+        uint256 actualInstallmentAmount = actualPrincipal + actualInterest;
+
+        assertEq(installmentToPay,       actualInstallmentAmount);
+        assertEq(_loan.drawableFunds(),  amountToOverpay_);
+        assertEq(_loan.claimableFunds(), installmentToPay);
+    } 
 
     // TODO: test_makePayment_lastPaymentClearsLoan
-
 }
 
 contract MapleLoanInternals_CloseLoanTests is StateManipulations, TestUtils {
