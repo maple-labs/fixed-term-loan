@@ -888,15 +888,141 @@ contract MapleLoanInternals_RemoveCollateralTests is TestUtils {
         assertEq(_collateralAsset.balanceOf(address(this)),  collateral_);
     }
 
-    // TODO: test_removeCollateral_fullAmountWithEncumbrances
+    function test_removeCollateral_fullAmount_drawableFundsGtPrincipal(
+        uint256 collateralRequired_,
+        uint256 principalRequested_,
+        uint256 principal_,
+        uint256 drawableFunds_,
+        uint256 collateral_
+    ) 
+        external
+    {
+        collateralRequired_ = constrictToRange(collateralRequired_, 1,          type(uint256).max);
+        principalRequested_ = constrictToRange(principalRequested_, 1,          type(uint256).max);
+        principal_          = constrictToRange(principal_,          0,          principalRequested_);
+        drawableFunds_      = constrictToRange(drawableFunds_,      principal_, type(uint256).max);
+        collateral_         = constrictToRange(collateral_,         1,          type(uint256).max);
 
-    // TODO: test_removeCollateral_partialAmountWithEncumbrances
+        _loan.setPrincipalRequested(principalRequested_);
+        _loan.setPrincipal(principal_);
+        _loan.setDrawableFunds(drawableFunds_);
+        _loan.setCollateralRequired(collateralRequired_);
 
-    // TODO: testFail_removeCollateral_fullAmountWithEncumbrances
+        _collateralAsset.mint(address(_loan), collateral_);
 
-    // TODO: testFail_removeCollateral_partialAmountWithEncumbrances
+        _loan.postCollateral();
+        _loan.removeCollateral(collateral_, address(this));
 
-    // TODO: testFail_removeCollateral_transferFailed?
+        assertEq(_loan.collateral(),                         0);
+        assertEq(_collateralAsset.balanceOf(address(_loan)), 0);
+        assertEq(_collateralAsset.balanceOf(address(this)),  collateral_);
+    }
+
+    function test_removeCollateral_fullAmount_noPrincipal(uint256 collateralRequired_) external {
+        collateralRequired_ = constrictToRange(collateralRequired_, 1, type(uint256).max);
+
+        _loan.setPrincipal(0);
+        _loan.setCollateralRequired(collateralRequired_);
+
+        _collateralAsset.mint(address(_loan), collateralRequired_);
+
+        _loan.postCollateral();
+        _loan.removeCollateral(collateralRequired_, address(this));
+
+        assertEq(_loan.collateral(),                         0);
+        assertEq(_collateralAsset.balanceOf(address(_loan)), 0);
+        assertEq(_collateralAsset.balanceOf(address(this)),  collateralRequired_);
+    }
+
+    function test_removeCollateral_partialAmountWithEncumbrances(uint256 collateralRequired_, uint256 collateral_) external {
+        collateralRequired_ = constrictToRange(collateralRequired_, 1,                       type(uint256).max);
+        collateral_         = constrictToRange(collateral_,         collateralRequired_ + 1, type(uint256).max);
+
+        _loan.setPrincipal(1);
+        _loan.setCollateralRequired(collateralRequired_);
+
+        _collateralAsset.mint(address(_loan), collateral_);
+
+        _loan.postCollateral();
+
+        try _loan.removeCollateral(collateral_ - collateralRequired_ + 1, address(this)) {
+            assertTrue(false, "Collateral must not be removed.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:RC:INSUFFICIENT_COLLATERAL");
+        }
+
+        _loan.removeCollateral(collateral_ - collateralRequired_, address(this));
+
+        assertEq(_loan.collateral(),                         collateralRequired_);
+        assertEq(_collateralAsset.balanceOf(address(_loan)), collateralRequired_);
+        assertEq(_collateralAsset.balanceOf(address(this)),  collateral_ - collateralRequired_);
+    }
+
+    function test_removeCollaterall_cannotRemoveAnyAmountWithEncumbrances() external {
+        _loan.setPrincipal(1);
+        _loan.setCollateralRequired(1000);
+
+        _collateralAsset.mint(address(_loan), 1000);
+
+        _loan.postCollateral();
+
+        try _loan.removeCollateral(1, address(this)) {
+            assertTrue(false, "No collateral can be removed.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:RC:INSUFFICIENT_COLLATERAL");
+        }
+    }
+
+    function test_removeCollateral_cannotRemoveFullAmountWithEncumbrances(uint256 collateral_) external {
+        collateral_ = constrictToRange(collateral_, 1, type(uint256).max);
+
+        _loan.setPrincipal(1);
+        _loan.setCollateralRequired(1);
+
+        _collateralAsset.mint(address(_loan), collateral_);
+
+        _loan.postCollateral();
+
+        try _loan.removeCollateral(collateral_, address(this)) {
+            assertTrue(false, "Full collateral must not be removed.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:RC:INSUFFICIENT_COLLATERAL");
+        }
+    }
+
+    function test_removeCollateral_cannotRemovePartialAmountWithEncumbrances(uint256 collateral_, uint256 collateralRemoved_) external {
+        collateral_        = constrictToRange(collateral_,        2, type(uint256).max);
+        collateralRemoved_ = constrictToRange(collateralRemoved_, 1, collateral_ - 1);
+
+        _loan.setPrincipal(1);
+        _loan.setCollateralRequired(collateral_);
+
+        _collateralAsset.mint(address(_loan), collateral_);
+
+        _loan.postCollateral();
+
+        try _loan.removeCollateral(collateralRemoved_, address(this)) {
+            assertTrue(false, "Partial collateral must not be removed.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:RC:INSUFFICIENT_COLLATERAL");
+        }
+    }
+
+    function test_removeCollateral_transferFailed() external {
+        RevertingERC20 collateralAsset = new RevertingERC20();
+
+        _loan.setCollateralAsset(address(collateralAsset));
+
+        collateralAsset.mint(address(_loan), 1);
+
+        _loan.postCollateral();
+
+        try _loan.removeCollateral(1, address(this)) {
+            assertTrue(false, "Collateral must not be transferred.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:RC:TRANSFER_FAILED");
+        }
+    }
 
 }
 
