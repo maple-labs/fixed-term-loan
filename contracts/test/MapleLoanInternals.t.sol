@@ -1496,7 +1496,56 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         assertEq(_loan.claimableFunds(), installmentToPay);
     } 
 
-    // TODO: test_makePayment_lastPaymentClearsLoan
+    function test_makePayment_lastPaymentClearsLoan(
+        uint256 paymentInterval_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 endingPrincipal_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
+        interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
+
+        // Test last payment.
+        uint256 paymentsRemaining = 1;
+        setupLoan(address(_loan), principalRequested_, 1, paymentInterval_, interestRate_, endingPrincipal_);
+
+        // Drawdown all loan funds.
+        _loan.drawdownFunds(_loan.drawableFunds(), address(this));
+
+        ( uint256 expectedPrincipal, uint256 expectedInterest ) = _loan.getNextPaymentBreakdown();
+
+        uint256 installmentToPay = expectedPrincipal + expectedInterest;
+        _fundsAsset.mint(address(_loan), installmentToPay);
+
+        // Last payment should pay off the principal.
+        assertEq(_loan.paymentsRemaining(), 1);
+        assertEq(expectedPrincipal,         _loan.principal());
+
+        // Pay off rest of loan, expecting loan accounting to be reset.
+        ( uint256 actualPrincipal, uint256 actualInterest ) = _loan.makePayment();
+        uint256 actualInstallmentAmount = actualPrincipal + actualInterest;
+
+        assertEq(actualPrincipal,         expectedPrincipal);
+        assertEq(actualInstallmentAmount, installmentToPay);
+        assertEq(_loan.drawableFunds(),   0);
+        assertEq(_loan.claimableFunds(),  installmentToPay);
+        
+        // Make sure loan accounting is cleared from _clearLoanAccounting().
+        assertEq(_loan.gracePeriod(),         0);  
+        assertEq(_loan.paymentInterval(),     0);      
+        assertEq(_loan.interestRate(),        0);   
+        assertEq(_loan.earlyFeeRate(),        0);   
+        assertEq(_loan.lateFeeRate(),         0);  
+        assertEq(_loan.lateInterestPremium(), 0);          
+        assertEq(_loan.endingPrincipal(),     0);      
+        assertEq(_loan.nextPaymentDueDate(),  0);         
+        assertEq(_loan.paymentsRemaining(),   0);        
+        assertEq(_loan.principal(),           0);
+    } 
 }
 
 contract MapleLoanInternals_CloseLoanTests is StateManipulations, TestUtils {
