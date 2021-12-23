@@ -1341,7 +1341,7 @@ contract MapleLoanInternals_ClaimFundsTests is TestUtils {
 }
 
 contract MapleLoanInternals_MakePaymentTests is TestUtils {
-
+    uint256 internal constant UNDERFLOW_ERROR_CODE = 17;
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
     MapleLoanInternalsHarness internal _loan;
@@ -1455,7 +1455,51 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
     }
 
-    // TODO: testFail_makePayment_insufficientAmount
+    function test_makePayment_insufficientAmount(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 endingPrincipal_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100,        365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,          50);
+        interestRate_       = constrictToRange(interestRate_,       1,          1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 10_000_000, MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,          principalRequested_);
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
+        
+        // Drawdown all loan funds.
+        _loan.drawdownFunds(_loan.drawableFunds(), address(this));
+          
+        ( uint256 expectedPrincipal, uint256 expectedInterest ) = _loan.getNextPaymentBreakdown();
+
+        uint256 installmentToPay       = expectedPrincipal + expectedInterest;
+        uint256 amountToShort	       = 1;
+        uint256 shortedFundsForPayment = installmentToPay - amountToShort;
+
+        _fundsAsset.mint(address(_loan), shortedFundsForPayment);
+        // Try to pay with insufficient amount, should underflow.
+        try _loan.makePayment() returns (uint256 principal_, uint256 interest_) {
+            assertTrue(false, "Funds should be insufficient and accounting should have underflowed.");
+        } catch Error(string memory /*reason*/) {
+            assertTrue(false, "An underflow does not have an error message, another error occured.");
+        } catch Panic(uint errorCode) {
+            assertEq(errorCode, UNDERFLOW_ERROR_CODE);
+        }
+
+        // Mint remaining amount.
+        _fundsAsset.mint(address(_loan), amountToShort);
+
+        // Pay off loan with exact amount.
+        ( uint256 actualPrincipal, uint256 actualInterest ) = _loan.makePayment();
+        uint256 actualInstallmentAmount = actualPrincipal + actualInterest;
+
+        assertEq(installmentToPay, actualInstallmentAmount);
+    }
 
     function test_makePayment_overPay(
         uint256 paymentInterval_,
@@ -1473,7 +1517,6 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
         amountToOverpay_    = constrictToRange(amountToOverpay_,    1,   MAX_TOKEN_AMOUNT);
-
 
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
 
