@@ -894,7 +894,7 @@ contract MapleLoanInternals_RemoveCollateralTests is TestUtils {
         uint256 principal_,
         uint256 drawableFunds_,
         uint256 collateral_
-    ) 
+    )
         external
     {
         collateralRequired_ = constrictToRange(collateralRequired_, 1,          type(uint256).max);
@@ -1213,15 +1213,15 @@ contract MapleLoanInternals_RepossessTests is TestUtils {
 
     function test_repossess_fundsTransferFailed() external {
         RevertingERC20 token = new RevertingERC20();
-        
+
         _loan.setNextPaymentDueDate(block.timestamp - 11);
         _loan.setFundsAsset(address(token));
 
         token.mint(address(_loan), 1);
- 
-        try _loan.repossess(address(this)) { 
-            assertTrue(false, "Able to repossess"); 
-        } catch Error(string memory reason) { 
+
+        try _loan.repossess(address(this)) {
+            assertTrue(false, "Able to repossess");
+        } catch Error(string memory reason) {
             assertEq(reason, "MLI:R:F_TRANSFER_FAILED");
         }
     }
@@ -1233,10 +1233,10 @@ contract MapleLoanInternals_RepossessTests is TestUtils {
         _loan.setCollateralAsset(address(token));
 
         token.mint(address(_loan), 1);
-        
-        try _loan.repossess(address(this)) { 
-            assertTrue(false, "Able to repossess"); 
-        } catch Error(string memory reason) { 
+
+        try _loan.repossess(address(this)) {
+            assertTrue(false, "Able to repossess");
+        } catch Error(string memory reason) {
             assertEq(reason, "MLI:R:C_TRANSFER_FAILED");
         }
     }
@@ -1463,7 +1463,7 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         uint256 interestRate_,
         uint256 principalRequested_,
         uint256 endingPrincipal_,
-        uint256 amountToOverpay_ 
+        uint256 amountToOverpay_
     )
         external
     {
@@ -1494,7 +1494,7 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         assertEq(installmentToPay,       actualInstallmentAmount);
         assertEq(_loan.drawableFunds(),  amountToOverpay_);
         assertEq(_loan.claimableFunds(), installmentToPay);
-    } 
+    }
 
     function test_makePayment_lastPaymentClearsLoan(
         uint256 paymentInterval_,
@@ -1510,7 +1510,6 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
 
         // Test last payment.
-        uint256 paymentsRemaining = 1;
         setupLoan(address(_loan), principalRequested_, 1, paymentInterval_, interestRate_, endingPrincipal_);
 
         // Drawdown all loan funds.
@@ -1533,19 +1532,19 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         assertEq(actualInstallmentAmount, installmentToPay);
         assertEq(_loan.drawableFunds(),   0);
         assertEq(_loan.claimableFunds(),  installmentToPay);
-        
+
         // Make sure loan accounting is cleared from _clearLoanAccounting().
-        assertEq(_loan.gracePeriod(),         0);  
-        assertEq(_loan.paymentInterval(),     0);      
-        assertEq(_loan.interestRate(),        0);   
-        assertEq(_loan.earlyFeeRate(),        0);   
-        assertEq(_loan.lateFeeRate(),         0);  
-        assertEq(_loan.lateInterestPremium(), 0);          
-        assertEq(_loan.endingPrincipal(),     0);      
-        assertEq(_loan.nextPaymentDueDate(),  0);         
-        assertEq(_loan.paymentsRemaining(),   0);        
+        assertEq(_loan.gracePeriod(),         0);
+        assertEq(_loan.paymentInterval(),     0);
+        assertEq(_loan.interestRate(),        0);
+        assertEq(_loan.earlyFeeRate(),        0);
+        assertEq(_loan.lateFeeRate(),         0);
+        assertEq(_loan.lateInterestPremium(), 0);
+        assertEq(_loan.endingPrincipal(),     0);
+        assertEq(_loan.nextPaymentDueDate(),  0);
+        assertEq(_loan.paymentsRemaining(),   0);
         assertEq(_loan.principal(),           0);
-    } 
+    }
 }
 
 contract MapleLoanInternals_CloseLoanTests is StateManipulations, TestUtils {
@@ -1990,7 +1989,6 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
     }
 
     function test_acceptNewTerms_commitmentMismatch_emptyCallsArray() external {
-        address notARefinancer = address(0);
         // Empty calls array in _proposeNewTerms() always resets _refinanceCommitment to bytes32(0).
         // _acceptNewTerms() will never accept a 0-valued _refinanceCommitment, so any call to it should fail.
         bytes[] memory calls = new bytes[](0);
@@ -2154,8 +2152,110 @@ contract MapleLoanInternals_GetEarlyPaymentBreakdownTests is TestUtils {
     }
 }
 
-// TODO: MapleLoanInternals_GetNextPaymentBreakdownTests
+contract MapleLoanInternals_CollateralMaintainedTests is TestUtils {
 
-// TODO: MapleLoanInternals_SsCollateralMaintainedTests
+    uint256 private constant SCALED_ONE = uint256(10 ** 36);
+
+    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 1e18;
+
+    MapleLoanInternalsHarness internal _loan;
+
+    function setUp() external {
+        _loan = new MapleLoanInternalsHarness();
+    }
+
+    function test_isCollateralMaintained(uint256 collateral_, uint256 collateralRequired_, uint256 drawableFunds_, uint256 principal_, uint256 principalRequested_) external {
+        collateral_         = constrictToRange(collateral_, 0, type(uint256).max);
+        collateralRequired_ = constrictToRange(collateralRequired_, 0, type(uint128).max);  // Max chosen since type(uint128).max * type(uint128).max < type(uint256).max.
+        drawableFunds_      = constrictToRange(drawableFunds_, 0, type(uint256).max);
+        principalRequested_ = constrictToRange(principalRequested_, 1, type(uint128).max);  // Max chosen since type(uint128).max * type(uint128).max < type(uint256).max.
+        principal_          = constrictToRange(principal_, 0, principalRequested_);
+
+        _loan.setCollateral(collateral_);
+        _loan.setCollateralRequired(collateralRequired_);
+        _loan.setDrawableFunds(drawableFunds_);
+        _loan.setPrincipal(principal_);
+        _loan.setPrincipalRequested(principalRequested_);
+
+        uint256 outstandingPrincipal = principal_ > drawableFunds_ ? principal_ - drawableFunds_ : 0;
+
+        bool shouldBeMaintained =
+            outstandingPrincipal == 0 ||                                                          // No collateral needed (since no outstanding principal), thus maintained.
+            collateral_ >= ((collateralRequired_ * outstandingPrincipal) / principalRequested_);  // collateral_ / collateralRequired_ >= outstandingPrincipal / principalRequested_.
+
+        assertTrue(_loan.isCollateralMaintained() == shouldBeMaintained);
+    }
+
+    function test_isCollateralMaintained_scaledMath(uint256 collateral_, uint256 collateralRequired_, uint256 drawableFunds_, uint256 principal_, uint256 principalRequested_) external {
+        collateral_         = constrictToRange(collateral_, 0, MAX_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
+        drawableFunds_      = constrictToRange(drawableFunds_, 0, MAX_TOKEN_AMOUNT);
+        principalRequested_ = constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
+        principal_          = constrictToRange(principal_, 0, principalRequested_);
+
+        _loan.setCollateral(collateral_);
+        _loan.setCollateralRequired(collateralRequired_);
+        _loan.setDrawableFunds(drawableFunds_);
+        _loan.setPrincipal(principal_);
+        _loan.setPrincipalRequested(principalRequested_);
+
+        uint256 outstandingPrincipal = principal_ > drawableFunds_ ? principal_ - drawableFunds_ : 0;
+        bool shouldBeMaintained      = ((collateral_ * SCALED_ONE) / collateralRequired_) >= (outstandingPrincipal * SCALED_ONE) / principalRequested_;
+
+        assertTrue(_loan.isCollateralMaintained() == shouldBeMaintained);
+    }
+
+    function test_isCollateralMaintained_edgeCases() external {
+        _loan.setCollateral(50 ether);
+        _loan.setCollateralRequired(100 ether);
+        _loan.setDrawableFunds(100 ether);
+        _loan.setPrincipal(600 ether);
+        _loan.setPrincipalRequested(1000 ether);
+
+        assertEq(_loan.getCollateralRequiredFor(_loan.principal(), _loan.drawableFunds(), _loan.principalRequested(), _loan.collateralRequired()), 50 ether);
+
+        assertTrue(_loan.isCollateralMaintained());
+
+        // Set collateral just enough such that collateral is not maintained.
+        _loan.setCollateral(50 ether - 1 wei);
+
+        assertTrue(!_loan.isCollateralMaintained());
+
+        // Reset collateral and set collateral required just enough such that collateral is not maintained.
+        _loan.setCollateral(50 ether);
+        _loan.setCollateralRequired(100 ether + 2 wei);
+
+        assertEq(_loan.getCollateralRequiredFor(_loan.principal(), _loan.drawableFunds(), _loan.principalRequested(), _loan.collateralRequired()), 50 ether + 1 wei);
+
+        assertTrue(!_loan.isCollateralMaintained());
+
+        // Reset collateral required and set drawable funds just enough such that collateral is not maintained.
+        _loan.setCollateralRequired(100 ether);
+        _loan.setDrawableFunds(100 ether - 10 wei);
+
+        assertEq(_loan.getCollateralRequiredFor(_loan.principal(), _loan.drawableFunds(), _loan.principalRequested(), _loan.collateralRequired()), 50 ether + 1 wei);
+
+        assertTrue(!_loan.isCollateralMaintained());
+
+        // Reset drawable funds and set principal just enough such that collateral is not maintained.
+        _loan.setDrawableFunds(100 ether);
+        _loan.setPrincipal(600 ether + 10 wei);
+
+        assertEq(_loan.getCollateralRequiredFor(_loan.principal(), _loan.drawableFunds(), _loan.principalRequested(), _loan.collateralRequired()), 50 ether + 1 wei);
+
+        assertTrue(!_loan.isCollateralMaintained());
+
+        // Reset principal and set principal requested just enough such that collateral is not maintained.
+        _loan.setPrincipal(600 ether);
+        _loan.setPrincipalRequested(1000 ether - 20 wei);
+
+        assertEq(_loan.getCollateralRequiredFor(_loan.principal(), _loan.drawableFunds(), _loan.principalRequested(), _loan.collateralRequired()), 50 ether + 1 wei);
+
+        assertTrue(!_loan.isCollateralMaintained());
+    }
+
+}
+
+// TODO: MapleLoanInternals_GetNextPaymentBreakdownTests
 
 // TODO: MapleLoanInternals_GetRefinanceCommitmentTests
