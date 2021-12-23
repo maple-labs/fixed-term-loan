@@ -2299,6 +2299,59 @@ contract MapleLoanInternals_CollateralMaintainedTests is TestUtils {
 
 }
 
-// TODO: MapleLoanInternals_GetNextPaymentBreakdownTests
+contract MapleLoanInternals_GetNextPaymentBreakdownTests is TestUtils {
 
-// TODO: MapleLoanInternals_GetRefinanceCommitmentTests
+    MapleLoanInternalsHarness internal _loan;
+
+    function setUp() external {
+        _loan = new MapleLoanInternalsHarness();
+    }
+
+    function test_getNextPaymentBreakdown(
+        uint256 nextPaymentDueDate_,
+        uint256 paymentInterval_,
+        uint256 principal_,
+        uint256 endingPrincipal_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 lateFeeRate_,
+        uint256 lateInterestPremium_
+    )
+        external
+    {
+        nextPaymentDueDate_  = constrictToRange(nextPaymentDueDate_,  block.timestamp - 365 days, block.timestamp + 365 days);
+        paymentInterval_     = constrictToRange(paymentInterval_,     1 days,                     365 days);
+        principal_           = constrictToRange(principal_,           1,                          1e12 * 1e18);
+        endingPrincipal_     = constrictToRange(endingPrincipal_,     0,                          principal_);
+        paymentsRemaining_   = constrictToRange(paymentsRemaining_,   1,                          100);
+        interestRate_        = constrictToRange(interestRate_,        0,                          1.00e18);
+        lateFeeRate_         = constrictToRange(lateFeeRate_,         interestRate_,              1.00e18);
+        lateInterestPremium_ = constrictToRange(lateInterestPremium_, interestRate_,              1.00e18);
+
+        _loan.setNextPaymentDueDate(nextPaymentDueDate_);
+        _loan.setPaymentInterval(paymentInterval_);
+        _loan.setPrincipal(principal_);
+        _loan.setEndingPrincipal(endingPrincipal_);
+        _loan.setPaymentsRemaining(paymentsRemaining_);
+        _loan.setInterestRate(interestRate_);
+        _loan.setLateFeeRate(lateFeeRate_);
+        _loan.setLateInterestPremium(lateInterestPremium_);
+
+        ( uint256 actualPrincipal, uint256 actualInterest )     = _loan.getNextPaymentBreakdown();
+        ( uint256 expectedPrincipal, uint256 expectedInterest ) = _loan.getPaymentBreakdown(
+            block.timestamp,
+            nextPaymentDueDate_,
+            paymentInterval_,
+            principal_,
+            endingPrincipal_,
+            paymentsRemaining_,
+            interestRate_,
+            lateFeeRate_,
+            lateInterestPremium_
+        );
+
+        assertEq(actualPrincipal, expectedPrincipal);
+        assertEq(actualInterest,  expectedInterest);
+    }
+
+}
