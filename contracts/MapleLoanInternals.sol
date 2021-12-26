@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { IERC20 }       from "../modules/erc20/src/interfaces/IERC20.sol";
-import { ERC20Helper }  from "../modules/erc20-helper/src/ERC20Helper.sol";
-import { MapleProxied } from "../modules/maple-proxy-factory/contracts/MapleProxied.sol";
+import { IERC20 }                from "../modules/erc20/src/interfaces/IERC20.sol";
+import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
+import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
 import { ILenderLike, IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
 import { IMapleLoanFactory }              from "./interfaces/IMapleLoanFactory.sol";
 
 /// @title MapleLoanInternals defines the storage layout and internal logic of MapleLoan.
-contract MapleLoanInternals is MapleProxied {
+abstract contract MapleLoanInternals is MapleProxiedInternals {
 
     uint256 private constant SCALED_ONE = uint256(10 ** 18);
 
@@ -72,23 +72,23 @@ contract MapleLoanInternals is MapleProxied {
 
     /**
      *  @dev   Initializes the loan.
-     *  @param borrower_   The address of the borrower.
-     *  @param assets_     Array of asset addresses.
-     *                         [0]: collateralAsset,
-     *                         [1]: fundsAsset.
+     *  @param borrower_    The address of the borrower.
+     *  @param assets_      Array of asset addresses.
+     *                          [0]: collateralAsset,
+     *                          [1]: fundsAsset.
      *  @param termDetails_ Array of loan parameters:
-     *                         [0]: gracePeriod,
-     *                         [1]: paymentInterval,
-     *                         [2]: payments,
-     *  @param amounts_    Requested amounts:
-     *                         [0]: collateralRequired,
-     *                         [1]: principalRequested,
-     *                         [2]: endingPrincipal.
-     *  @param rates_      Fee parameters:
-     *                         [0]: interestRate,
-     *                         [1]: earlyFeeRate,
-     *                         [2]: lateFeeRate,
-     *                         [3]: lateInterestPremium.
+     *                          [0]: gracePeriod,
+     *                          [1]: paymentInterval,
+     *                          [2]: payments,
+     *  @param amounts_     Requested amounts:
+     *                          [0]: collateralRequired,
+     *                          [1]: principalRequested,
+     *                          [2]: endingPrincipal.
+     *  @param rates_       Fee parameters:
+     *                          [0]: interestRate,
+     *                          [1]: earlyFeeRate,
+     *                          [2]: lateFeeRate,
+     *                          [3]: lateInterestPremium.
      */
     function _initialize(
         address borrower_,
@@ -228,7 +228,7 @@ contract MapleLoanInternals is MapleProxied {
     }
 
     /// @dev Sends `amount_` of `_claimableFunds` to `destination_`.
-    /// @dev If `amount_` is higher than `_claimableFunds` the transaction will underflow and revert.
+    ///      If `amount_` is higher than `_claimableFunds` the transaction will underflow and revert.
     function _claimFunds(uint256 amount_, address destination_) internal {
         _claimableFunds -= amount_;
 

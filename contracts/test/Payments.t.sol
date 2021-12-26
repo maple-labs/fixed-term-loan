@@ -940,24 +940,24 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             // Get amounts for the remaining loan payments
             ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
-            uint256 lateInterest = loan.principal() * 1000 * uint256(1 days) / 365 days / 10_000;  // Add two hours of late interest (which is 1 day of defualt interest)
+            uint256 lateInterest = loan.principal() * 1000 * uint256(1 days) / 365 days / 10_000;  // Add two hours of late interest (which is 1 day of default interest).
             uint256 lateFee      = uint256(50_000.000000 ether);
 
             uint256 paymentAmount = principalPortion + interestPortion;
 
-            assertIgnoringDecimals(paymentAmount, uint256(58_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
+            assertIgnoringDecimals(paymentAmount, uint256(58_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet.
 
             // Check payment amounts against provided values
             // Five decimals of precision used (six provided with rounding)
             assertIgnoringDecimals(principalPortion, uint256(     0.000000 ether),                          13);
-            assertIgnoringDecimals(interestPortion,  uint256( 8_219.178082 ether) + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for
+            assertIgnoringDecimals(interestPortion,  uint256( 8_219.178082 ether) + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for.
 
             // Make payment
             borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
             borrower.loan_makePayment(address(loan), 0);
 
             assertEq(loan.paymentsRemaining(),  3);  // Payments remaining increases
-            assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 4);  // Payment due date increases
+            assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 4);  // Payment due date increases.
         }
 
         // Make on three on time payments

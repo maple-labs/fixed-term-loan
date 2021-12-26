@@ -5,7 +5,7 @@ import { IRefinancer } from "./interfaces/IRefinancer.sol";
 
 import { MapleLoanInternals } from "./MapleLoanInternals.sol";
 
-/// @title Refinancer uses storage from Maple Loan.
+/// @title Refinancer uses storage from a MapleLoan defined by MapleLoanInternals.
 contract Refinancer is IRefinancer, MapleLoanInternals {
 
     function decreasePrincipal(uint256 amount_) external override {

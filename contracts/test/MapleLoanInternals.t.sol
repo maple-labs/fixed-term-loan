@@ -958,7 +958,7 @@ contract MapleLoanInternals_RemoveCollateralTests is TestUtils {
         assertEq(_collateralAsset.balanceOf(address(this)),  collateral_ - collateralRequired_);
     }
 
-    function test_removeCollaterall_cannotRemoveAnyAmountWithEncumbrances() external {
+    function test_removeCollateral_cannotRemoveAnyAmountWithEncumbrances() external {
         _loan.setPrincipal(1);
         _loan.setCollateralRequired(1000);
 
@@ -1471,10 +1471,10 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,          principalRequested_);
 
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
-        
+
         // Drawdown all loan funds.
         _loan.drawdownFunds(_loan.drawableFunds(), address(this));
-          
+
         ( uint256 expectedPrincipal, uint256 expectedInterest ) = _loan.getNextPaymentBreakdown();
 
         uint256 installmentToPay       = expectedPrincipal + expectedInterest;
@@ -1486,7 +1486,7 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         try _loan.makePayment() returns (uint256 principal_, uint256 interest_) {
             assertTrue(false, "Funds should be insufficient and accounting should have underflowed.");
         } catch Error(string memory /*reason*/) {
-            assertTrue(false, "An underflow does not have an error message, another error occured.");
+            assertTrue(false, "An underflow does not have an error message, another error occurred.");
         } catch Panic(uint errorCode) {
             assertEq(errorCode, UNDERFLOW_ERROR_CODE);
         }

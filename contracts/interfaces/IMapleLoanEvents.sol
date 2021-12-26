@@ -94,7 +94,7 @@ interface IMapleLoanEvents {
     event LoanClosed(uint256 principalPaid_, uint256 interestPaid_);
 
     /**
-     *  @dev  A refinance was proposed.
+     *  @dev   A refinance was proposed.
      *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
      *  @param refinancer_          The address that will execute the refinance.
      *  @param calls_               The individual calls for the refinancer contract.
@@ -102,7 +102,7 @@ interface IMapleLoanEvents {
     event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, bytes[] calls_);
 
     /**
-     *  @dev  A refinance was proposed.
+     *  @dev   A refinance was proposed.
      *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
      *  @param refinancer_          The address that will execute the refinance.
      *  @param calls_               The individual calls for the refinancer contract.

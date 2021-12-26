@@ -44,14 +44,14 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev The rate charged at early payments.
-     *  @dev This value should be configured so that it is less expensive to close a loan with more than one payment remaining, but
+     *       This value should be configured so that it is less expensive to close a loan with more than one payment remaining, but
      *       more expensive to close it if on the last payment.
      */
     function earlyFeeRate() external view returns (uint256 earlyFeeRate_);
 
     /**
      *  @dev The portion of principal to not be paid down as part of payment installments, which would need to be paid back upon final payment.
-     *  @dev If endingPrincipal = principal, loan is interest-only.
+     *       If endingPrincipal = principal, loan is interest-only.
      */
     function endingPrincipal() external view returns (uint256 endingPrincipal_);
 

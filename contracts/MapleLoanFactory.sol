@@ -10,6 +10,7 @@ contract MapleLoanFactory is IMapleLoanFactory, MapleProxyFactory {
 
     mapping(address => bool) public override isLoan;
 
+    /// @param mapleGlobals_ The address of a Maple Globals contract.
     constructor(address mapleGlobals_) MapleProxyFactory(mapleGlobals_) {}
 
     function createInstance(bytes calldata arguments_, bytes32 salt_)

@@ -41,7 +41,7 @@ contract MapleLoanFactoryTest is TestUtils {
         address loan = account.createLoan(address(factory), arguments, salt);
 
         // NOTE: Check that the loan address is deterministic, and does not depend on the account that calls `createInstance` at the factory.
-        assertTrue(loan == address(0xB20272dada2B1f16CcD2cecB1bd0ED5757589962));
+        assertTrue(loan == address(0xa61a3fe0FdCF2B75Ac83B00eA7fE765D2FdBd072));
         assertTrue(!factory.isLoan(address(1)));
         assertTrue( factory.isLoan(loan));
     }

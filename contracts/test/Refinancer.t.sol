@@ -25,7 +25,6 @@ contract BaseRefinanceTest is StateManipulations, TestUtils {
     MockFactory            factory;
     Refinancer             refinancer;
 
-
     function setUp() external {
         lender     = new LenderMock();
         refinancer = new Refinancer();
