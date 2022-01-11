@@ -42,6 +42,12 @@ This project was built using [dapptools](https://github.com/dapphub/dapptools).
 ## Technical Documentation
 For more in-depth technical documentation about these contracts, please refer to the GitHub [wiki](https://github.com/maple-labs/loan/wiki).
 
+## Audit Reports
+| Auditor | Report link |
+|---|---|
+| Trail of Bits | [ToB - Dec 28, 2021](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-core/files/7847684/Maple.Finance.-.Final.Report_v3.pdf) |
+| Code 4rena | [C4 - Jan 5, 2022](https://code4rena.com/reports/2021-12-maple/) |
+
 ## About Maple
 [Maple Finance](https://maple.finance) is a decentralized corporate credit market. Maple provides capital to institutional borrowers through globally accessible fixed-income yield opportunities.
 
