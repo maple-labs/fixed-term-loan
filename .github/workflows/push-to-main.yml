@@ -1,4 +1,4 @@
-name: 5k fuzz run test on push to main
+name: SC Tests
 
 on:
   push:
