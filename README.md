@@ -1,6 +1,6 @@
 # MapleLoan
 
-[![CircleCI](https://circleci.com/gh/maple-labs/loan/tree/main.svg?style=svg)](https://circleci.com/gh/maple-labs/loan/tree/main) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+![Foundry CI](https://github.com/maple-labs/loan/actions/workflows/push-to-main.yml/badge.svg) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 **DISCLAIMER: This code has NOT been externally audited and is actively being developed. Please do not use in production without taking the appropriate steps to ensure maximum security.**
 
@@ -16,7 +16,7 @@ This repo contains a set of contracts to facilitate on-chain Loans between Maple
 9. Upgrade Loan logic using upgradeability patterns.
 
 ### Dependencies/Inheritance
-The `MapleLoan` contract is deployed using the `MapleProxyFactory`, which can be found in the modules or on GitHub [here](https://github.com/maple-labs/maple-proxy-factory). 
+The `MapleLoan` contract is deployed using the `MapleProxyFactory`, which can be found in the modules or on GitHub [here](https://github.com/maple-labs/maple-proxy-factory).
 
 `MapleProxyFactory` inherits from the generic `ProxyFactory` contract which can be found [here](https://github.com/maple-labs/proxy-factory).
 
@@ -32,7 +32,7 @@ dapp update
 - To run a specific test function: `./test.sh -t <test_name>` (e.g., `./test.sh -t test_fundLoan`)
 - To run tests with a specified number of fuzz runs: `./test.sh -r <runs>` (e.g., `./test.sh -t test_makePayments -r 10000`)
 
-This project was built using [dapptools](https://github.com/dapphub/dapptools).
+This project was built using [Foundry](https://github.com/gakonst/Foundry).
 
 ## Roles and Permissions
 - **Governor**: Controls all implementation-related logic in the MapleLoanFactory, allowing for new versions of Loans to be deployed from the same factory and upgrade paths between versions to be allowed.

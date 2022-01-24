@@ -9,6 +9,8 @@ import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
 
 import { MapleGlobalsMock, SomeAccount } from "./mocks/Mocks.sol";
 
+import { Proxy } from "../../modules/maple-proxy-factory/modules/proxy-factory/contracts/Proxy.sol";
+
 contract MapleLoanFactoryTest is TestUtils {
 
     MapleGlobalsMock internal globals;
@@ -40,8 +42,19 @@ contract MapleLoanFactoryTest is TestUtils {
 
         address loan = account.createLoan(address(factory), arguments, salt);
 
+        address expectedAddress = address(uint160(uint256(keccak256(
+            abi.encodePacked(
+                bytes1(0xff),
+                address(factory),
+                keccak256(abi.encodePacked(arguments, salt)),
+                keccak256(abi.encodePacked(type(Proxy).creationCode, abi.encode(address(factory), address(0))))
+            )
+        ))));
+
         // NOTE: Check that the loan address is deterministic, and does not depend on the account that calls `createInstance` at the factory.
-        assertTrue(loan == address(0xa61a3fe0FdCF2B75Ac83B00eA7fE765D2FdBd072));
+        // TODO: Change back to hardcoded address once IPFS hashes can be removed on compilation in Foundry.
+        assertEq(loan, expectedAddress);
+
         assertTrue(!factory.isLoan(address(1)));
         assertTrue( factory.isLoan(loan));
     }
