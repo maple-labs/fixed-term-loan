@@ -223,6 +223,8 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
             require(success, "MLI:ANT:FAILED");
         }
 
+        _processEstablishmentFee(_principal, _paymentInterval * _paymentsRemaining, _fundsAsset, _lender);
+
         // Ensure that collateral is maintained after changes made.
         require(_isCollateralMaintained(), "MLI:ANT:INSUFFICIENT_COLLATERAL");
     }
@@ -257,26 +259,33 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         // Cannot under-fund loan, but over-funding results in additional funds left unaccounted for.
         require(_getUnaccountedAmount(fundsAsset) >= fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
 
+        _drawableFunds = fundsLent_;
+
+        _processEstablishmentFee(fundsLent_, paymentInterval * paymentsRemaining, fundsAsset, lender_);
+    }
+
+    /// @dev Process establishment fees for funds lent.
+    function _processEstablishmentFee(uint256 fundsLent_, uint256 term_, address fundsAsset_, address lender_) internal {
         IMapleGlobalsLike globals = IMapleGlobalsLike(IMapleLoanFactory(_factory()).mapleGlobals());
 
         // Transfer the annualized treasury fee, if any, to the Maple treasury, and decrement drawable funds.
-        uint256 treasuryFee = (fundsLent_ * globals.treasuryFee() * paymentInterval * paymentsRemaining) / uint256(365 days * 10_000);
+        uint256 treasuryFee = (fundsLent_ * globals.treasuryFee() * term_) / uint256(365 days * 10_000);
 
         // Transfer delegate fee, if any, to the pool delegate, and decrement drawable funds.
-        uint256 delegateFee = (fundsLent_ * globals.investorFee() * paymentInterval * paymentsRemaining) / uint256(365 days * 10_000);
+        uint256 delegateFee = (fundsLent_ * globals.investorFee() * term_) / uint256(365 days * 10_000);
+
+        require(
+            treasuryFee == uint256(0) || ERC20Helper.transfer(fundsAsset_, globals.mapleTreasury(), treasuryFee),
+            "MLI:PEF:T_TRANSFER_FAILED"
+        );
+
+        require(
+            delegateFee == uint256(0) || ERC20Helper.transfer(fundsAsset_, ILenderLike(lender_).poolDelegate(), delegateFee),
+            "MLI:PEF:PD_TRANSFER_FAILED"
+        );
 
         // Drawable funds is the amount funded, minus any fees.
-        _drawableFunds = fundsLent_ - treasuryFee - delegateFee;
-
-        require(
-            treasuryFee == uint256(0) || ERC20Helper.transfer(fundsAsset, globals.mapleTreasury(), treasuryFee),
-            "MLI:FL:T_TRANSFER_FAILED"
-        );
-
-        require(
-            delegateFee == uint256(0) || ERC20Helper.transfer(fundsAsset, ILenderLike(lender_).poolDelegate(), delegateFee),
-            "MLI:FL:PD_TRANSFER_FAILED"
-        );
+        _drawableFunds -= treasuryFee + delegateFee;
     }
 
     /// @dev Reset all state variables in order to release funds and collateral of a loan in default.

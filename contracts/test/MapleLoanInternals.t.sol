@@ -10,6 +10,14 @@ import { LenderMock, MapleGlobalsMock, MockFactory, RevertingERC20 } from "./moc
 
 import { Refinancer } from "../Refinancer.sol";
 
+interface Vm {
+
+    function expectRevert(bytes calldata error) external;
+
+    function warp(uint256 timestamp) external;
+
+}
+
 contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
 
     address internal _loan;
@@ -719,7 +727,7 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
         try _loan.fundLoan(address(_lender)) {
             assertTrue(false, "Funds must not be sent to the treasury.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:FL:T_TRANSFER_FAILED");
+            assertEq(reason, "MLI:PEF:T_TRANSFER_FAILED");
         }
     }
 
@@ -738,7 +746,7 @@ contract MapleLoanInternals_FundLoanTests is TestUtils {
         try _loan.fundLoan(address(_lender)) {
             assertTrue(false, "Funds must not be sent to the pool delegate.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:FL:PD_TRANSFER_FAILED");
+            assertEq(reason, "MLI:PEF:PD_TRANSFER_FAILED");
         }
     }
 
@@ -1961,18 +1969,27 @@ contract MapleLoanInternals_ProposeNewTermsTests is TestUtils {
 }
 
 contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
+
+    Vm vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
+
     address    internal _defaultBorrower;
     address[2] internal _defaultAssets;
     uint256[3] internal _defaultTermDetails;
     uint256[3] internal _defaultAmounts;
     uint256[4] internal _defaultRates;
 
+    LenderMock                internal _lender;
     MapleLoanInternalsHarness internal _loan;
+    MapleGlobalsMock          internal _globals;
     Refinancer                internal _refinancer;
     MockERC20                 internal _token0;
     MockERC20                 internal _token1;
+    MockFactory               internal _factory;
 
     function setUp() external {
+        _factory    = new MockFactory();
+        _globals    = new MapleGlobalsMock(address(0), address(22), 0, 0);
+        _lender     = new LenderMock();
         _loan       = new MapleLoanInternalsHarness();
         _refinancer = new Refinancer();
 
@@ -1982,17 +1999,22 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
 
         _defaultBorrower    = address(1);
         _defaultAssets      = [address(_token0), address(_token1)];
-        _defaultTermDetails = [uint256(1), uint256(2), uint256(3)];
-        _defaultAmounts     = [uint256(5), uint256(4), uint256(0)];
+        _defaultTermDetails = [uint256(1), uint256(30 days), uint256(12)];
+        _defaultAmounts     = [uint256(500), uint256(1000), uint256(0)];
         _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
 
-        _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
-        _loan.setPrincipal(_defaultAmounts[1]);
         _token0.mint(address(_loan), _defaultAmounts[0]);
-        _loan.postCollateral();
+
+        _factory.setGlobals(address(_globals));
+
+        _loan.setFactory(address(_factory));
+        _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
+        _loan.setLender(address(_lender));
+        _loan.setPrincipal(_defaultAmounts[1]);
+        _loan.setCollateral(_defaultAmounts[0]);
     }
 
-    function test_acceptNewTerms_happyPath() external {
+    function test_acceptNewTerms_happyPath_noEstablishmentFees() external {
         bytes[] memory calls = new bytes[](1);
 
         // Add a refinance call.
@@ -2007,22 +2029,162 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         assertEq(_loan.refinanceCommitment(), bytes32(0));
     }
 
+    function test_acceptNewTerms_happyPath_withEstablishmentFees() external {
+        _token1.mint(address(_loan), 197 + 98);
+
+        _loan.setDrawableFunds(197 + 98);
+
+        _globals.setInvestorFee(2_000);
+        _globals.setTreasuryFee(1_000);
+
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        _loan.acceptNewTerms(address(_refinancer), calls);
+
+        // Refinance commitment should be reset after accepting new terms.
+        assertEq(_loan.refinanceCommitment(), bytes32(0));
+
+        // Check drawable funds and token balances due to refinance establishment fees.
+        assertEq(_loan.drawableFunds(),                     0);
+        assertEq(_token1.balanceOf(_lender.poolDelegate()), 197);
+        assertEq(_token1.balanceOf(address(22)),            98);
+    }
+
+    function test_acceptNewTerms_happyPath_withEstablishmentFeesButInsufficientFunds1() external {
+        _token1.mint(address(_loan), 98 - 1);
+
+        _loan.setDrawableFunds(98 - 1);
+
+        _globals.setTreasuryFee(1_000);
+
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        vm.expectRevert("MLI:PEF:T_TRANSFER_FAILED");
+        _loan.acceptNewTerms(address(_refinancer), calls);
+    }
+
+    function test_acceptNewTerms_happyPath_withEstablishmentFeesButInsufficientFunds2() external {
+        _token1.mint(address(_loan), 197 + 98 - 1);
+
+        _loan.setDrawableFunds(197 + 98 - 1);
+
+        _globals.setInvestorFee(2_000);
+        _globals.setTreasuryFee(1_000);
+
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        vm.expectRevert("MLI:PEF:PD_TRANSFER_FAILED");
+        _loan.acceptNewTerms(address(_refinancer), calls);
+    }
+
+    function test_acceptNewTerms_happyPath_withEstablishmentFeesButInsufficientDrawable() external {
+        _token1.mint(address(_loan), 98);
+
+        _loan.setClaimableFunds(1);
+        _loan.setDrawableFunds(98 - 1);
+
+        _globals.setTreasuryFee(1_000);
+
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        vm.expectRevert(abi.encodeWithSignature("Panic(uint256)", 0x11));
+        _loan.acceptNewTerms(address(_refinancer), calls);
+    }
+
+    function test_acceptNewTerms_happyPath_withEstablishmentFeesButInsufficientCollateral() external {
+        _token1.mint(address(_loan), 98);
+
+        _loan.setDrawableFunds(98);
+
+        _globals.setTreasuryFee(1_000);
+
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", _defaultAmounts[1]);
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        vm.expectRevert("MLI:ANT:INSUFFICIENT_COLLATERAL");
+        _loan.acceptNewTerms(address(_refinancer), calls);
+    }
+
+    function test_acceptNewTerms_transferFailedToTreasury() external {
+        _token1.mint(address(_loan), 98 - 1);
+
+        _loan.setDrawableFunds(98 - 1);
+
+        _globals.setTreasuryFee(1_000);
+
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        vm.expectRevert("MLI:PEF:T_TRANSFER_FAILED");
+        _loan.acceptNewTerms(address(_refinancer), calls);
+    }
+
+    function test_acceptNewTerms_transferFailedToPoolDelegate() external {
+        _token1.mint(address(_loan), 98 - 1);
+
+        _loan.setDrawableFunds(98 - 1);
+
+        _globals.setInvestorFee(1_000);
+
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        vm.expectRevert("MLI:PEF:PD_TRANSFER_FAILED");
+        _loan.acceptNewTerms(address(_refinancer), calls);
+    }
+
     function test_acceptNewTerms_validRefinancer() external {
         address notARefinancer = address(0);
         bytes[] memory calls = new bytes[](1);
 
         // Add a refinance call.
-        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", _defaultAmounts[0] - 1);
+        calls[0] = abi.encodeWithSignature("setInterestRate(uint256)", _defaultRates[0] - 1);
 
         // Set _refinanceCommitment via _proposeNewTerms() using invalid refinancer.
         _loan.proposeNewTerms(notARefinancer, calls);
 
         // Try with invalid refinancer.
-        try _loan.acceptNewTerms(notARefinancer, calls) {
-            assertTrue(false, "acceptNewTerms() used an invalid refinancer.");
-        } catch Error(string memory reason) {
-            assertEq(reason, "MLI:ANT:INVALID_REFINANCER");
-        }
+        vm.expectRevert("MLI:ANT:INVALID_REFINANCER");
+        _loan.acceptNewTerms(notARefinancer, calls);
 
         // Set _refinanceCommitment via _proposeNewTerms() using valid refinancer.
         _loan.proposeNewTerms(address(_refinancer), calls);
@@ -2040,11 +2202,8 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         _loan.proposeNewTerms(address(_refinancer), calls);
 
         // Try again with valid refinancer.
-        try _loan.acceptNewTerms(address(_refinancer), calls) {
-            assertTrue(false, "acceptNewTerms() used a 0-valued _refinanceCommitment.");
-        } catch Error(string memory reason) {
-            assertEq(reason, "MLI:ANT:COMMITMENT_MISMATCH");
-        }
+        vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
+        _loan.acceptNewTerms(address(_refinancer), calls);
     }
 
     function test_acceptNewTerms_commitmentMismatch_mismatchedCalls() external {
@@ -2060,11 +2219,8 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(456));
 
         // Try to accept terms with different calls than proposed.
-        try _loan.acceptNewTerms(address(_refinancer), calls) {
-            assertTrue(false, "acceptNewTerms() should have had a commitment mismatch.");
-        } catch Error(string memory reason) {
-            assertEq(reason, "MLI:ANT:COMMITMENT_MISMATCH");
-        }
+        vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
+        _loan.acceptNewTerms(address(_refinancer), calls);
     }
 
     function test_acceptNewTerms_commitmentMismatch_mismatchedRefinancer() external {
@@ -2078,11 +2234,8 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         _loan.proposeNewTerms(address(_refinancer), calls);
 
         // Try to accept terms with a different refinancer than proposed.
-        try _loan.acceptNewTerms(address(differentRefinancer), calls) {
-            assertTrue(false, "acceptNewTerms() should have had a commitment mismatch.");
-        } catch Error(string memory reason) {
-            assertEq(reason, "MLI:ANT:COMMITMENT_MISMATCH");
-        }
+        vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
+        _loan.acceptNewTerms(address(differentRefinancer), calls);
     }
 
     function test_acceptNewTerms_callFailed() external {
@@ -2095,11 +2248,8 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         // Set _refinanceCommitment via _proposeNewTerms().
         _loan.proposeNewTerms(address(_refinancer), calls);
 
-        try _loan.acceptNewTerms(address(_refinancer), calls) {
-            assertTrue(false, "acceptNewTerms() refinancer call should have failed.");
-        } catch Error(string memory reason) {
-            assertEq(reason, "MLI:ANT:FAILED");
-        }
+        vm.expectRevert("MLI:ANT:FAILED");
+        _loan.acceptNewTerms(address(_refinancer), calls);
 
         // Set to principalRequested passed to _initialize().
         uint256 validEndingPrincipal = _defaultAmounts[1];
@@ -2139,11 +2289,8 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         // Set _refinanceCommitment via _proposeNewTerms().
         _loan.proposeNewTerms(address(_refinancer), calls);
 
-        try _loan.acceptNewTerms(address(_refinancer), calls) {
-            assertTrue(false, "acceptNewTerms() should find that collateral is insufficient.");
-        } catch Error(string memory reason) {
-            assertEq(reason, "MLI:ANT:INSUFFICIENT_COLLATERAL");
-        }
+        vm.expectRevert("MLI:ANT:INSUFFICIENT_COLLATERAL");
+        _loan.acceptNewTerms(address(_refinancer), calls);
     }
 }
 
