@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Hevm, StateManipulations, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { IERC20 }                              from "../../modules/erc20/src/interfaces/IERC20.sol";
-import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
+import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { IERC20 }    from "../../modules/erc20/contracts/interfaces/IERC20.sol";
+import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
@@ -12,7 +12,7 @@ import { ConstructableMapleLoan, EmptyContract, LenderMock, ManipulatableMapleLo
 import { Borrower } from "./accounts/Borrower.sol";
 import { LoanUser } from "./accounts/LoanUser.sol";
 
-contract MapleLoanTests is StateManipulations, TestUtils {
+contract MapleLoanTests is TestUtils {
 
     ManipulatableMapleLoan loan;
     MapleGlobalsMock       globals;
@@ -20,7 +20,7 @@ contract MapleLoanTests is StateManipulations, TestUtils {
     bool locked;  // Helper state variable to avoid infinite loops when using the modifier.
 
     function setUp() external {
-        globals = new MapleGlobalsMock(address(this), address(0), 0, 0);
+        globals = new MapleGlobalsMock(address(this), address(1111), 0, 0);
 
         MockFactory factoryMock = new MockFactory();
         factoryMock.setGlobals(address(globals));
@@ -347,7 +347,7 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setCollateralAsset(address(asset));
         loan.__setFundsAsset(address(asset));
 
-        hevm.warp(loan.nextPaymentDueDate() + loan.gracePeriod() + 1);
+        vm.warp(loan.nextPaymentDueDate() + loan.gracePeriod() + 1);
 
         try loan.repossess(address(this)) {  assertTrue(false, "Non-lender was able to repossess"); } catch { }
 
@@ -955,8 +955,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        ( uint256 principal, uint256 interest ) = loan.getEarlyPaymentBreakdown();
-        uint256 totalPayment = principal + interest;
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getEarlyPaymentBreakdown();
+        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
 
         fundsAsset.mint(address(loan), 1);
         loan.__setDrawableFunds(1);
@@ -987,8 +987,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        ( uint256 principal, uint256 interest ) = loan.getEarlyPaymentBreakdown();
-        uint256 totalPayment = principal + interest;
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getEarlyPaymentBreakdown();
+        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
 
         fundsAsset.mint(address(loan), 1);
         loan.__setDrawableFunds(1);
@@ -1016,8 +1016,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest;
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
 
         fundsAsset.mint(address(borrower), totalPayment);
 
@@ -1051,8 +1051,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest;
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
 
         fundsAsset.mint(address(borrower), totalPayment);
 
@@ -1085,8 +1085,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest;
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
 
         fundsAsset.mint(address(user), totalPayment);
 
@@ -1119,8 +1119,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest;
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
 
         fundsAsset.mint(address(user), totalPayment);
 
@@ -1155,8 +1155,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest;
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
 
         fundsAsset.mint(address(loan), 1);
         loan.__setDrawableFunds(1);
@@ -1188,8 +1188,8 @@ contract MapleLoanTests is StateManipulations, TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest;
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
 
         fundsAsset.mint(address(loan), 1);
         loan.__setDrawableFunds(1);
@@ -1300,101 +1300,99 @@ contract MapleLoanTests is StateManipulations, TestUtils {
 
 contract MapleLoanRoleTests is TestUtils {
 
-    Borrower   borrower;
-    LenderMock lender;
-    MockERC20  token;
-
-    ConstructableMapleLoan loan;
+    ConstructableMapleLoan internal _loan;
+    Borrower               internal _borrower;
+    LenderMock             internal _lender;
+    MapleGlobalsMock       internal _globals;
+    MockFactory            internal _factory;
+    MockERC20              internal _token;
 
     function setUp() public {
-        borrower = new Borrower();
-        lender   = new LenderMock();
-        token    = new MockERC20("Test", "TST", 0);
+        _borrower = new Borrower();
+        _factory  = new MockFactory();
+        _globals  = new MapleGlobalsMock(address(0), address(0), 0, 0);
+        _lender   = new LenderMock();
+        _token    = new MockERC20("Token", "T", 0);
 
-        address[2] memory assets      = [address(token),   address(token)];
+        address[2] memory assets      = [address(_token), address(_token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
-        loan = new ConstructableMapleLoan(address(borrower), assets, termDetails, amounts, rates);
+        _factory.setGlobals(address(_globals));
 
-        address globalsMock = address(new MapleGlobalsMock(address(this), address(0), 0, 0));
-
-        MockFactory factoryMock = new MockFactory();
-        factoryMock.setGlobals(globalsMock);
-
-        loan.__setFactory(address(factoryMock));
+        _loan = new ConstructableMapleLoan(address(_factory), address(_borrower), assets, termDetails, amounts, rates);
     }
 
     function test_transferBorrowerRole() public {
         Borrower newBorrower = new Borrower();
 
-        assertEq(loan.pendingBorrower(), address(0));
-        assertEq(loan.borrower(),        address(borrower));
+        assertEq(_loan.pendingBorrower(), address(0));
+        assertEq(_loan.borrower(),        address(_borrower));
 
         // Only borrower can call setPendingBorrower
-        assertTrue(!newBorrower.try_loan_setPendingBorrower(address(loan), address(newBorrower)));
-        assertTrue(    borrower.try_loan_setPendingBorrower(address(loan), address(newBorrower)));
+        assertTrue(!newBorrower.try_loan_setPendingBorrower(address(_loan), address(newBorrower)));
+        assertTrue(   _borrower.try_loan_setPendingBorrower(address(_loan), address(newBorrower)));
 
-        assertEq(loan.pendingBorrower(), address(newBorrower));
+        assertEq(_loan.pendingBorrower(), address(newBorrower));
 
         // Pending borrower can't call setPendingBorrower
-        assertTrue(!newBorrower.try_loan_setPendingBorrower(address(loan), address(1)));
-        assertTrue(    borrower.try_loan_setPendingBorrower(address(loan), address(1)));
+        assertTrue(!newBorrower.try_loan_setPendingBorrower(address(_loan), address(1)));
+        assertTrue(   _borrower.try_loan_setPendingBorrower(address(_loan), address(1)));
 
-        assertEq(loan.pendingBorrower(), address(1));
+        assertEq(_loan.pendingBorrower(), address(1));
 
         // Can be reset if mistake is made
-        assertTrue(borrower.try_loan_setPendingBorrower(address(loan), address(newBorrower)));
+        assertTrue(_borrower.try_loan_setPendingBorrower(address(_loan), address(newBorrower)));
 
-        assertEq(loan.pendingBorrower(), address(newBorrower));
-        assertEq(loan.borrower(),        address(borrower));
+        assertEq(_loan.pendingBorrower(), address(newBorrower));
+        assertEq(_loan.borrower(),        address(_borrower));
 
         // Pending borrower is the only one who can call acceptBorrower
-        assertTrue(  !borrower.try_loan_acceptBorrower(address(loan)));
-        assertTrue(newBorrower.try_loan_acceptBorrower(address(loan)));
+        assertTrue( !_borrower.try_loan_acceptBorrower(address(_loan)));
+        assertTrue(newBorrower.try_loan_acceptBorrower(address(_loan)));
 
         // Pending borrower is set to zero
-        assertEq(loan.pendingBorrower(), address(0));
-        assertEq(loan.borrower(),        address(newBorrower));
+        assertEq(_loan.pendingBorrower(), address(0));
+        assertEq(_loan.borrower(),        address(newBorrower));
     }
 
     function test_transferLenderRole() public {
-
-        // Fund the loan to set the lender
-        token.mint(address(lender), 1_000_000);
-        lender.erc20_approve(address(token), address(loan),   1_000_000);
-        lender.loan_fundLoan(address(loan),  address(lender), 1_000_000);
+        // Fund the _loan to set the lender
+        _token.mint(address(_lender), 1_000_000);
+        _lender.erc20_approve(address(_token), address(_loan),    1_000_000);
+        _lender.loan_fundLoan(address(_loan),   address(_lender), 1_000_000);
 
         LenderMock newLender = new LenderMock();
 
-        assertEq(loan.pendingLender(), address(0));
-        assertEq(loan.lender(),        address(lender));
+        assertEq(_loan.pendingLender(), address(0));
+        assertEq(_loan.lender(),        address(_lender));
 
         // Only lender can call setPendingLender
-        assertTrue(!newLender.try_loan_setPendingLender(address(loan), address(newLender)));
-        assertTrue(    lender.try_loan_setPendingLender(address(loan), address(newLender)));
+        assertTrue(!newLender.try_loan_setPendingLender(address(_loan), address(newLender)));
+        assertTrue(   _lender.try_loan_setPendingLender(address(_loan), address(newLender)));
 
-        assertEq(loan.pendingLender(), address(newLender));
+        assertEq(_loan.pendingLender(), address(newLender));
 
         // Pending lender can't call setPendingLender
-        assertTrue(!newLender.try_loan_setPendingLender(address(loan), address(1)));
-        assertTrue(    lender.try_loan_setPendingLender(address(loan), address(1)));
+        assertTrue(!newLender.try_loan_setPendingLender(address(_loan), address(1)));
+        assertTrue(   _lender.try_loan_setPendingLender(address(_loan), address(1)));
 
-        assertEq(loan.pendingLender(), address(1));
+        assertEq(_loan.pendingLender(), address(1));
 
         // Can be reset if mistake is made
-        assertTrue(lender.try_loan_setPendingLender(address(loan), address(newLender)));
+        assertTrue(_lender.try_loan_setPendingLender(address(_loan), address(newLender)));
 
-        assertEq(loan.pendingLender(), address(newLender));
-        assertEq(loan.lender(),        address(lender));
+        assertEq(_loan.pendingLender(), address(newLender));
+        assertEq(_loan.lender(),        address(_lender));
 
         // Pending lender is the only one who can call acceptLender
-        assertTrue(  !lender.try_loan_acceptLender(address(loan)));
-        assertTrue(newLender.try_loan_acceptLender(address(loan)));
+        assertTrue( !_lender.try_loan_acceptLender(address(_loan)));
+        assertTrue(newLender.try_loan_acceptLender(address(_loan)));
 
         // Pending lender is set to zero
-        assertEq(loan.pendingLender(), address(0));
-        assertEq(loan.lender(),        address(newLender));
+        assertEq(_loan.pendingLender(), address(0));
+        assertEq(_loan.lender(),        address(newLender));
     }
+
 }

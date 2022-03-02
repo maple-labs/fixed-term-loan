@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { IERC20 }             from "../modules/erc20/src/interfaces/IERC20.sol";
+import { IERC20 }             from "../modules/erc20/contracts/interfaces/IERC20.sol";
 import { ERC20Helper }        from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
@@ -52,19 +52,18 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit BorrowerAccepted(_borrower = msg.sender);
     }
 
-    function closeLoan(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
+    function closeLoan(uint256 amount_) external override returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+        uint256 drawableFundsBeforePayment = _drawableFunds;
+
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
 
-        // If the caller is not the borrower, require that the transferred amount be sufficient to close the loan without touching `_drawableFunds`;
-        if (msg.sender != _borrower) {
-            ( principal_, interest_ ) = _getEarlyPaymentBreakdown();
-            require(_getUnaccountedAmount(_fundsAsset) >= principal_ + interest_, "ML:CL:CANNOT_USE_DRAWABLE");
-        }
+        ( principal_, interest_, delegateFee_, treasuryFee_ ) = _closeLoan();
 
-        ( principal_, interest_ ) = _closeLoan();
+        // Either the caller is the borrower or `_drawableFunds` has not decreased.
+        require(msg.sender == _borrower || _drawableFunds >= drawableFundsBeforePayment, "ML:CL:CANNOT_USE_DRAWABLE");
 
-        emit LoanClosed(principal_, interest_);
+        emit LoanClosed(principal_, interest_, delegateFee_, treasuryFee_);
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override whenProtocolNotPaused returns (uint256 collateralPosted_) {
@@ -88,19 +87,18 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         _drawdownFunds(amount_, destination_);
     }
 
-    function makePayment(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
+    function makePayment(uint256 amount_) external override returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+        uint256 drawableFundsBeforePayment = _drawableFunds;
+
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
 
-        // If the caller is not the borrower, require that the transferred amount be sufficient to make a payment without touching `_drawableFunds`;
-        if (msg.sender != _borrower) {
-            ( principal_, interest_ ) = _getNextPaymentBreakdown();
-            require(_getUnaccountedAmount(_fundsAsset) >= principal_ + interest_, "ML:MP:CANNOT_USE_DRAWABLE");
-        }
+        ( principal_, interest_, delegateFee_, treasuryFee_ ) = _makePayment();
 
-        ( principal_, interest_ ) = _makePayment();
+        // Either the caller is the borrower or `_drawableFunds` has not decreased.
+        require(msg.sender == _borrower || _drawableFunds >= drawableFundsBeforePayment, "ML:MP:CANNOT_USE_DRAWABLE");
 
-        emit PaymentMade(principal_, interest_);
+        emit PaymentMade(principal_, interest_, delegateFee_, treasuryFee_);
     }
 
     function postCollateral(uint256 amount_) public override whenProtocolNotPaused returns (uint256 collateralPosted_) {
@@ -163,6 +161,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(fundsAssetAddress, msg.sender, address(this), amount_), "ML:ACT:TRANSFER_FROM_FAILED");
 
         emit NewTermsAccepted(_acceptNewTerms(refinancer_, calls_), refinancer_, calls_);
+        emit EstablishmentFeesSet(_delegateFee, _treasuryFee);
 
         uint256 extra = _getUnaccountedAmount(fundsAssetAddress);
 
@@ -243,12 +242,12 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return collateralNeeded > currentCollateral ? collateralNeeded - currentCollateral : uint256(0);
     }
 
-    function getEarlyPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
-        ( principal_, interest_ ) = _getEarlyPaymentBreakdown();
+    function getEarlyPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+        ( principal_, interest_, delegateFee_, treasuryFee_ ) = _getEarlyPaymentBreakdown();
     }
 
-    function getNextPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
-        ( principal_, interest_ ) = _getNextPaymentBreakdown();
+    function getNextPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+        ( principal_, interest_, delegateFee_, treasuryFee_ ) = _getNextPaymentBreakdown();
     }
 
     function isProtocolPaused() public view override returns (bool paused_) {
@@ -277,6 +276,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function collateralRequired() external view override returns (uint256 collateralRequired_) {
         return _collateralRequired;
+    }
+
+    function delegateFee() external view override returns (uint256 delegateFee_) {
+        return _delegateFee;
     }
 
     function drawableFunds() external view override returns (uint256 drawableFunds_) {
@@ -361,6 +364,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     // NOTE: This is needed for `fundLoan` call from PoolV1.
     function superFactory() external view override returns (address superFactory_) {
         return _factory();
+    }
+
+    function treasuryFee() external view override returns (uint256 treasuryFee_) {
+        return _treasuryFee;
     }
 
 }

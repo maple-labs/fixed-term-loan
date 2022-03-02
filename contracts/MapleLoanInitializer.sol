@@ -46,6 +46,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanInternals {
         ) = decodeArguments(msg.data);
 
         emit Initialized(borrower_, assets_, termDetails_, amounts_, rates_);
+        emit EstablishmentFeesSet(_delegateFee, _treasuryFee);
 
         _initialize(borrower_, assets_, termDetails_, amounts_, rates_);
     }

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Hevm, StateManipulations, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { IERC20 }                              from "../../modules/erc20/src/interfaces/IERC20.sol";
-import { MockERC20 }                           from "../../modules/erc20/src/test/mocks/MockERC20.sol";
+import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { IERC20 }                              from "../../modules/erc20/contracts/interfaces/IERC20.sol";
+import { MockERC20 }                           from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { MapleProxyFactory }                   from "../../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
 import { MapleLoan }            from "../MapleLoan.sol";
@@ -14,7 +14,7 @@ import { Governor } from "./accounts/Governor.sol";
 
 import { MapleGlobalsMock, LenderMock } from "./mocks/Mocks.sol";
 
-contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
+contract MapleLoanPaymentsTest is TestUtils {
 
     uint256 start;
 
@@ -86,9 +86,9 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
     )
         internal returns (uint256 paymentAmount)
     {
-        ( uint256 actualPrincipalPortion, uint256 actualInterestPortion ) = loan.getNextPaymentBreakdown();
+        ( uint256 actualPrincipalPortion, uint256 actualInterestPortion, uint256 actualDelegateFeePortion, uint256 actualTreasuryFeePortion ) = loan.getNextPaymentBreakdown();
 
-        paymentAmount = actualPrincipalPortion + actualInterestPortion;
+        paymentAmount = actualPrincipalPortion + actualInterestPortion + actualDelegateFeePortion + actualTreasuryFeePortion;
 
         assertIgnoringDecimals(paymentAmount, total, 13);  // Constant payment amounts
 
@@ -98,7 +98,7 @@ contract MapleLoanPaymentsTest is StateManipulations, TestUtils {
         assertIgnoringDecimals(interestPortion,  actualInterestPortion,  13);
 
         // Warp to when payment is due and make payment
-        hevm.warp(loan.nextPaymentDueDate());
+        vm.warp(loan.nextPaymentDueDate());
         borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
         borrower.loan_makePayment(address(loan), 0);
 
@@ -638,12 +638,12 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
         }
 
         // On day 90, warp to day 113
-        hevm.warp(block.timestamp + 23 days);
+        vm.warp(block.timestamp + 23 days);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion ) = loan.getEarlyPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFeePortion, uint256 treasuryFeePortion ) = loan.getEarlyPaymentBreakdown();
 
-        uint256 paymentAmount = principalPortion + interestPortion;
+        uint256 paymentAmount = principalPortion + interestPortion + delegateFeePortion + treasuryFeePortion;
 
         assertIgnoringDecimals(paymentAmount, uint256(919_625.984655 ether), 13);  // Constant payment amounts
 
@@ -726,12 +726,12 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
         }
 
         // On day 30, warp to day 44
-        hevm.warp(block.timestamp + 14 days);
+        vm.warp(block.timestamp + 14 days);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion ) = loan.getEarlyPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFeePortion, uint256 treasuryFeePortion ) = loan.getEarlyPaymentBreakdown();
 
-        uint256 paymentAmount = principalPortion + interestPortion;
+        uint256 paymentAmount = principalPortion + interestPortion + delegateFeePortion + treasuryFeePortion;
 
         assertIgnoringDecimals(paymentAmount, uint256(683_616.703375 ether), 13);  // Constant payment amounts
 
@@ -830,15 +830,15 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         }
 
         // On day 75, warp to day 90 plus one second (one second late)
-        hevm.warp(block.timestamp + 15 days + 1 seconds);
+        vm.warp(block.timestamp + 15 days + 1 seconds);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion)  = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFeePortion, uint256 treasuryFeePortion )  = loan.getNextPaymentBreakdown();
 
         uint256 lateInterest = loan.principal() * 1300 * uint256(1 days) / 365 days / 10_000;  // Add one day of late payment (one second = one day of late interest)
         uint256 lateFee      = 22_989.075431 ether;
 
-        uint256 paymentAmount = principalPortion + interestPortion;
+        uint256 paymentAmount = principalPortion + interestPortion + delegateFeePortion + treasuryFeePortion;
 
         assertIgnoringDecimals(paymentAmount, uint256(485_226.951007 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
 
@@ -935,15 +935,15 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
         {
             // On day 60, warp to day 90 plus two hours
-            hevm.warp(block.timestamp + 30 days + 2 hours);
+            vm.warp(block.timestamp + 30 days + 2 hours);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFeePortion, uint256 treasuryFeePortion ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1000 * uint256(1 days) / 365 days / 10_000;  // Add two hours of late interest (which is 1 day of default interest).
             uint256 lateFee      = uint256(50_000.000000 ether);
 
-            uint256 paymentAmount = principalPortion + interestPortion;
+            uint256 paymentAmount = principalPortion + interestPortion + delegateFeePortion + treasuryFeePortion;
 
             assertIgnoringDecimals(paymentAmount, uint256(58_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet.
 
@@ -1058,17 +1058,17 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         /*****************************************/
         {
             // On day 15, warp to day 46 (16 days late)
-            hevm.warp(block.timestamp + 31 days);
+            vm.warp(block.timestamp + 31 days);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFeePortion, uint256 treasuryFeePortion ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1800 * uint256(16 days) / 365 days / 10_000;  // Add sixteen days of late interest
             uint256 lateFee      = loan.principal() * 500 / 10_000;
 
             assertIgnoringDecimals(lateInterest, 7046.962245 ether, 13);
 
-            uint256 paymentAmount = principalPortion + interestPortion;
+            uint256 paymentAmount = principalPortion + interestPortion + delegateFeePortion + treasuryFeePortion;
 
             assertIgnoringDecimals(paymentAmount, uint256(163_940.067331 ether), 13);
 
@@ -1092,14 +1092,14 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
             // Same timestamp - Day 46, due date is day 45
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFeePortion, uint256 treasuryFeePortion ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1800 * uint256(1 days) / 365 days / 10_000;  // Add one day of late interest
             uint256 lateFee      = loan.principal() * 500 / 10_000;
 
             assertIgnoringDecimals(lateInterest, 387.437964 ether, 13);
 
-            uint256 paymentAmount = principalPortion + interestPortion;
+            uint256 paymentAmount = principalPortion + interestPortion + delegateFeePortion + treasuryFeePortion;
 
             assertIgnoringDecimals(paymentAmount, uint256(151_907.218305 ether), 13);
 
@@ -1197,17 +1197,17 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
         {
             // On day 0, warp to day 32 (two days late)
-            hevm.warp(block.timestamp + 32 days);
+            vm.warp(block.timestamp + 32 days);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFeePortion, uint256 treasuryFeePortion ) = loan.getNextPaymentBreakdown();
 
 
             uint256 lateInterest = loan.principal() * 1500 * uint256(2 days) / 365 days / 10_000;  // Add two days of late interest (15%)
             uint256 lateFee      = loan.principal() * 0.02e18 / 10 ** 18;
             assertIgnoringDecimals(lateInterest, 821.917808 ether, 13);
 
-            uint256 paymentAmount = principalPortion + interestPortion;
+            uint256 paymentAmount = principalPortion + interestPortion + delegateFeePortion + treasuryFeePortion;
 
             assertIgnoringDecimals(paymentAmount, uint256(28_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
 
@@ -1254,23 +1254,23 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
         // On day 0, warp to day 30 plus one second (one second late)
-        hevm.warp(start + 30 days + 1 seconds);
+        vm.warp(start + 30 days + 1 seconds);
 
         // Get amounts for the remaining loan payments
-        ( , uint256 interestPortion1 ) = loan.getNextPaymentBreakdown();
+        ( , uint256 interestPortion1, , ) = loan.getNextPaymentBreakdown();
 
         // Warp to day 31 (one day late exactly)
-        hevm.warp(start  + 31 days);
+        vm.warp(start  + 31 days);
 
-        ( , uint256 interestPortion2 ) = loan.getNextPaymentBreakdown();
+        ( , uint256 interestPortion2, , ) = loan.getNextPaymentBreakdown();
 
         assertEq(interestPortion1, interestPortion2);  // Same entire day
 
         // Warp one more second (one day plus one second late)
-        hevm.warp(start  + 31 days + 1 seconds);
+        vm.warp(start  + 31 days + 1 seconds);
 
         // Get amounts for the remaining loan payments
-        ( , uint256 interestPortion3 ) = loan.getNextPaymentBreakdown();
+        ( , uint256 interestPortion3, , ) = loan.getNextPaymentBreakdown();
 
         assertTrue(interestPortion3 > interestPortion1);  // Default interest gets updated on the day
     }

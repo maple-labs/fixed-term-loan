@@ -1,4 +1,4 @@
-name: SC Tests
+name: 50k fuzz run test on push to main
 
 on:
   push:
@@ -9,20 +9,17 @@ jobs:
   run-ci:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Install Foundry
-      uses: onbjerg/foundry-toolchain@v1
-      with:
-        version: nightly
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
 
-    - name: Checkout submodules
-      shell: bash
-      run: |
-        git config --global url."https://github.com/".insteadOf "git@github.com:"
-        forge update
+      - name: Pull library deps
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          forge update
 
-    - name: Run forge tests
-      env:
-        ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
-      run: ./test.sh -r 50000
+      - name: Run forge tests
+        run: ./test.sh -p super_deep

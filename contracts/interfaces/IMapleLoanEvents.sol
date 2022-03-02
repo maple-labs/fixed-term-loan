@@ -24,6 +24,13 @@ interface IMapleLoanEvents {
     event CollateralRemoved(uint256 amount_, address indexed destination_);
 
     /**
+     *  @dev   Establishment fees were set.
+     *  @param delegateFee_ The amount that will be paid as an establishment fee to the delegate.
+     *  @param treasuryFee_ The amount that will be paid as an establishment fee to the treasury.
+     */
+    event EstablishmentFeesSet(uint256 delegateFee_, uint256 treasuryFee_);
+
+    /**
      *  @dev   The loan was funded.
      *  @param lender_             The address of the lender.
      *  @param amount_             The amount funded.
@@ -88,10 +95,12 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Loan was repaid early and closed.
-     *  @param principalPaid_ The portion of the total amount that went towards principal.
-     *  @param interestPaid_  The portion of the total amount that went towards interest fees.
+     *  @param principalPaid_   The portion of the total amount that went towards principal.
+     *  @param interestPaid_    The portion of the total amount that went towards interest.
+     *  @param delegateFeePaid_ The portion of the total amount that went towards the establishment fee for the delegate.
+     *  @param treasuryFeePaid_ The portion of the total amount that went towards the establishment fee for the treasury.
      */
-    event LoanClosed(uint256 principalPaid_, uint256 interestPaid_);
+    event LoanClosed(uint256 principalPaid_, uint256 interestPaid_, uint256 delegateFeePaid_, uint256 treasuryFeePaid_);
 
     /**
      *  @dev   A refinance was proposed.
@@ -111,10 +120,12 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Payments were made.
-     *  @param principalPaid_ The portion of the total amount that went towards principal.
-     *  @param interestPaid_  The portion of the total amount that went towards interest fees.
+     *  @param principalPaid_   The portion of the total amount that went towards principal.
+     *  @param interestPaid_    The portion of the total amount that went towards interest.
+     *  @param delegateFeePaid_ The portion of the total amount that went towards the establishment fee for the delegate.
+     *  @param treasuryFeePaid_ The portion of the total amount that went towards the establishment fee for the treasury.
      */
-    event PaymentMade(uint256 principalPaid_, uint256 interestPaid_);
+    event PaymentMade(uint256 principalPaid_, uint256 interestPaid_, uint256 delegateFeePaid_, uint256 treasuryFeePaid_);
 
     /**
      *  @dev   Pending borrower was set.

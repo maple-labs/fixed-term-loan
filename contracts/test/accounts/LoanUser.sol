@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { ERC20User } from "../../../modules/erc20/src/test/accounts/ERC20User.sol";
+import { ERC20User } from "../../../modules/erc20/contracts/test/accounts/ERC20User.sol";
 
 import { IMapleLoan } from "../../interfaces/IMapleLoan.sol";
 
@@ -15,7 +15,7 @@ contract LoanUser is ERC20User {
         return IMapleLoan(loan_).fundLoan(lender_, amount_);
     }
 
-    function loan_makePayment(address loan_, uint256 amount_) external returns (uint256 totalPrincipalAmount_, uint256 totalInterestFees_) {
+    function loan_makePayment(address loan_, uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
         return IMapleLoan(loan_).makePayment(amount_);
     }
 
@@ -31,7 +31,7 @@ contract LoanUser is ERC20User {
         return IMapleLoan(loan_).skim(token_, destination_);
     }
 
-    function loan_closeLoan(address loan_, uint256 amount_) external returns (uint256 principal_, uint256 interest_) {
+    function loan_closeLoan(address loan_, uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
         return IMapleLoan(loan_).closeLoan(amount_);
     }
 

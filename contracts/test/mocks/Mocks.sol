@@ -8,7 +8,7 @@ import { IMapleLoanFactory } from "../../interfaces/IMapleLoanFactory.sol";
 
 import { Lender } from "../accounts/Lender.sol";
 
-import { ERC20 } from "../../../modules/erc20/src/test/mocks/MockERC20.sol";
+import { ERC20 } from "../../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 contract MapleGlobalsMock {
 
@@ -39,11 +39,20 @@ contract MapleGlobalsMock {
         treasuryFee = treasuryFee_;
     }
 
+    function setGovernor(address governor_) external {
+        governor = governor_;
+    }
+
+    function setMapleTreasury(address mapleTreasury_) external {
+        mapleTreasury = mapleTreasury_;
+    }
+
 }
 
 contract ConstructableMapleLoan is MapleLoan {
 
-    constructor(address borrower_, address[2] memory assets_, uint256[3] memory termDetails_, uint256[3] memory amounts_,  uint256[4] memory rates_) {
+    constructor(address factory_, address borrower_, address[2] memory assets_, uint256[3] memory termDetails_, uint256[3] memory amounts_,  uint256[4] memory rates_) {
+        __setFactory(factory_);
         _initialize(borrower_, assets_, termDetails_, amounts_, rates_);
     }
 
@@ -58,7 +67,7 @@ contract ConstructableMapleLoan is MapleLoan {
         return _getCollateralRequiredFor(principal_, drawableFunds_, principalRequested_, collateralRequired_);
     }
 
-    function __setFactory(address factory_) external {
+    function __setFactory(address factory_) public {
         _setSlotValue(bytes32(0x7a45a402e4cb6e08ebc196f20f66d5d30e67285a2a8aa80503fa409e727a4af1), bytes32(uint256(uint160(factory_))));
     }
 

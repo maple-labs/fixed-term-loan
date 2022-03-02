@@ -38,6 +38,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function collateralRequired() external view returns (uint256 collateralRequired_);
 
     /**
+     *  @dev The delegate establishment fee.
+     */
+    function delegateFee() external view returns (uint256 delegateFee_);
+
+    /**
      *  @dev The amount of funds that have yet to be drawn down by the borrower.
      */
     function drawableFunds() external view returns (uint256 drawableFunds_);
@@ -125,6 +130,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function superFactory() external view returns (address superFactory_);
 
+    /**
+     *  @dev The treasury establishment fee.
+     */
+    function treasuryFee() external view returns (uint256 treasuryFee_);
+
     /********************************/
     /*** State Changing Functions ***/
     /********************************/
@@ -156,11 +166,13 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Repay all principal and fees and close a loan.
-     *  @param  amount_    An amount to pull from the caller, if any.
-     *  @return principal_ The portion of the amount paid paying back principal.
-     *  @return interest_  The portion of the amount paid paying interest fees.
+     *  @param  amount_      An amount to pull from the caller, if any.
+     *  @return principal_   The portion of the amount paying back principal.
+     *  @return interest_    The portion of the amount paying interest.
+     *  @return delegateFee_ The portion of the amount paying establishment fees to the delegate.
+     *  @return treasuryFee_ The portion of the amount paying establishment fees to the treasury.
      */
-    function closeLoan(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
+    function closeLoan(uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
 
     /**
      *  @dev    Draw down funds from the loan.
@@ -180,11 +192,13 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Make a payment to the loan.
-     *  @param  amount_    An amount to pull from the caller, if any.
-     *  @return principal_ The portion of the amount paid paying back principal.
-     *  @return interest_  The portion of the amount paid paying interest fees.
+     *  @param  amount_      An amount to pull from the caller, if any.
+     *  @return principal_   The portion of the amount paying back principal.
+     *  @return interest_    The portion of the amount paying interest fees.
+     *  @return delegateFee_ The portion of the amount paying establishment fees to the delegate.
+     *  @return treasuryFee_ The portion of the amount paying establishment fees to the treasury.
      */
-    function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
+    function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
 
     /**
      *  @dev    Post collateral to the loan.
@@ -261,23 +275,21 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy an early repayment.
-     *  @return totalPrincipalAmount_ The portion of the total amount that will go towards principal.
-     *  @return totalInterestFees_    The portion of the total amount that will go towards interest fees.
+     *  @return principal_   The portion of the total amount that will go towards principal.
+     *  @return interest_    The portion of the total amount that will go towards interest fees.
+     *  @return delegateFee_ The portion of the total amount that will go towards establishment fees to the delegate.
+     *  @return treasuryFee_ The portion of the total amount that will go towards establishment fees to the treasury.
      */
-    function getEarlyPaymentBreakdown() external view returns (
-        uint256 totalPrincipalAmount_,
-        uint256 totalInterestFees_
-    );
+    function getEarlyPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.
-     *  @return totalPrincipalAmount_ The portion of the total amount that will go towards principal.
-     *  @return totalInterestFees_    The portion of the total amount that will go towards interest fees.
+     *  @return principal_   The portion of the total amount that will go towards principal.
+     *  @return interest_    The portion of the total amount that will go towards interest fees.
+     *  @return delegateFee_ The portion of the total amount that will go towards establishment fees to the delegate.
+     *  @return treasuryFee_ The portion of the total amount that will go towards establishment fees to the treasury.
      */
-    function getNextPaymentBreakdown() external view returns (
-        uint256 totalPrincipalAmount_,
-        uint256 totalInterestFees_
-    );
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
 
     /**
      *  @dev    Returns whether the protocol is paused.

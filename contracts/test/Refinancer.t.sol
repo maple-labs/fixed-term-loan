@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { StateManipulations, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }                     from "../../modules/erc20/src/test/mocks/MockERC20.sol";
+import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { Refinancer } from "../Refinancer.sol";
 
 import { ConstructableMapleLoan, LenderMock, MockFactory, MapleGlobalsMock } from "./mocks/Mocks.sol";
 
 // Helper contract with common functionality
-contract BaseRefinanceTest is StateManipulations, TestUtils {
+contract BaseRefinanceTest is  TestUtils {
 
     // Loan Boundaries
     uint256 internal constant MAX_RATE         = 1.00 ether;       // 100 %
@@ -52,9 +52,7 @@ contract BaseRefinanceTest is StateManipulations, TestUtils {
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
         uint256[4] memory rates       = [interestRate_, uint256(0.10 ether), uint256(0.15 ether), uint256(0)];
 
-        loan = new ConstructableMapleLoan(address(this), assets, termDetails, amounts, rates);
-
-        loan.__setFactory(address(factory));
+        loan = new ConstructableMapleLoan(address(factory), address(this), assets, termDetails, amounts, rates);
 
         token.mint(address(this), principalRequested_);
         token.approve(address(loan), principalRequested_);
@@ -66,13 +64,13 @@ contract BaseRefinanceTest is StateManipulations, TestUtils {
         loan.drawdownFunds(principalRequested_, address(1));
 
         // Warp to when payment is due
-        hevm.warp(loan.nextPaymentDueDate());
+        vm.warp(loan.nextPaymentDueDate());
 
         // Check details for upcoming payment #1
-        ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFeePortion, uint256 treasuryFeePortion ) = loan.getNextPaymentBreakdown();
 
         // Make payment #1
-        token.mint(address(loan), principalPortion + interestPortion);
+        token.mint(address(loan), principalPortion + interestPortion + delegateFeePortion + treasuryFeePortion);
         loan.makePayment(0);
     }
 
@@ -112,7 +110,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         // Current ending principal is requested amount
         assertEq(loan.endingPrincipal(), loan.principalRequested());
 
-        ( uint256 principalPortion, ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, , , ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion, 0);
 
@@ -123,7 +121,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
-        ( principalPortion, ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, , , ) = loan.getNextPaymentBreakdown();
 
         assertTrue(principalPortion > 0);
     }
@@ -154,7 +152,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         // Current ending principal is requested amount
         assertTrue(loan.endingPrincipal() < loan.principalRequested());
 
-        ( uint256 principalPortion, ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, , , ) = loan.getNextPaymentBreakdown();
 
         assertTrue(principalPortion > 0);
 
@@ -166,7 +164,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
-        ( principalPortion, ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, , , ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion, 0);
     }
