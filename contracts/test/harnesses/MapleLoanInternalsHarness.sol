@@ -9,8 +9,8 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
     /*** Mutating Functions ***/
     /**************************/
 
-    function acceptNewTerms(address refinancer_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
-        return _acceptNewTerms(refinancer_, calls_);
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
+        return _acceptNewTerms(refinancer_, deadline_,  calls_);
     }
 
     function claimFunds(uint256 amount_, address destination_) external {
@@ -27,6 +27,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
 
     function drawdownFunds(uint256 amount_, address destination_) external {
         _drawdownFunds(amount_, destination_);
+    }
+
+    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {
+        _rejectNewTerms(refinancer_, deadline_,  calls_);
     }
 
     function initialize(
@@ -51,8 +55,8 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _postCollateral();
     }
 
-    function proposeNewTerms(address refinancer_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
-        return _proposeNewTerms(refinancer_, calls_);
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
+        return _proposeNewTerms(refinancer_, deadline_, calls_);
     }
 
     function removeCollateral(uint256 amount_, address destination_) external {
@@ -340,8 +344,8 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _getPeriodicInterestRate(interestRate_, interval_);
     }
 
-    function getRefinanceCommitment(address refinancer_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
-        return _getRefinanceCommitment(refinancer_, calls_);
+    function getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
+        return _getRefinanceCommitment(refinancer_, deadline_, calls_);
     }
 
     function scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 result_) {

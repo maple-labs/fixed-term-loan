@@ -103,20 +103,31 @@ interface IMapleLoanEvents {
     event LoanClosed(uint256 principalPaid_, uint256 interestPaid_, uint256 delegateFeePaid_, uint256 treasuryFeePaid_);
 
     /**
-     *  @dev   A refinance was proposed.
-     *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
+     *  @dev   The terms of the refinance proposal were accepted.
+     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
      *  @param refinancer_          The address that will execute the refinance.
+     *  @param deadline_            The deadline for accepting the new terms.
      *  @param calls_               The individual calls for the refinancer contract.
      */
-    event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, bytes[] calls_);
+    event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
 
     /**
      *  @dev   A refinance was proposed.
-     *  @param refinanceCommitment_ The hash of the refinancer and calls proposed.
+     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
      *  @param refinancer_          The address that will execute the refinance.
+     *  @param deadline_            The deadline for accepting the new terms.
      *  @param calls_               The individual calls for the refinancer contract.
      */
-    event NewTermsProposed(bytes32 refinanceCommitment_, address refinancer_, bytes[] calls_);
+    event NewTermsProposed(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
+
+    /**
+     *  @dev   The terms of the refinance proposal were rejected.
+     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
+     *  @param refinancer_          The address that will execute the refinance.
+     *  @param deadline_            The deadline for accepting the new terms.
+     *  @param calls_               The individual calls for the refinancer contract.
+     */
+    event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
 
     /**
      *  @dev   Payments were made.

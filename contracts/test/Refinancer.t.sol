@@ -12,7 +12,7 @@ import { ConstructableMapleLoan, LenderMock, MockFactory, MapleGlobalsMock } fro
 contract BaseRefinanceTest is  TestUtils {
 
     // Loan Boundaries
-    uint256 internal constant MAX_RATE         = 1.00 ether;       // 100 %
+    uint256 internal constant MAX_RATE         = 1e18;             // 100 %
     uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
     uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
@@ -50,7 +50,7 @@ contract BaseRefinanceTest is  TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
-        uint256[4] memory rates       = [interestRate_, uint256(0.10 ether), uint256(0.15 ether), uint256(0)];
+        uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
 
         loan = new ConstructableMapleLoan(address(factory), address(this), assets, termDetails, amounts, rates);
 
@@ -92,7 +92,8 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         uint256 interestRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newEndingPrincipal_
+        uint256 newEndingPrincipal_,
+        uint256 deadline_
     )
         external
     {
@@ -102,6 +103,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, principalRequested_, gracePeriod_,  interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -116,8 +118,8 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", newEndingPrincipal_);
 
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
@@ -133,17 +135,19 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         uint256 gracePeriod_,
         uint256 interestRate_,
         uint256 paymentInterval_,
-        uint256 paymentsRemaining_
+        uint256 paymentsRemaining_,
+        uint256 deadline_
     )
         external
     {
-        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);         // Boundary increase so principal portion on 'paymentBreakdown' is always greater than 0
+        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);  // Boundary increase so principal portion on 'paymentBreakdown' is always greater than 0
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_ - 1);
         gracePeriod_        = constrictToRange(gracePeriod_,        0,                MAX_TIME);
         interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -159,8 +163,8 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         // Propose Refinance
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", newEndingPrincipal_);
 
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
@@ -176,17 +180,19 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         uint256 gracePeriod_,
         uint256 interestRate_,
         uint256 paymentInterval_,
-        uint256 paymentsRemaining_
+        uint256 paymentsRemaining_,
+        uint256 deadline_
     )
         external
     {
-        principalRequested_ = constrictToRange(principalRequested_, 1, MAX_TOKEN_AMOUNT);
-        collateralRequired_ = constrictToRange(collateralRequired_, 0, MAX_TOKEN_AMOUNT);
-        endingPrincipal_    = constrictToRange(endingPrincipal_,    0, principalRequested_);
-        gracePeriod_        = constrictToRange(gracePeriod_,        0, MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0, MAX_RATE);
-        paymentInterval_    = constrictToRange(paymentInterval_,    1, MAX_TIME);
-        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3, MAX_PAYMENTS);
+        principalRequested_ = constrictToRange(principalRequested_, 1,               MAX_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 0,               MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,               principalRequested_);
+        gracePeriod_        = constrictToRange(gracePeriod_,        0,               MAX_TIME);
+        interestRate_       = constrictToRange(interestRate_,       0,               MAX_RATE);
+        paymentInterval_    = constrictToRange(paymentInterval_,    1,               MAX_TIME);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,               MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp, type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -194,9 +200,9 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", newEndingPrincipal_);
 
-        loan.proposeNewTerms(address(refinancer), data);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
 
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), data, 0));
+        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0));
     }
 
 }
@@ -211,17 +217,19 @@ contract RefinancerGracePeriodTest is BaseRefinanceTest {
         uint256 interestRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newGracePeriod_
+        uint256 newGracePeriod_,
+        uint256 deadline_
     )
         external
     {
-        principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
-        collateralRequired_ = constrictToRange(collateralRequired_, 0,   MAX_TOKEN_AMOUNT);
-        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
-        gracePeriod_        = constrictToRange(gracePeriod_,        100, MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,   MAX_RATE);
-        paymentInterval_    = constrictToRange(paymentInterval_,    1,   MAX_TIME);
-        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,   MAX_PAYMENTS);
+        principalRequested_ = constrictToRange(principalRequested_, 1,               MAX_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 0,               MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,               principalRequested_);
+        gracePeriod_        = constrictToRange(gracePeriod_,        100,             MAX_TIME);
+        interestRate_       = constrictToRange(interestRate_,       0,               MAX_RATE);
+        paymentInterval_    = constrictToRange(paymentInterval_,    1,               MAX_TIME);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,               MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp, type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -231,8 +239,8 @@ contract RefinancerGracePeriodTest is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setGracePeriod(uint256)", newGracePeriod_);
 
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.gracePeriod(), newGracePeriod_);
     }
@@ -249,7 +257,8 @@ contract RefinancerInterestRateTest is BaseRefinanceTest {
         uint256 interestRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newInterestRate_
+        uint256 newInterestRate_,
+        uint256 deadline_
     )
         external
     {
@@ -257,9 +266,10 @@ contract RefinancerInterestRateTest is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE / 2);         // Giving enough room to increase the interest Rate
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE / 2);  // Giving enough room to increase the interest Rate
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -270,8 +280,8 @@ contract RefinancerInterestRateTest is BaseRefinanceTest {
         bytes[] memory data = _encodeWithSignatureAndUint("setInterestRate(uint256)", newInterestRate_);
 
         // The new interest rate will be applied retroactively until the last payment made.
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.interestRate(), newInterestRate_);
     }
@@ -289,7 +299,8 @@ contract RefinancerPaymentRemaining is BaseRefinanceTest {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newPaymentsRemaining_
+        uint256 newPaymentsRemaining_,
+        uint256 deadline_
     )
         external
     {
@@ -301,6 +312,7 @@ contract RefinancerPaymentRemaining is BaseRefinanceTest {
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -310,8 +322,8 @@ contract RefinancerPaymentRemaining is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", newPaymentsRemaining_);
 
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.paymentsRemaining(), newPaymentsRemaining_);
     }
@@ -328,7 +340,8 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
         uint256 interestRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newPaymentInterval_
+        uint256 newPaymentInterval_,
+        uint256 deadline_
     )
         external
     {
@@ -339,6 +352,7 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
         interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -348,8 +362,8 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", newPaymentInterval_);
 
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
@@ -367,7 +381,8 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newEarlyFeeRate_
+        uint256 newEarlyFeeRate_,
+        uint256 deadline_
     )
         external
     {
@@ -379,17 +394,18 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
         newEarlyFeeRate_ = constrictToRange(newEarlyFeeRate_, 0, MAX_RATE);
 
-        assertEq(loan.earlyFeeRate(), 0.1 ether);
+        assertEq(loan.earlyFeeRate(), 0.1e18);
 
         bytes[] memory data = _encodeWithSignatureAndUint("setEarlyFeeRate(uint256)", newEarlyFeeRate_);
 
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.earlyFeeRate(), newEarlyFeeRate_);
     }
@@ -403,7 +419,8 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newLateFeeRate_
+        uint256 newLateFeeRate_,
+        uint256 deadline_
     )
         external
     {
@@ -411,21 +428,22 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);             // Giving enough room to increase the interest Rate
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);  // Giving enough room to increase the interest Rate
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
         newLateFeeRate_ = constrictToRange(newLateFeeRate_, 0, MAX_RATE);
 
-        assertEq(loan.lateFeeRate(), 0.15 ether);
+        assertEq(loan.lateFeeRate(), 0.15e18);
 
         bytes[] memory data = _encodeWithSignatureAndUint("setLateFeeRate(uint256)", newLateFeeRate_);
 
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.lateFeeRate(), newLateFeeRate_);
     }
@@ -439,7 +457,8 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newLateInterestPremium_
+        uint256 newLateInterestPremium_,
+        uint256 deadline_
     )
         external
     {
@@ -447,21 +466,22 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);             // Giving enough room to increase the interest Rate
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);  // Giving enough room to increase the interest Rate
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
         newLateInterestPremium_ = constrictToRange(newLateInterestPremium_, 0, MAX_RATE);
 
-        assertEq(loan.lateInterestPremium(), 0 ether);
+        assertEq(loan.lateInterestPremium(), 0);
 
         bytes[] memory data = _encodeWithSignatureAndUint("setLateInterestPremium(uint256)", newLateInterestPremium_);
 
-        loan.proposeNewTerms(address(refinancer), data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.lateInterestPremium(), newLateInterestPremium_);
     }
@@ -479,7 +499,8 @@ contract RefinanceCollateralRequiredTest is BaseRefinanceTest {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newCollateralRequired_
+        uint256 newCollateralRequired_,
+        uint256 deadline_
     )
         external
     {
@@ -487,10 +508,11 @@ contract RefinanceCollateralRequiredTest is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);             // Giving enough room to increase the interest Rate
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);  // Giving enough room to increase the interest Rate
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -500,19 +522,19 @@ contract RefinanceCollateralRequiredTest is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setCollateralRequired(uint256)", newCollateralRequired_);
 
-        loan.proposeNewTerms(address(refinancer), data);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         uint256 requiredCollateral = loan.getCollateralRequiredFor(loan.principal(), loan.drawableFunds(), loan.principalRequested(), newCollateralRequired_);
         uint256 currentCollateral  = loan.collateral();
 
         if (requiredCollateral > currentCollateral) {
-            assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), data, 0));
+            assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0));
 
             token.mint(address(loan), requiredCollateral - currentCollateral);
             loan.postCollateral(0);
         }
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.collateralRequired(), newCollateralRequired_);
 
@@ -543,10 +565,11 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);                             // Giving enough room to increase the interest Rate
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);  // Giving enough room to increase the interest Rate
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        // deadline_        = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);  // Hardcoding deadline to not cause stack too deep
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -559,10 +582,10 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("increasePrincipal(uint256)", principalIncrease_);
 
-        loan.proposeNewTerms(address(refinancer), data);
+        loan.proposeNewTerms(address(refinancer), block.timestamp, data);
 
         // Increasing the amount without sending it first should fail
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), data, 0));
+        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data, 0));
 
         // Since the collateral rate has remained the same, we need to also send more collateral
         uint256 extraCollateral = collateralRequired_ * principalIncrease_ / principalRequested_;
@@ -573,7 +596,7 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         // Sending additional funds (plus 1 too much)
         token.mint(address(loan), principalIncrease_ + 1);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data, 0);
 
         assertEq(loan.principalRequested(),        principalRequested_ + principalIncrease_);
         assertEq(loan.principal(),                 initialPrincipal + principalIncrease_);
@@ -590,7 +613,8 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 principalIncrease_
+        uint256 principalIncrease_,
+        uint256 deadline_
     )
         external
     {
@@ -598,10 +622,11 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);                             // Giving enough room to increase the interest Rate
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);  // Giving enough room to increase the interest Rate
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -611,10 +636,10 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("increasePrincipal(uint256)", principalIncrease_);
 
-        loan.proposeNewTerms(address(refinancer), data);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         // Increasing the amount without sending it first should fail
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), data, 0));
+        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0));
 
         // Since the collateral rate has remained the same, we need to also send more collateral
         uint256 extraCollateral = collateralRequired_ * principalIncrease_ / principalRequested_;
@@ -625,7 +650,7 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         // Sending 1 too little, causes revert
         token.mint(address(loan), principalIncrease_ - 1);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
     }
 
     function test_refinance_decreasePrincipalRequested(
@@ -637,7 +662,8 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 principalDecrease_
+        uint256 principalDecrease_,
+        uint256 deadline_
     )
         external
     {
@@ -645,10 +671,11 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
         gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);             // Giving enough room to increase the interest Rate
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);  // Giving enough room to increase the interest Rate
         lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
         paymentInterval_    = constrictToRange(paymentInterval_,    1,                MAX_TIME / 2);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,  type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -660,16 +687,16 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
 
         bytes[] memory data = _encodeWithSignatureAndUint("decreasePrincipal(uint256)", principalDecrease_);
 
-        loan.proposeNewTerms(address(refinancer), data);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         // Decreasing the amount without enough drawable funds will fail
-        try lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0) { fail(); } catch { }
+        try lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0) { fail(); } catch { }
 
         token.mint(address(loan), principalDecrease_);
         loan.returnFunds(0);
 
         // Now we can accept terms
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.principal(), initialPrincipal - principalDecrease_);
     }
@@ -685,17 +712,19 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
         uint256 gracePeriod_,
         uint256 interestRate_,
         uint256 paymentInterval_,
-        uint256 paymentsRemaining_
+        uint256 paymentsRemaining_,
+        uint256 deadline_
     )
         external
     {
-        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT,         MAX_TOKEN_AMOUNT - MIN_TOKEN_AMOUNT);
-        collateralRequired_ = constrictToRange(collateralRequired_, 0,                        MAX_TOKEN_AMOUNT);
+        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT,        MAX_TOKEN_AMOUNT - MIN_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 0,                       MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    principalRequested_ / 2, principalRequested_);
-        gracePeriod_        = constrictToRange(gracePeriod_,        100,                      MAX_TIME);
-        interestRate_       = constrictToRange(interestRate_,       10_000,                   MAX_RATE / 2);                         // Giving enough room to increase the interest Rate
-        paymentInterval_    = constrictToRange(paymentInterval_,    30 days,                  MAX_TIME / 2);
-        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                        MAX_PAYMENTS);
+        gracePeriod_        = constrictToRange(gracePeriod_,        100,                     MAX_TIME);
+        interestRate_       = constrictToRange(interestRate_,       10_000,                  MAX_RATE / 2);  // Giving enough room to increase the interest Rate
+        paymentInterval_    = constrictToRange(paymentInterval_,    30 days,                 MAX_TIME / 2);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                       MAX_PAYMENTS);
+        deadline_           = constrictToRange(deadline_,           block.timestamp,         type(uint256).max);
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
@@ -726,7 +755,7 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
         data[5] = abi.encodeWithSignature("increasePrincipal(uint256)",     principalIncrease_);
 
         // Executing refinance
-        loan.proposeNewTerms(address(refinancer), data);
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         uint256 currentCollateral = loan.collateral();
 
@@ -737,7 +766,7 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
 
         token.mint(address(loan), principalIncrease_);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
         assertEq(loan.collateralRequired(), newCollateralRequired_);
         assertEq(loan.endingPrincipal(),    newEndingPrincipal_);
@@ -745,6 +774,73 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
         assertEq(loan.interestRate(),       newInterestRate_);
         assertEq(loan.paymentInterval(),    newPaymentInterval_);
         assertEq(loan.principal(),          currentPrincipal + principalIncrease_);
+    }
+
+}
+
+contract RefinanceDeadlineTests is BaseRefinanceTest {
+
+    // Using payments interval since it's a rather easy refinance whith no need to handle principal/collateral assets.
+    function test_refinance_afterDeadline(
+        uint256 paymentInterval_,
+        uint256 newPaymentInterval_,
+        uint256 deadline_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    1, MAX_TIME / 2);
+        newPaymentInterval_ = constrictToRange(newPaymentInterval_, 0, MAX_TIME);
+
+        setUpOngoingLoan(1e18, 0, 0, 1, 1, paymentInterval_, 2);
+
+        assertEq(loan.paymentInterval(), paymentInterval_);
+
+        deadline_ = constrictToRange(deadline_, block.timestamp, block.timestamp + MAX_TIME);
+
+        bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", newPaymentInterval_);
+
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+
+        vm.warp(deadline_ + 1);
+
+        vm.expectRevert(bytes("MLI:ANT:EXPIRED_COMMITMENT"));
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+
+        vm.warp(deadline_);
+
+        // Success
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+
+        assertEq(loan.paymentInterval(), newPaymentInterval_);
+    }
+
+    function test_refinance_differentDeadline(
+        uint256 paymentInterval_,
+        uint256 newPaymentInterval_,
+        uint256 deadline_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    1, MAX_TIME / 2);
+        newPaymentInterval_ = constrictToRange(newPaymentInterval_, 0, MAX_TIME);
+
+        setUpOngoingLoan(1e18, 0, 0, 1, 1, paymentInterval_, 2);
+
+        deadline_ = constrictToRange(deadline_, block.timestamp, block.timestamp + MAX_TIME);
+        
+        assertEq(loan.paymentInterval(), paymentInterval_);
+
+        bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", newPaymentInterval_);
+
+        loan.proposeNewTerms(address(refinancer), deadline_, data);
+
+        vm.expectRevert(bytes("MLI:ANT:COMMITMENT_MISMATCH"));
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_ - 1, data, 0);
+
+        // Success
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+
+        assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
 
 }
@@ -758,9 +854,9 @@ contract RefinanceMiscellaneousTests is BaseRefinanceTest {
         data[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", 0);
 
         // Executing refinance
-        loan.proposeNewTerms(address(1), data);
+        loan.proposeNewTerms(address(1), block.timestamp, data);
 
-        lender.loan_acceptNewTerms(address(loan), address(1), data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(1), block.timestamp, data, 0);
     }
 
 }

@@ -260,14 +260,56 @@ contract MapleLoanTests is TestUtils {
 
     function test_proposeNewTerms_acl() external assertFailureWhenPaused {
         address mockRefinancer = address(new EmptyContract());
-        bytes[] memory data = new bytes[](1);
-        data[0] = new bytes(0);
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = new bytes(0);
 
-        try loan.proposeNewTerms(mockRefinancer, data) { assertTrue(false, "Non-borrower was able to propose new terms"); } catch { }
+        vm.expectRevert("ML:PNT:NOT_BORROWER");
+        loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
         loan.__setBorrower(address(this));
 
-        loan.proposeNewTerms(mockRefinancer, data);
+        loan.proposeNewTerms(mockRefinancer, deadline, calls);
+    }
+
+    function test_proposeNewTerms_invalidDeadline() external assertFailureWhenPaused {
+        address mockRefinancer = address(new EmptyContract());
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = new bytes(0);
+
+        loan.__setBorrower(address(this));
+
+        vm.expectRevert("ML:PNT:INVALID_DEADLINE");
+        loan.proposeNewTerms(mockRefinancer, block.timestamp - 1, calls);
+
+        loan.proposeNewTerms(mockRefinancer, block.timestamp, calls);
+    }
+
+    function test_rejectNewTerms_acl() external assertFailureWhenPaused {
+        address mockRefinancer = address(new EmptyContract());
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = new bytes(0);
+
+        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(address(mockRefinancer), deadline, calls)));
+
+        vm.expectRevert(bytes("L:RNT:NO_AUTH"));
+        loan.rejectNewTerms(mockRefinancer, deadline, calls);
+
+        loan.__setBorrower(address(this));
+
+        loan.rejectNewTerms(mockRefinancer, deadline, calls);
+
+        // Set again
+        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(address(mockRefinancer), deadline, calls)));
+        loan.__setBorrower(address(1));
+
+        vm.expectRevert(bytes("L:RNT:NO_AUTH"));
+        loan.rejectNewTerms(mockRefinancer, deadline, calls);
+
+        loan.__setLender(address(this));
+
+        loan.rejectNewTerms(mockRefinancer, deadline, calls);
     }
 
     function test_removeCollateral_acl() external assertFailureWhenPaused {
@@ -312,17 +354,18 @@ contract MapleLoanTests is TestUtils {
         loan.__setFundsAsset(address(token));       // Needed for the getUnaccountedAmount check
 
         address mockRefinancer = address(new EmptyContract());
-        bytes[] memory data = new bytes[](1);
-        data[0] = new bytes(0);
-        bytes32 refinanceCommitmentHash = keccak256(abi.encode(mockRefinancer, data));
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = new bytes(0);
 
-        loan.__setRefinanceCommitmentHash(refinanceCommitmentHash);
+        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(mockRefinancer, deadline, calls)));
 
-        try loan.acceptNewTerms(mockRefinancer, data, uint256(0)) { assertTrue(false, "Non-lender was able to accept terms"); } catch { }
+        vm.expectRevert("ML:ANT:NOT_LENDER");
+        loan.acceptNewTerms(mockRefinancer, deadline, calls, uint256(0));
 
         loan.__setLender(address(this));
 
-        loan.acceptNewTerms(mockRefinancer, data, uint256(0));
+        loan.acceptNewTerms(mockRefinancer, deadline, calls, uint256(0));
     }
 
     function test_claimFunds_acl() external assertFailureWhenPaused {
@@ -436,11 +479,12 @@ contract MapleLoanTests is TestUtils {
 
         token.mint(address(loan), 1);
 
+        uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](0);
 
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(address(refinancer), calls)));
+        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(address(refinancer), deadline, calls)));
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), calls, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, calls, 0);
 
         assertEq(token.balanceOf(address(loan)),   0);
         assertEq(token.balanceOf(address(lender)), 1);
@@ -454,9 +498,11 @@ contract MapleLoanTests is TestUtils {
         loan.__setLender(address(this));
 
         address refinancer = address(new EmptyContract());
-        bytes[] memory data = new bytes[](1);
-        data[0] = new bytes(0);
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(refinancer, data)));
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = new bytes(0);
+
+        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(refinancer, deadline, calls)));
 
         fundsAsset.mint(address(this), 1);
 
@@ -465,11 +511,12 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.claimableFunds(),               0);
         assertEq(loan.drawableFunds(),                0);
 
-        try loan.acceptNewTerms(refinancer, data, 1) { assertTrue(false, "Able to accept terms"); } catch { }
+        vm.expectRevert("ML:ANT:TRANSFER_FROM_FAILED");
+        loan.acceptNewTerms(refinancer, deadline, calls, 1);
 
         fundsAsset.approve(address(loan), 1);
 
-        loan.acceptNewTerms(refinancer, data, 1);
+        loan.acceptNewTerms(refinancer, deadline, calls, 1);
 
         // Does not change, since no increase in principal was done in the loan
         // All unaccounted amount goes back to the lender at the end of acceptNewTerms
@@ -487,9 +534,11 @@ contract MapleLoanTests is TestUtils {
         loan.__setLender(address(this));
 
         address refinancer = address(new EmptyContract());
-        bytes[] memory data = new bytes[](1);
-        data[0] = new bytes(0);
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(refinancer, data)));
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = new bytes(0);
+
+        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(refinancer, deadline, calls)));
 
         fundsAsset.mint(address(this), 1);
 
@@ -500,7 +549,7 @@ contract MapleLoanTests is TestUtils {
 
         fundsAsset.transfer(address(loan), 1);
 
-        loan.acceptNewTerms(refinancer, data, 0);
+        loan.acceptNewTerms(refinancer, deadline, calls, 0);
 
         // Does not change, since no increase in principal was done in the loan
         // All unaccounted amount goes back to the lender at the end of acceptNewTerms

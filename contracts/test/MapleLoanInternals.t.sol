@@ -2215,21 +2215,22 @@ contract MapleLoanInternals_ProposeNewTermsTests is TestUtils {
         _loan = new MapleLoanInternalsHarness();
     }
 
-    function test_proposeNewTerms(address refinancer_, uint256 newCollateralRequired_, uint256 newEndingPrincipal_, uint256 newInterestRate_) external {
+    function test_proposeNewTerms(address refinancer_, uint256 deadline_, uint256 newCollateralRequired_, uint256 newEndingPrincipal_, uint256 newInterestRate_) external {
         bytes[] memory data = new bytes[](3);
         data[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", newCollateralRequired_);
         data[1] = abi.encodeWithSignature("setEndingPrincipal(uint256)",    newEndingPrincipal_);
         data[2] = abi.encodeWithSignature("setInterestRate(uint256)",       newInterestRate_);
 
-        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, data);
-        assertEq(proposedRefinanceCommitment, keccak256(abi.encode(refinancer_, data)));
-        assertEq(_loan.refinanceCommitment(), keccak256(abi.encode(refinancer_, data)));
+        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, deadline_, data);
+        assertEq(proposedRefinanceCommitment, keccak256(abi.encode(refinancer_, deadline_, data)));
+        assertEq(_loan.refinanceCommitment(), keccak256(abi.encode(refinancer_, deadline_, data)));
     }
 
-    function test_proposeNewTerms_emptyArray(address refinancer_) external {
+    function test_proposeNewTerms_emptyArray(address refinancer_, uint256 deadline_) external {
         bytes[] memory data = new bytes[](0);
 
-        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, data);
+        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, deadline_, data);
+
         assertEq(proposedRefinanceCommitment, bytes32(0));
         assertEq(_loan.refinanceCommitment(), bytes32(0));
     }
@@ -2279,90 +2280,52 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         _loan.setCollateral(_defaultAmounts[0]);
     }
 
-    function test_acceptNewTerms_happyPath() external {
-        bytes[] memory calls = new bytes[](1);
-
-        // Add a refinance call.
-        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
-
-        // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.proposeNewTerms(address(_refinancer), calls);
-
-        _loan.acceptNewTerms(address(_refinancer), calls);
-
-        // Refinance commitment should be reset after accepting new terms.
-        assertEq(_loan.refinanceCommitment(), bytes32(0));
-
-        // Check that establishment fees are properly set.
-        assertEq(_loan.delegateFee(), uint256(16));
-        assertEq(_loan.treasuryFee(), uint256(8));
-    }
-
-    function test_acceptNewTerms_happyPath_withInsufficientCollateral() external {
-        bytes[] memory calls = new bytes[](1);
-
-        // Add a refinance call.
-        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", _defaultAmounts[1]);
-
-        // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.proposeNewTerms(address(_refinancer), calls);
-
-        vm.expectRevert("MLI:ANT:INSUFFICIENT_COLLATERAL");
-        _loan.acceptNewTerms(address(_refinancer), calls);
-    }
-
-    function test_acceptNewTerms_validRefinancer() external {
-        address notARefinancer = address(0);
-        bytes[] memory calls = new bytes[](1);
-
-        // Add a refinance call.
-        calls[0] = abi.encodeWithSignature("setInterestRate(uint256)", _defaultRates[0] - 1);
-
-        // Set _refinanceCommitment via _proposeNewTerms() using invalid refinancer.
-        _loan.proposeNewTerms(notARefinancer, calls);
-
-        // Try with invalid refinancer.
-        vm.expectRevert("MLI:ANT:INVALID_REFINANCER");
-        _loan.acceptNewTerms(notARefinancer, calls);
-
-        // Set _refinanceCommitment via _proposeNewTerms() using valid refinancer.
-        _loan.proposeNewTerms(address(_refinancer), calls);
-
-        // Try again with valid refinancer.
-        _loan.acceptNewTerms(address(_refinancer), calls);
-    }
-
     function test_acceptNewTerms_commitmentMismatch_emptyCallsArray() external {
+        uint256 deadline = block.timestamp + 10 days;
+
         // Empty calls array in _proposeNewTerms() always resets _refinanceCommitment to bytes32(0).
         // _acceptNewTerms() will never accept a 0-valued _refinanceCommitment, so any call to it should fail.
         bytes[] memory calls = new bytes[](0);
 
         // Set _refinanceCommitment via _proposeNewTerms() using valid refinancer and empty calls array.
-        _loan.proposeNewTerms(address(_refinancer), calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
         // Try again with valid refinancer.
         vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
-        _loan.acceptNewTerms(address(_refinancer), calls);
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+
+        calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
+
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_acceptNewTerms_commitmentMismatch_mismatchedCalls() external {
+        uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
 
         // Add a refinance call.
-        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
+        bytes memory originalCall = calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
 
         // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.proposeNewTerms(address(_refinancer), calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
         // Mutate the input parameter of the call to something different than proposed.
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(456));
 
         // Try to accept terms with different calls than proposed.
         vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
-        _loan.acceptNewTerms(address(_refinancer), calls);
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+
+        calls[0] = originalCall;
+
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_acceptNewTerms_commitmentMismatch_mismatchedRefinancer() external {
+        uint256 deadline = block.timestamp + 10 days;
         Refinancer differentRefinancer = new Refinancer();
         bytes[] memory calls = new bytes[](1);
 
@@ -2370,14 +2333,73 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
 
         // Set _refinanceCommitment via _proposeNewTerms() using correct refinancer.
-        _loan.proposeNewTerms(address(_refinancer), calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
         // Try to accept terms with a different refinancer than proposed.
         vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
-        _loan.acceptNewTerms(address(differentRefinancer), calls);
+        _loan.acceptNewTerms(address(differentRefinancer), deadline, calls);
+
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+    }
+
+    function test_acceptNewTerms_commitmentMismatch_mismatchedDeadline() external {
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
+
+        // Set _refinanceCommitment via _proposeNewTerms() using correct refinancer.
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        // Try to accept terms with a different refinancer than proposed.
+        vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
+        _loan.acceptNewTerms(address(_refinancer), deadline + 1, calls);
+
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+    }
+
+    function test_acceptNewTerms_invalidRefinancer() external {
+        uint256 deadline = block.timestamp + 10 days;
+        address notARefinancer = address(0);
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setInterestRate(uint256)", _defaultRates[0] - 1);
+
+        // Set _refinanceCommitment via _proposeNewTerms() using invalid refinancer.
+        _loan.proposeNewTerms(notARefinancer, deadline, calls);
+
+        // Try with invalid refinancer.
+        vm.expectRevert("MLI:ANT:INVALID_REFINANCER");
+        _loan.acceptNewTerms(notARefinancer, deadline, calls);
+
+        // Set _refinanceCommitment via _proposeNewTerms() using valid refinancer.
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        // Try again with valid refinancer.
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+    }
+
+    function test_acceptNewTerms_afterDeadline() external {
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", _defaultAmounts[2] + 1);
+
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        vm.warp(deadline + 1);
+
+        vm.expectRevert("MLI:ANT:EXPIRED_COMMITMENT");
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+
+        vm.warp(deadline);
+
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_acceptNewTerms_callFailed() external {
+        uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
 
         // Add a refinance call with invalid ending principal, where new ending principal is larger than principal requested.
@@ -2385,31 +2407,19 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", invalidEndingPrincipal);
 
         // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.proposeNewTerms(address(_refinancer), calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
         vm.expectRevert("MLI:ANT:FAILED");
-        _loan.acceptNewTerms(address(_refinancer), calls);
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
 
         // Set to principalRequested passed to _initialize().
         uint256 validEndingPrincipal = _defaultAmounts[1];
         calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", validEndingPrincipal);
 
         // Propose new valid terms.
-        _loan.proposeNewTerms(address(_refinancer), calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        _loan.acceptNewTerms(address(_refinancer), calls);
-    }
-
-    function test_acceptNewTerms_proposeNewPrincipalAndEndingPrincipal() external {
-        bytes[] memory calls = new bytes[](1);
-
-        // Add refinance calls with increased principal and new ending principal.
-        calls[0] = abi.encodeWithSignature("increasePrincipal(uint256)", _defaultAmounts[1] - _defaultAmounts[2] + 1);
-        calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", _defaultAmounts[2] + 1);
-
-        _loan.proposeNewTerms(address(_refinancer), calls);
-
-        _loan.acceptNewTerms(address(_refinancer), calls);
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_acceptNewTerms_insufficientCollateral() external {
@@ -2419,6 +2429,7 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         _loan.setDrawableFunds(uint256(500));
         _loan.setCollateral(uint256(0));
 
+        uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
 
         // Add a refinance call with new collateral required amount (fully collateralized principal) which will make current collateral amount insufficient.
@@ -2426,11 +2437,119 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", newCollateralRequired);
 
         // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.proposeNewTerms(address(_refinancer), calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
         vm.expectRevert("MLI:ANT:INSUFFICIENT_COLLATERAL");
-        _loan.acceptNewTerms(address(_refinancer), calls);
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+
+        _loan.setCollateral(newCollateralRequired);
+
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
     }
+
+    function test_acceptNewTerms_success() external {
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+
+        // Refinance commitment should be reset after accepting new terms.
+        assertEq(_loan.refinanceCommitment(), bytes32(0));
+
+        // Check that establishment fees are properly set.
+        assertEq(_loan.delegateFee(), uint256(16));
+        assertEq(_loan.treasuryFee(), uint256(8));
+    }
+
+}
+
+contract MapleLoanInternals_RejectNewTermsTests is TestUtils {
+
+    MapleLoanInternalsHarness internal _loan;
+    Refinancer                internal _refinancer;
+
+    function setUp() external {
+        _loan       = new MapleLoanInternalsHarness();
+        _refinancer = new Refinancer();
+    }
+
+    function test_rejectNewTerms_commitmentMismatch_emptyCallsArray() external {
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        vm.expectRevert("MLI:RNT:COMMITMENT_MISMATCH");
+        _loan.rejectNewTerms(address(_refinancer), deadline, new bytes[](0));
+
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
+    }
+
+    function test_rejectNewTerms_commitmentMismatch_mismatchedRefinancer() external {
+        Refinancer anotherRefinancer = new Refinancer();
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        vm.expectRevert("MLI:RNT:COMMITMENT_MISMATCH");
+        _loan.rejectNewTerms(address(anotherRefinancer), deadline, calls);
+
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
+    }
+
+    function test_rejectNewTerms_commitmentMismatch_mismatchedDeadline() external {
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        vm.expectRevert("MLI:RNT:COMMITMENT_MISMATCH");
+        _loan.rejectNewTerms(address(_refinancer), deadline + 1, calls);
+
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
+    }
+
+    function test_rejectNewTerms_commitmentMismatch_mismatchedCalls() external {
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        bytes memory originalCall = calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(100));
+
+        vm.expectRevert("MLI:RNT:COMMITMENT_MISMATCH");
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
+
+        calls[0] = originalCall;
+
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
+    }
+
+    function test_rejectNewTerms_success() external {
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        assertEq(_loan.refinanceCommitment(), keccak256(abi.encode(address(_refinancer), deadline, calls)));
+
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
+
+        assertEq(_loan.refinanceCommitment(), bytes32(0));
+    }
+
 }
 
 contract MapleLoanInternals_GetEarlyPaymentBreakdownTests is TestUtils {

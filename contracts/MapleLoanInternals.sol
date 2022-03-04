@@ -195,11 +195,10 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     }
 
     /// @dev Sets refinance commitment given refinance operations.
-    function _proposeNewTerms(address refinancer_, bytes[] calldata calls_) internal returns (bytes32 proposedRefinanceCommitment_) {
-        // NOTE: There is no way to invalidate the `refinanceCommitment` (i.e. bytes32(0)) without explicitly setting it if `calls_.length` is 0.
+    function _proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 proposedRefinanceCommitment_) {
         return _refinanceCommitment =
             calls_.length > uint256(0)
-                ? _getRefinanceCommitment(refinancer_, calls_)
+                ? _getRefinanceCommitment(refinancer_, deadline_, calls_)
                 : bytes32(0);
     }
 
@@ -221,11 +220,13 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     /************************************/
 
     /// @dev Processes refinance operations.
-    function _acceptNewTerms(address refinancer_, bytes[] calldata calls_) internal returns (bytes32 acceptedRefinanceCommitment_) {
+    function _acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 acceptedRefinanceCommitment_) {
         // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
-        require(_refinanceCommitment == (acceptedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, calls_)), "MLI:ANT:COMMITMENT_MISMATCH");
+        require(_refinanceCommitment == (acceptedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)), "MLI:ANT:COMMITMENT_MISMATCH");
 
         require(refinancer_.code.length != uint256(0), "MLI:ANT:INVALID_REFINANCER");
+
+        require(block.timestamp <= deadline_, "MLI:ANT:EXPIRED_COMMITMENT");
 
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
         _refinanceCommitment = bytes32(0);
@@ -286,6 +287,12 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         if (!_sendFee(_mapleGlobals(), IMapleGlobalsLike.mapleTreasury.selector, treasuryFee_)) {
             _claimableFunds += treasuryFee_;
         }
+    }
+
+    /// @dev Explicitly cancel a proposed refinance commitment
+    function _rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 rejectedRefinanceCommitment_){
+        require(_refinanceCommitment == (rejectedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)), "MLI:RNT:COMMITMENT_MISMATCH");
+        _refinanceCommitment = bytes32(0);
     }
 
     function _sendFee(address lookup_, bytes4 selector_, uint256 amount_) internal returns (bool success_) {
@@ -490,8 +497,8 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     }
 
     /// @dev Returns refinance commitment given refinance parameters.
-    function _getRefinanceCommitment(address refinancer_, bytes[] calldata calls_) internal pure returns (bytes32 refinanceCommitment_) {
-        return keccak256(abi.encode(refinancer_, calls_));
+    function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal pure returns (bytes32 refinanceCommitment_) {
+        return keccak256(abi.encode(refinancer_, deadline_, calls_));
     }
 
     /**

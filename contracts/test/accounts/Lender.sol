@@ -15,8 +15,8 @@ contract Lender is LoanUser {
         IMapleLoan(loan_).acceptLender();
     }
 
-    function loan_acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_, uint256 amount_) external {
-        IMapleLoan(loan_).acceptNewTerms(refinancer_, calls_, amount_);
+    function loan_acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external {
+        IMapleLoan(loan_).acceptNewTerms(refinancer_, deadline_, calls_, amount_);
     }
 
     function loan_claimFunds(address loan_, uint256 amount_, address destination_) external {
@@ -35,8 +35,8 @@ contract Lender is LoanUser {
     /*** Try Functions ***/
     /*********************/
 
-    function try_loan_acceptNewTerms(address loan_, address refinancer_, bytes[] calldata calls_, uint256 amount_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptNewTerms.selector, refinancer_, calls_, amount_));
+    function try_loan_acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external returns (bool ok_) {
+        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptNewTerms.selector, refinancer_, deadline_, calls_, amount_));
     }
 
     function try_loan_claimFunds(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
