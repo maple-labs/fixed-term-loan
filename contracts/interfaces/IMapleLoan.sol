@@ -126,6 +126,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function principalRequested() external view returns (uint256 principalRequested_);
 
     /**
+     *  @dev The hash of the proposed refinance agreement.
+     */
+    function refinanceCommitment() external view returns (bytes32 refinanceCommitment_);
+
+    /**
      *  @dev The factory address that deployed this contract (necessary for PoolV1 integration).
      */
     function superFactory() external view returns (address superFactory_);

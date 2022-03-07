@@ -368,6 +368,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _principal;
     }
 
+    function refinanceCommitment() external view override returns (bytes32 refinanceCommitment_) {
+        return _refinanceCommitment;
+    }
+
     // NOTE: This is needed for `fundLoan` call from PoolV1.
     function superFactory() external view override returns (address superFactory_) {
         return _factory();
