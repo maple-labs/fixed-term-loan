@@ -61,10 +61,14 @@ contract Refinancer is IRefinancer, MapleLoanInternals {
     }
 
     function setPaymentInterval(uint256 paymentInterval_) external override {
+        require(paymentInterval_ != 0, "R:SPI:ZERO_AMOUNT");
+
         emit PaymentIntervalSet(_paymentInterval = paymentInterval_);
     }
 
     function setPaymentsRemaining(uint256 paymentsRemaining_) external override {
+        require(paymentsRemaining_ != 0, "R:SPR:ZERO_AMOUNT");
+
         emit PaymentsRemainingSet(_paymentsRemaining = paymentsRemaining_);
     }
 

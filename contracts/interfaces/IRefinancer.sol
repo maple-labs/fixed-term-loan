@@ -116,6 +116,7 @@ interface IRefinancer {
 
     /**
      *  @dev   Function to set the interestRate during a refinance.
+               The interest rate is measured with 18 decimals of precision.
      *  @param interestRate_ The new value for interestRate.
      */
     function setInterestRate(uint256 interestRate_) external;
@@ -134,6 +135,7 @@ interface IRefinancer {
 
     /**
      *  @dev   Function to set the paymentInterval during a refinance.
+     *         The interval is denominated in seconds.
      *  @param paymentInterval_ The new value for paymentInterval.
      */
     function setPaymentInterval(uint256 paymentInterval_) external;

@@ -293,6 +293,22 @@ contract RefinancerInterestRateTest is BaseRefinanceTest {
 
 contract RefinancerPaymentRemaining is BaseRefinanceTest {
 
+    function test_refinance_paymentRemaining_zeroAmount() external {
+        setUpOngoingLoan(MIN_TOKEN_AMOUNT, 0, MIN_TOKEN_AMOUNT, 0, 0.1e18, 30 days, 6);
+
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", 0);
+
+        loan.proposeNewTerms(address(refinancer), deadline, data);
+        vm.expectRevert("MLI:ANT:FAILED");
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
+
+        data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", 1);
+
+        loan.proposeNewTerms(address(refinancer), deadline, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
+    }
+
     function test_refinance_paymentRemaining(
         uint256 principalRequested_,
         uint256 collateralRequired_,
@@ -320,7 +336,7 @@ contract RefinancerPaymentRemaining is BaseRefinanceTest {
 
         deadline_ = constrictToRange(deadline_, block.timestamp, type(uint256).max);
 
-        newPaymentsRemaining_ = constrictToRange(newPaymentsRemaining_, 0, 90);
+        newPaymentsRemaining_ = constrictToRange(newPaymentsRemaining_, 1, 90);
 
         assertEq(loan.paymentsRemaining(), paymentsRemaining_ - 1);  // We've paid one during setUpOngoingLoan
 
@@ -335,6 +351,22 @@ contract RefinancerPaymentRemaining is BaseRefinanceTest {
 }
 
 contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
+
+    function test_refinance_paymentInterval_zeroAmount() external {
+        setUpOngoingLoan(MIN_TOKEN_AMOUNT, 0, MIN_TOKEN_AMOUNT, 0, 0.1e18, 30 days, 6);
+
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", 0);
+
+        loan.proposeNewTerms(address(refinancer), deadline, data);
+        vm.expectRevert("MLI:ANT:FAILED");
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
+
+        data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", 1);
+
+        loan.proposeNewTerms(address(refinancer), deadline, data);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
+    }
 
     function test_refinance_paymentInterval(
         uint256 principalRequested_,
@@ -360,7 +392,7 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
-        newPaymentInterval_ = constrictToRange(newPaymentInterval_, 0,               MAX_TIME);
+        newPaymentInterval_ = constrictToRange(newPaymentInterval_, 1,               MAX_TIME);
         deadline_           = constrictToRange(deadline_,           block.timestamp, type(uint256).max);
 
         assertEq(loan.paymentInterval(), paymentInterval_);
@@ -795,7 +827,7 @@ contract RefinanceDeadlineTests is BaseRefinanceTest {
         external
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    1, MAX_TIME / 2);
-        newPaymentInterval_ = constrictToRange(newPaymentInterval_, 0, MAX_TIME);
+        newPaymentInterval_ = constrictToRange(newPaymentInterval_, 1, MAX_TIME);
 
         setUpOngoingLoan(1e18, 0, 0, 1, 1, paymentInterval_, 2);
 
@@ -828,7 +860,7 @@ contract RefinanceDeadlineTests is BaseRefinanceTest {
         external
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    1, MAX_TIME / 2);
-        newPaymentInterval_ = constrictToRange(newPaymentInterval_, 0, MAX_TIME);
+        newPaymentInterval_ = constrictToRange(newPaymentInterval_, 1, MAX_TIME);
 
         setUpOngoingLoan(1e18, 0, 0, 1, 1, paymentInterval_, 2);
 
