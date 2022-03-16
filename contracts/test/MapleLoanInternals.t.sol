@@ -1673,6 +1673,57 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         assertEq(_fundsAsset.balanceOf(TREASURY), 0);
     }
 
+    function test_makePayment_withRefinanceInterest(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 refinanceInterest_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  2,   50);
+        interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 100, MAX_TOKEN_AMOUNT);
+        refinanceInterest_  = constrictToRange(refinanceInterest_,  100, MAX_TOKEN_AMOUNT);
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, 0);
+
+        _loan.setRefinanceInterest(refinanceInterest_);
+
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = _loan.getNextPaymentBreakdown();
+
+        uint256 expectedPayment = principal + interest + delegateFee + treasuryFee;
+
+        uint256 fundsForPayments = MAX_TOKEN_AMOUNT * 1500;
+
+        _fundsAsset.mint(address(_loan), fundsForPayments);
+
+        assertEq(_loan.drawableFunds(),           principalRequested_);
+        assertEq(_loan.claimableFunds(),          0);
+        assertEq(_loan.principal(),               principalRequested_);
+        assertEq(_loan.nextPaymentDueDate(),      block.timestamp + paymentInterval_);
+        assertEq(_loan.paymentsRemaining(),       paymentsRemaining_);
+        assertEq(_loan.refinanceInterest(),       refinanceInterest_);
+        assertEq(_fundsAsset.balanceOf(DELEGATE), 0);
+        assertEq(_fundsAsset.balanceOf(TREASURY), 0);
+
+        ( principal, interest, delegateFee, treasuryFee ) = _loan.makePayment();
+
+        uint256 totalPaid = principal + interest + delegateFee + treasuryFee;
+
+        assertEq(totalPaid,                       expectedPayment);
+        assertEq(_loan.drawableFunds(),           principalRequested_ + fundsForPayments - totalPaid);
+        assertEq(_loan.claimableFunds(),          principal + interest);
+        assertEq(_loan.principal(),               principalRequested_ - principal);
+        assertEq(_loan.nextPaymentDueDate(),      block.timestamp + (2 * paymentInterval_));
+        assertEq(_loan.paymentsRemaining(),       paymentsRemaining_ - 1);
+        assertEq(_loan.refinanceInterest(),       0);
+        assertEq(_fundsAsset.balanceOf(DELEGATE), 0);
+        assertEq(_fundsAsset.balanceOf(TREASURY), 0);
+    }
+
 }
 
 contract MapleLoanInternals_CloseLoanTests is TestUtils {
@@ -2075,6 +2126,55 @@ contract MapleLoanInternals_CloseLoanTests is TestUtils {
         assertEq(_fundsAsset.balanceOf(TREASURY), 0);
     }
 
+    function test_closeLoan_withRefinanceInterest(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 earlyFeeRate_,
+        uint256 principalRequested_,
+        uint256 refinanceInterest_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100,     365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,       120);
+        earlyFeeRate_       = constrictToRange(earlyFeeRate_,       0.01e18, 1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 100,     MAX_TOKEN_AMOUNT);
+        refinanceInterest_  = constrictToRange(refinanceInterest_,  100,     MAX_TOKEN_AMOUNT);
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, earlyFeeRate_, 0);
+
+        _loan.setRefinanceInterest(refinanceInterest_);
+
+        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = _loan.getEarlyPaymentBreakdown();
+
+        uint256 expectedPayment = principal + interest + delegateFee + treasuryFee;
+
+        uint256 fundsForPayments = MAX_TOKEN_AMOUNT * 1500;
+
+        _fundsAsset.mint(address(_loan), fundsForPayments);
+
+        assertEq(_loan.drawableFunds(),           principalRequested_);
+        assertEq(_loan.claimableFunds(),          0);
+        assertEq(_loan.principal(),               principalRequested_);
+        assertEq(_loan.nextPaymentDueDate(),      block.timestamp + paymentInterval_);
+        assertEq(_loan.paymentsRemaining(),       paymentsRemaining_);
+        assertEq(_fundsAsset.balanceOf(DELEGATE), 0);
+        assertEq(_fundsAsset.balanceOf(TREASURY), 0);
+
+        ( principal, interest, delegateFee, treasuryFee ) = _loan.closeLoan();
+
+        uint256 totalPaid = principal + interest + delegateFee + treasuryFee;
+
+        assertEq(totalPaid,                       expectedPayment);
+        assertEq(_loan.drawableFunds(),           principalRequested_ + fundsForPayments - totalPaid);
+        assertEq(_loan.claimableFunds(),          principal + interest);
+        assertEq(_loan.principal(),               0);
+        assertEq(_loan.nextPaymentDueDate(),      0);
+        assertEq(_loan.paymentsRemaining(),       0);
+        assertEq(_fundsAsset.balanceOf(DELEGATE), 0);
+        assertEq(_fundsAsset.balanceOf(TREASURY), 0);
+    }
+
 }
 
 contract MapleLoanInternals_GetCollateralRequiredForTests is TestUtils {
@@ -2244,6 +2344,8 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
     uint256[3] internal _defaultAmounts;
     uint256[4] internal _defaultRates;
 
+    uint256 internal _start;
+
     LenderMock                internal _lender;
     MapleLoanInternalsHarness internal _loan;
     MapleGlobalsMock          internal _globals;
@@ -2267,17 +2369,20 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         _defaultAssets      = [address(_token0), address(_token1)];
         _defaultTermDetails = [uint256(1), uint256(30 days), uint256(12)];
         _defaultAmounts     = [uint256(500), uint256(1000), uint256(0)];
-        _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
+        _defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9)];
 
         _token0.mint(address(_loan), _defaultAmounts[0]);
 
         _factory.setGlobals(address(_globals));
+
+        vm.warp(_start = 1_500_000_000);
 
         _loan.setFactory(address(_factory));
         _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
         _loan.setLender(address(_lender));
         _loan.setPrincipal(_defaultAmounts[1]);
         _loan.setCollateral(_defaultAmounts[0]);
+        _loan.setNextPaymentDueDate(_start + 25 days);  // 5 days into a loan
     }
 
     function test_acceptNewTerms_commitmentMismatch_emptyCallsArray() external {
@@ -2412,8 +2517,8 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         vm.expectRevert("MLI:ANT:FAILED");
         _loan.acceptNewTerms(address(_refinancer), deadline, calls);
 
-        // Set to principalRequested passed to _initialize().
-        uint256 validEndingPrincipal = _defaultAmounts[1];
+        // Set to half principalRequested passed to _initialize().
+        uint256 validEndingPrincipal = _defaultAmounts[1] / 2;
         calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", validEndingPrincipal);
 
         // Propose new valid terms.
@@ -2447,7 +2552,7 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         _loan.acceptNewTerms(address(_refinancer), deadline, calls);
     }
 
-    function test_acceptNewTerms_success() external {
+    function test_acceptNewTerms() external {
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
 
@@ -2461,10 +2566,64 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
 
         // Refinance commitment should be reset after accepting new terms.
         assertEq(_loan.refinanceCommitment(), bytes32(0));
+        assertEq(_loan.refinanceInterest(),   1);
 
         // Check that establishment fees are properly set.
-        assertEq(_loan.delegateFee(), uint256(16));
-        assertEq(_loan.treasuryFee(), uint256(8));
+        assertEq(_loan.delegateFee(),        uint256(16));
+        assertEq(_loan.treasuryFee(),        uint256(8));
+        assertEq(_loan.nextPaymentDueDate(), block.timestamp + _loan.paymentInterval());
+    }
+
+    function test_acceptNewTerms_fuzzEstablishmentFees(
+        uint256 principal_,
+        uint256 delegateFee_,
+        uint256 treasuryFee_,
+        uint256 globalInvestorFee_,
+        uint256 globalTreasuryFee_
+    ) external {
+        principal_         = constrictToRange(delegateFee_,       1, 1e29);
+        delegateFee_       = constrictToRange(delegateFee_,       0, principal_ / 100);
+        treasuryFee_       = constrictToRange(treasuryFee_,       0, principal_ / 100);
+        globalInvestorFee_ = constrictToRange(globalInvestorFee_, 1, 10_000);
+        globalTreasuryFee_ = constrictToRange(globalTreasuryFee_, 1, 10_000);
+
+        _loan.setPrincipal(principal_);
+        _loan.setDelegateFee(delegateFee_);
+        _loan.setTreasuryFee(treasuryFee_);
+
+        _globals.setInvestorFee(globalInvestorFee_);
+        _globals.setTreasuryFee(globalTreasuryFee_);
+
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+
+        // Set _refinanceCommitment via _proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
+
+        ( , uint256 proRataInterest ) = _loan.getInstallment(
+            principal_,
+            0,
+            0.10e18,
+            5 days,
+            12
+        );
+
+        uint256 expectedDelegateFee = (principal_ * globalInvestorFee_ * 30 days) / uint256(365 days * 10_000) + (delegateFee_ * 5 days) / (30 days * 12);
+        uint256 expectedTreasuryFee = (principal_ * globalTreasuryFee_ * 30 days) / uint256(365 days * 10_000) + (treasuryFee_ * 5 days) / (30 days * 12);
+
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls);
+
+        // Refinance commitment should be reset after accepting new terms.
+        assertEq(_loan.refinanceCommitment(), bytes32(0));
+        assertEq(_loan.refinanceInterest(),   proRataInterest);
+
+        // Check that establishment fees are properly set.
+        assertEq(_loan.delegateFee(),        expectedDelegateFee);
+        assertEq(_loan.treasuryFee(),        expectedTreasuryFee);
+        assertEq(_loan.nextPaymentDueDate(), block.timestamp + _loan.paymentInterval());
     }
 
 }
@@ -2583,11 +2742,12 @@ contract MapleLoanInternals_GetEarlyPaymentBreakdownTests is TestUtils {
         _loan.setFactory(address(_factory));
     }
 
-    function test_getEarlyPaymentBreakdown(uint256 principal_, uint256 earlyFeeRate_) external {
+    function test_getEarlyPaymentBreakdown(uint256 principal_, uint256 earlyFeeRate_, uint256 refinanceInterest_) external {
         uint256 maxEarlyFeeRateForTestCase = 1 * SCALED_ONE; // 100%
 
-        principal_    = constrictToRange(principal_,    1, type(uint256).max / maxEarlyFeeRateForTestCase);
-        earlyFeeRate_ = constrictToRange(earlyFeeRate_, 1, maxEarlyFeeRateForTestCase);
+        principal_         = constrictToRange(principal_,         1, type(uint256).max / maxEarlyFeeRateForTestCase);
+        earlyFeeRate_      = constrictToRange(earlyFeeRate_,      1, maxEarlyFeeRateForTestCase);
+        refinanceInterest_ = constrictToRange(refinanceInterest_, 1, 1e18 * 1e12);
 
         // Set principal and earlyFeeRate for _initialize().
         uint256[3] memory amounts = [uint256(5), principal_, uint256(0)];
@@ -2595,11 +2755,12 @@ contract MapleLoanInternals_GetEarlyPaymentBreakdownTests is TestUtils {
 
         _loan.initialize(_defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, rates);
         _loan.setPrincipal(amounts[1]);
+        _loan.setRefinanceInterest(refinanceInterest_);
 
         ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = _loan.getEarlyPaymentBreakdown();
 
         uint256 expectedPrincipal = amounts[1];
-        uint256 expectedInterest  = expectedPrincipal * rates[1] / SCALED_ONE;
+        uint256 expectedInterest  = (expectedPrincipal * rates[1] / SCALED_ONE) + refinanceInterest_;
 
         assertEq(principal,   expectedPrincipal);
         assertEq(interest,    expectedInterest);
@@ -2732,7 +2893,8 @@ contract MapleLoanInternals_GetNextPaymentBreakdownTests is TestUtils {
         uint256 paymentsRemaining_,
         uint256 interestRate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
+        uint256 lateInterestPremium_,
+        uint256 refinanceInterest_
     )
         external
     {
@@ -2744,6 +2906,7 @@ contract MapleLoanInternals_GetNextPaymentBreakdownTests is TestUtils {
         interestRate_        = constrictToRange(interestRate_,        0,                          1.00e18);
         lateFeeRate_         = constrictToRange(lateFeeRate_,         interestRate_,              1.00e18);
         lateInterestPremium_ = constrictToRange(lateInterestPremium_, interestRate_,              1.00e18);
+        refinanceInterest_   = constrictToRange(refinanceInterest_,   0,                          1e12 * 1e18);
 
         uint256 paymentInterval = termLength_ / paymentsRemaining_;
 
@@ -2755,6 +2918,7 @@ contract MapleLoanInternals_GetNextPaymentBreakdownTests is TestUtils {
         _loan.setInterestRate(interestRate_);
         _loan.setLateFeeRate(lateFeeRate_);
         _loan.setLateInterestPremium(lateInterestPremium_);
+        _loan.setRefinanceInterest(refinanceInterest_);
 
         ( uint256 expectedPrincipal, uint256 expectedInterest ) = _loan.getPaymentBreakdown(
             block.timestamp,
@@ -2771,7 +2935,7 @@ contract MapleLoanInternals_GetNextPaymentBreakdownTests is TestUtils {
         ( uint256 actualPrincipal, uint256 actualInterest, uint256 actualDelegateFee, uint256 actualTreasuryFee ) = _loan.getNextPaymentBreakdown();
 
         assertEq(actualPrincipal,   expectedPrincipal);
-        assertEq(actualInterest,    expectedInterest);
+        assertEq(actualInterest,    expectedInterest + refinanceInterest_);
         assertEq(actualDelegateFee, _loan.delegateFee());
         assertEq(actualTreasuryFee, _loan.treasuryFee());
     }

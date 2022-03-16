@@ -49,6 +49,8 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     // Refinance
     bytes32 internal _refinanceCommitment;
 
+    uint256 internal _refinanceInterest;
+
     // Establishment fees
     uint256 internal _delegateFee;
     uint256 internal _treasuryFee;
@@ -130,7 +132,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         _lateFeeRate         = rates_[2];
         _lateInterestPremium = rates_[3];
 
-        _setEstablishmentFees(amounts_[1], termDetails_[1]);
+        _setEstablishmentFees(amounts_[1], termDetails_[1], uint256(0), uint256(0));
     }
 
     /**************************************/
@@ -142,6 +144,8 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         require(block.timestamp <= _nextPaymentDueDate, "MLI:CL:PAYMENT_IS_LATE");
 
         ( principal_, interest_, delegateFee_, treasuryFee_ ) = _getEarlyPaymentBreakdown();
+
+        _refinanceInterest  = uint256(0);
 
         uint256 principalAndInterest = principal_ + interest_;
 
@@ -167,6 +171,8 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     /// @dev Makes a payment to progress the loan closer to maturity.
     function _makePayment() internal returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
         ( principal_, interest_, delegateFee_, treasuryFee_ ) = _getNextPaymentBreakdown();
+
+        _refinanceInterest = uint256(0);
 
         uint256 principalAndInterest = principal_ + interest_;
 
@@ -228,17 +234,45 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
 
         require(block.timestamp <= deadline_, "MLI:ANT:EXPIRED_COMMITMENT");
 
+        uint256 preRefinancePaymentInterval = _paymentInterval;
+
+        // Get the amount of interest owed since the last payment due date, as well as the time since the last due date
+        ( uint256 proRataInterest, uint256 timeSinceLastPaymentDueDate ) = _getRefinanceInterestParams(
+            block.timestamp,
+            preRefinancePaymentInterval,
+            _principal,
+            _endingPrincipal,
+            _interestRate,
+            _paymentsRemaining,
+            _nextPaymentDueDate,
+            _lateFeeRate,
+            _lateInterestPremium
+        );
+
+        // In case there is still a refinance interest, just increment it instead of setting it.
+        _refinanceInterest += proRataInterest;
+
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
         _refinanceCommitment = bytes32(0);
 
-        uint256 callCount = calls_.length;
-
-        for (uint256 i; i < callCount; ++i) {
+        for (uint256 i; i < calls_.length; ++i) {
             ( bool success, ) = refinancer_.delegatecall(calls_[i]);
             require(success, "MLI:ANT:FAILED");
         }
 
-        _setEstablishmentFees(_principal, _paymentInterval);
+        // Track any uncaptured establishment fees and spread over the course of new loan.
+        // If `timeSinceLastPaymentDueDate` is zero, these will both equal zero.
+        uint256 extraDelegateFee = (_delegateFee * timeSinceLastPaymentDueDate) / (preRefinancePaymentInterval * _paymentsRemaining);
+        uint256 extraTreasuryFee = (_treasuryFee * timeSinceLastPaymentDueDate) / (preRefinancePaymentInterval * _paymentsRemaining);
+
+        // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
+        // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
+        uint256 paymentInterval  = _paymentInterval;
+        _nextPaymentDueDate = block.timestamp + paymentInterval;
+
+        // Update establishment fees.
+        // NOTE: `_principal` here is possibly newly increased/decreased via the above delegate calls.
+        _setEstablishmentFees(_principal, paymentInterval, extraDelegateFee, extraTreasuryFee);
 
         // Ensure that collateral is maintained after changes made.
         require(_isCollateralMaintained(), "MLI:ANT:INSUFFICIENT_COLLATERAL");
@@ -309,15 +343,15 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         return ERC20Helper.transfer(_fundsAsset, destination, amount_);
     }
 
-    /// @dev Save establishment fees for funds lent.
-    function _setEstablishmentFees(uint256 fundsLent_, uint256 paymentInterval_) internal {
+    /// @dev Set establishment fees for funds lent, capturing unpaid establishment fees from refinance.
+    function _setEstablishmentFees(uint256 fundsLent_, uint256 paymentInterval_, uint256 extraDelegateFee_, uint256 extraTreasuryFee_) internal {
         IMapleGlobalsLike globals = IMapleGlobalsLike(_mapleGlobals());
 
         // Store the annualized delegate fee.
-        _delegateFee = (fundsLent_ * globals.investorFee() * paymentInterval_) / uint256(365 days * 10_000);
+        _delegateFee = (fundsLent_ * globals.investorFee() * paymentInterval_) / uint256(365 days * 10_000) + extraDelegateFee_;
 
         // Store the annualized treasury fee.
-        _treasuryFee = (fundsLent_ * globals.treasuryFee() * paymentInterval_) / uint256(365 days * 10_000);
+        _treasuryFee = (fundsLent_ * globals.treasuryFee() * paymentInterval_) / uint256(365 days * 10_000) + extraTreasuryFee_;
     }
 
     /// @dev Reset all state variables in order to release funds and collateral of a loan in default.
@@ -366,7 +400,8 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
 
     /// @dev Get principal and interest breakdown for paying off the entire loan early.
     function _getEarlyPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
-        interest_ = ((principal_ = _principal) * _earlyFeeRate) / SCALED_ONE;
+        // Compute interest and include any uncaptured interest from refinance.
+        interest_ = (((principal_ = _principal) * _earlyFeeRate) / SCALED_ONE) + _refinanceInterest;
 
         uint256 paymentsRemaining = _paymentsRemaining;
 
@@ -387,6 +422,9 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
             _lateFeeRate,
             _lateInterestPremium
         );
+
+        // Include any uncaptured interest from refinance.
+        interest_ += _refinanceInterest;
 
         delegateFee_ = _delegateFee;
         treasuryFee_ = _treasuryFee;
@@ -483,12 +521,73 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
 
         principalAmount_ = paymentsRemaining_ == uint256(1) ? principal_ : principalAmount_;
 
-        if (currentTime_ > nextPaymentDueDate_) {
-            uint256 daysLate = (((currentTime_ - nextPaymentDueDate_ - 1) / 1 days) + 1) * 1 days;
+        interestAmount_ += _getLateInterest(
+            currentTime_,
+            principal_,
+            interestRate_,
+            nextPaymentDueDate_,
+            lateFeeRate_,
+            lateInterestPremium_
+        );
+    }
 
-            interestAmount_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, daysLate);
-            interestAmount_ += (lateFeeRate_ * principal_) / SCALED_ONE;
-        }
+    function _getRefinanceInterestParams(
+        uint256 currentTime_,
+        uint256 paymentInterval_,
+        uint256 principal_,
+        uint256 endingPrincipal_,
+        uint256 interestRate_,
+        uint256 paymentsRemaining_,
+        uint256 nextPaymentDueDate_,
+        uint256 lateFeeRate_,
+        uint256 lateInterestPremium_
+    )
+        internal pure returns (uint256 refinanceInterest_, uint256 timeSinceLastPaymentDueDate_)
+    {
+        // If the user has made an early payment, there is no refinance interest owed.
+        if (currentTime_ + paymentInterval_ < nextPaymentDueDate_) return (0, 0);
+
+        timeSinceLastPaymentDueDate_ = currentTime_ - (nextPaymentDueDate_ - paymentInterval_);
+
+        ( , refinanceInterest_ ) = _getInstallment(
+            principal_,
+            endingPrincipal_,
+            interestRate_,
+            timeSinceLastPaymentDueDate_,
+            paymentsRemaining_
+        );
+
+        refinanceInterest_ += _getLateInterest(
+            currentTime_,
+            principal_,
+            interestRate_,
+            nextPaymentDueDate_,
+            lateFeeRate_,
+            lateInterestPremium_
+        );
+    }
+
+    function _getLateInterest(
+        uint256 currentTime_,
+        uint256 principal_,
+        uint256 interestRate_,
+        uint256 nextPaymentDueDate_,
+        uint256 lateFeeRate_,
+        uint256 lateInterestPremium_
+    )
+        internal pure returns (uint256 lateInterest_)
+    {
+        if (currentTime_ <= nextPaymentDueDate_) return 0;
+
+        // Calculates the number of full days late in seconds (will always be multiples of 86,400).
+        // Rounds up and is inclusive so that if a payment is 1s late or 24h0m0s late it is 1 full day late.
+        // 24h0m1s late would be two full days late.
+        // (((86400n - 0n - 1n) / 86400n) + 1n) * 86400n = 86400n
+        // (((86401n - 0n - 1n) / 86400n) + 1n) * 86400n = 172800n
+        uint256 fullDaysLate = (((currentTime_ - nextPaymentDueDate_ - 1) / 1 days) + 1) * 1 days;
+
+        lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate);
+        lateInterest_ += (lateFeeRate_ * principal_) / SCALED_ONE;
     }
 
     /// @dev Returns the interest rate over an interval, given an annualized interest rate.

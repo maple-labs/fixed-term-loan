@@ -257,6 +257,20 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         ( principal_, interest_, delegateFee_, treasuryFee_ ) = _getNextPaymentBreakdown();
     }
 
+    function getRefinanceInterest(uint256 timestamp_) external view override returns (uint256 proRataInterest_) {
+        ( proRataInterest_, ) = _getRefinanceInterestParams(
+            timestamp_,
+            _paymentInterval,
+            _principal,
+            _endingPrincipal,
+            _interestRate,
+            _paymentsRemaining,
+            _nextPaymentDueDate,
+            _lateFeeRate,
+            _lateInterestPremium
+        );
+    }
+
     function isProtocolPaused() public view override returns (bool paused_) {
         return IMapleGlobalsLike(IMapleProxyFactory(_factory()).mapleGlobals()).protocolPaused();
     }
@@ -370,6 +384,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function refinanceCommitment() external view override returns (bytes32 refinanceCommitment_) {
         return _refinanceCommitment;
+    }
+
+    function refinanceInterest() external view override returns (uint256 refinanceInterest_) {
+        return _refinanceInterest;
     }
 
     // NOTE: This is needed for `fundLoan` call from PoolV1.

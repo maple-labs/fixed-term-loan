@@ -179,6 +179,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _refinanceCommitment;
     }
 
+    function refinanceInterest() external view returns (uint256 refinanceInterest_) {
+        return _refinanceInterest;
+    }
+
     function treasuryFee() external view returns (uint256 treasuryFee_) {
         return _treasuryFee;
     }
@@ -273,6 +277,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
 
     function setRefinanceCommitment(bytes32 refinanceCommitment_) external {
         _refinanceCommitment = refinanceCommitment_;
+    }
+
+    function setRefinanceInterest(uint256 refinanceInterest_) external {
+        _refinanceInterest = refinanceInterest_;
     }
 
     function setTreasuryFee(uint256 treasuryFee_) external {

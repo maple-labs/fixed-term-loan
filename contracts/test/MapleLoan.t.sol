@@ -353,6 +353,10 @@ contract MapleLoanTests is TestUtils {
         loan.__setCollateralAsset(address(token));  // Needed for the getUnaccountedAmount check
         loan.__setFundsAsset(address(token));       // Needed for the getUnaccountedAmount check
 
+        loan.__setPaymentInterval(30 days);                       // Needed for estab fee checks
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for estab fee checks
+        loan.__setPaymentsRemaining(3);                           // Needed for estab fee checks
+
         address mockRefinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
@@ -477,6 +481,10 @@ contract MapleLoanTests is TestUtils {
         loan.__setLender(address(lender));
         loan.__setPrincipalRequested(1_000_000);  // This is needed so that _getCollateralRequiredFor doesn't divide by zero.
 
+        loan.__setPaymentInterval(30 days);                       // Needed for estab fee checks
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for estab fee checks
+        loan.__setPaymentsRemaining(3);                           // Needed for estab fee checks
+
         token.mint(address(loan), 1);
 
         uint256 deadline = block.timestamp + 10 days;
@@ -496,6 +504,10 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipalRequested(1);
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setLender(address(this));
+
+        loan.__setPaymentInterval(30 days);                       // Needed for estab fee checks
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for estab fee checks
+        loan.__setPaymentsRemaining(3);                           // Needed for estab fee checks
 
         address refinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;
@@ -532,6 +544,10 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipalRequested(1);
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setLender(address(this));
+
+        loan.__setPaymentInterval(30 days);                       // Needed for estab fee checks
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for estab fee checks
+        loan.__setPaymentsRemaining(3);                           // Needed for estab fee checks
 
         address refinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;

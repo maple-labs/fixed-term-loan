@@ -131,6 +131,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function refinanceCommitment() external view returns (bytes32 refinanceCommitment_);
 
     /**
+     *  @dev Amount of unpaid interest that has accrued before a refinance was accepted.
+     */
+    function refinanceInterest() external view returns (uint256 refinanceInterest_);
+
+    /**
      *  @dev The factory address that deployed this contract (necessary for PoolV1 integration).
      */
     function superFactory() external view returns (address superFactory_);
@@ -305,6 +310,13 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @return treasuryFee_ The portion of the total amount that will go towards establishment fees to the treasury.
      */
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
+
+    /**
+     *  @dev    Get the extra interest that will be charged according to loan terms before refinance, based on a given timestamp.
+     *  @param  timestamp_       The timestamp when the new terms will be accepted.
+     *  @return proRataInterest_ The interest portion to be added in the next payment.
+     */
+    function getRefinanceInterest(uint256 timestamp_) external view returns (uint256 proRataInterest_);
 
     /**
      *  @dev    Returns whether the protocol is paused.
