@@ -334,7 +334,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
 
         ( bool success , bytes memory data ) = lookup_.call(abi.encodeWithSelector(selector_));
 
-        if (!success || data.length == uint256(0)) return false;
+        if (!success || data.length != uint256(32)) return false;
 
         address destination = abi.decode(data, (address));
 
