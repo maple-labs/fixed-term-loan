@@ -719,10 +719,6 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         principalDecrease_ = constrictToRange(principalDecrease_, 1,               loan.principal() - loan.endingPrincipal());
         deadline_          = constrictToRange(deadline_,          block.timestamp, type(uint256).max);
 
-        assertEq(loan.principalRequested(), principalRequested_);
-
-        uint256 initialPrincipal = loan.principal();
-
         bytes[] memory data = _encodeWithSignatureAndUint("decreasePrincipal(uint256)", principalDecrease_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
@@ -730,13 +726,22 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         // Decreasing the amount without enough drawable funds will fail
         try lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0) { fail(); } catch { }
 
-        token.mint(address(loan), principalDecrease_);
-        loan.returnFunds(0);
+        token.mint(address(this), principalDecrease_);
+        token.approve(address(loan), principalDecrease_);
+        loan.returnFunds(principalDecrease_);
+
+        assertEq(loan.drawableFunds(), principalDecrease_);
+
+        uint256 initialClaimableFunds = loan.claimableFunds();
+        uint256 initialPrincipal      = loan.principal();
 
         // Now we can accept terms
         lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
-        assertEq(loan.principal(), initialPrincipal - principalDecrease_);
+        assertEq(loan.principal(),          initialPrincipal - principalDecrease_);
+        assertEq(loan.principalRequested(), principalRequested_ - principalDecrease_);
+        assertEq(loan.drawableFunds(),      0);
+        assertEq(loan.claimableFunds(),     initialClaimableFunds + principalDecrease_);
     }
 
 }

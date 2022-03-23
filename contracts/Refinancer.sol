@@ -14,6 +14,7 @@ contract Refinancer is IRefinancer, MapleLoanInternals {
         _principal          -= amount_;
         _principalRequested -= amount_;
         _drawableFunds      -= amount_;
+        _claimableFunds     += amount_;
 
         require(_principal >= _endingPrincipal, "R:DP:BELOW_ENDING_PRINCIPAL");
 
