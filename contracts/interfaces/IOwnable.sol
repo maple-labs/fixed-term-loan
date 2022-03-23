@@ -6,15 +6,15 @@ interface IOwnable {
 
     /**
      *  @dev   Ownership of the contact has been transferred and is pending acceptance.
-     *  @param account The address that can accept ownership.
+     *  @param account_ The address that can accept ownership.
      */
-    event OwnershipTransferPending(address indexed account);
+    event OwnershipTransferPending(address indexed account_);
 
     /**
      *  @dev   Ownership of the contact has been transferred.
-     *  @param owner The address that accepted ownership of the contract.
+     *  @param owner_ The address that accepted ownership of the contract.
      */
-    event OwnershipAccepted(address indexed owner);
+    event OwnershipAccepted(address indexed owner_);
 
     /**
      *  @dev The owner of the contract.
