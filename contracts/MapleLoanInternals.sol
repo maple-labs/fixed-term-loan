@@ -255,9 +255,11 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
         _refinanceCommitment = bytes32(0);
 
-        for (uint256 i; i < calls_.length; ++i) {
+        uint256 length = calls_.length;
+        for (uint256 i; i < length;) {
             ( bool success, ) = refinancer_.delegatecall(calls_[i]);
             require(success, "MLI:ANT:FAILED");
+            unchecked { ++i; }
         }
 
         // Track any uncaptured establishment fees and spread over the course of new loan.
