@@ -41,7 +41,7 @@ contract Refinancer is IRefinancer, MapleLoanInternals {
     }
 
     function setEndingPrincipal(uint256 endingPrincipal_) external override {
-        require(endingPrincipal_ <= _principal, "R:DP:ABOVE_CURRENT_PRINCIPAL");
+        require(endingPrincipal_ <= _principal, "R:SEP:ABOVE_CURRENT_PRINCIPAL");
         emit EndingPrincipalSet(_endingPrincipal = endingPrincipal_);
     }
 
