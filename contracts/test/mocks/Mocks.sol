@@ -13,38 +13,13 @@ import { ERC20 } from "../../../modules/erc20/contracts/test/mocks/MockERC20.sol
 contract MapleGlobalsMock {
 
     address public governor;
-    address public mapleTreasury;
 
-    bool public protocolPaused;
-
-    uint256 public investorFee;
-    uint256 public treasuryFee;
-
-    constructor (address governor_, address mapleTreasury_, uint256 investorFee_, uint256 treasuryFee_) {
-        governor      = governor_;
-        mapleTreasury = mapleTreasury_;
-        investorFee   = investorFee_;
-        treasuryFee   = treasuryFee_;
-    }
-
-    function setProtocolPaused(bool paused_) external {
-        protocolPaused = paused_;
-    }
-
-    function setInvestorFee(uint256 investorFee_) external {
-        investorFee = investorFee_;
-    }
-
-    function setTreasuryFee(uint256 treasuryFee_) external {
-        treasuryFee = treasuryFee_;
+    constructor (address governor_) {
+        governor = governor_;
     }
 
     function setGovernor(address governor_) external {
         governor = governor_;
-    }
-
-    function setMapleTreasury(address mapleTreasury_) external {
-        mapleTreasury = mapleTreasury_;
     }
 
 }
@@ -69,16 +44,6 @@ contract ConstructableMapleLoan is MapleLoan {
 
     function __setFactory(address factory_) public {
         _setSlotValue(bytes32(0x7a45a402e4cb6e08ebc196f20f66d5d30e67285a2a8aa80503fa409e727a4af1), bytes32(uint256(uint160(factory_))));
-    }
-
-}
-
-contract LenderMock is Lender {
-
-    address public poolDelegate = address(8);
-
-    function setPoolDelegate(address poolDelegate_) external {
-        poolDelegate = poolDelegate_;
     }
 
 }

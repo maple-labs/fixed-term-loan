@@ -11,7 +11,7 @@ contract LoanUser is ERC20User {
     /*** Direct Functions ***/
     /************************/
 
-    function loan_closeLoan(address loan_, uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function loan_closeLoan(address loan_, uint256 amount_) external returns (uint256 principal_, uint256 interest_) {
         return IMapleLoan(loan_).closeLoan(amount_);
     }
 
@@ -19,7 +19,7 @@ contract LoanUser is ERC20User {
         return IMapleLoan(loan_).fundLoan(lender_, amount_);
     }
 
-    function loan_makePayment(address loan_, uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function loan_makePayment(address loan_, uint256 amount_) external returns (uint256 principal_, uint256 interest_) {
         return IMapleLoan(loan_).makePayment(amount_);
     }
 

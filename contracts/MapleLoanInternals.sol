@@ -5,8 +5,7 @@ import { IERC20 }                from "../modules/erc20/contracts/interfaces/IER
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { ILenderLike, IMapleGlobalsLike } from "./interfaces/Interfaces.sol";
-import { IMapleLoanFactory }              from "./interfaces/IMapleLoanFactory.sol";
+import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
 
 /// @title MapleLoanInternals defines the storage layout and internal logic of MapleLoan.
 abstract contract MapleLoanInternals is MapleProxiedInternals {
@@ -52,8 +51,8 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     uint256 internal _refinanceInterest;
 
     // Establishment fees
-    uint256 internal _delegateFee;
-    uint256 internal _treasuryFee;
+    uint256 internal __deprecated_delegateFee;
+    uint256 internal __deprecated_treasuryFee;
 
     /**********************************/
     /*** Internal General Functions ***/
@@ -74,9 +73,6 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         _nextPaymentDueDate = uint256(0);
         _paymentsRemaining  = uint256(0);
         _principal          = uint256(0);
-
-        _delegateFee = uint256(0);
-        _treasuryFee = uint256(0);
     }
 
     /**
@@ -131,8 +127,6 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         _earlyFeeRate        = rates_[1];
         _lateFeeRate         = rates_[2];
         _lateInterestPremium = rates_[3];
-
-        _setEstablishmentFees(amounts_[1], termDetails_[1], uint256(0), uint256(0));
     }
 
     /**************************************/
@@ -140,10 +134,10 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     /**************************************/
 
     /// @dev Prematurely ends a loan by making all remaining payments.
-    function _closeLoan() internal returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function _closeLoan() internal returns (uint256 principal_, uint256 interest_) {
         require(block.timestamp <= _nextPaymentDueDate, "MLI:CL:PAYMENT_IS_LATE");
 
-        ( principal_, interest_, delegateFee_, treasuryFee_ ) = _getEarlyPaymentBreakdown();
+        ( principal_, interest_ ) = _getEarlyPaymentBreakdown();
 
         _refinanceInterest  = uint256(0);
 
@@ -151,11 +145,9 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + _getUnaccountedAmount(_fundsAsset)) - (principalAndInterest + delegateFee_ + treasuryFee_);
+        _drawableFunds = (_drawableFunds + _getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
 
         _claimableFunds += principalAndInterest;
-
-        _processEstablishmentFees(delegateFee_, treasuryFee_);
 
         _clearLoanAccounting();
     }
@@ -169,8 +161,8 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     }
 
     /// @dev Makes a payment to progress the loan closer to maturity.
-    function _makePayment() internal returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
-        ( principal_, interest_, delegateFee_, treasuryFee_ ) = _getNextPaymentBreakdown();
+    function _makePayment() internal returns (uint256 principal_, uint256 interest_) {
+        ( principal_, interest_ ) = _getNextPaymentBreakdown();
 
         _refinanceInterest = uint256(0);
 
@@ -178,11 +170,9 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + _getUnaccountedAmount(_fundsAsset)) - (principalAndInterest + delegateFee_ + treasuryFee_);
+        _drawableFunds = (_drawableFunds + _getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
 
         _claimableFunds += principalAndInterest;
-
-        _processEstablishmentFees(delegateFee_, treasuryFee_);
 
         uint256 paymentsRemaining = _paymentsRemaining;
 
@@ -228,7 +218,10 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     /// @dev Processes refinance operations.
     function _acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 acceptedRefinanceCommitment_) {
         // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
-        require(_refinanceCommitment == (acceptedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)), "MLI:ANT:COMMITMENT_MISMATCH");
+        require(
+            _refinanceCommitment == (acceptedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
+            "MLI:ANT:COMMITMENT_MISMATCH"
+        );
 
         require(refinancer_.code.length != uint256(0), "MLI:ANT:INVALID_REFINANCER");
 
@@ -237,7 +230,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         uint256 preRefinancePaymentInterval = _paymentInterval;
 
         // Get the amount of interest owed since the last payment due date, as well as the time since the last due date
-        ( uint256 proRataInterest, uint256 timeSinceLastPaymentDueDate ) = _getRefinanceInterestParams(
+        uint256 proRataInterest = _getRefinanceInterestParams(
             block.timestamp,
             preRefinancePaymentInterval,
             _principal,
@@ -262,19 +255,9 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
             unchecked { ++i; }
         }
 
-        // Track any uncaptured establishment fees and spread over the course of new loan.
-        // If `timeSinceLastPaymentDueDate` is zero, these will both equal zero.
-        uint256 extraDelegateFee = (_delegateFee * timeSinceLastPaymentDueDate) / (preRefinancePaymentInterval * _paymentsRemaining);
-        uint256 extraTreasuryFee = (_treasuryFee * timeSinceLastPaymentDueDate) / (preRefinancePaymentInterval * _paymentsRemaining);
-
         // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
         // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
-        uint256 paymentInterval  = _paymentInterval;
-        _nextPaymentDueDate = block.timestamp + paymentInterval;
-
-        // Update establishment fees.
-        // NOTE: `_principal` here is possibly newly increased/decreased via the above delegate calls.
-        _setEstablishmentFees(_principal, paymentInterval, extraDelegateFee, extraTreasuryFee);
+        _nextPaymentDueDate = block.timestamp + _paymentInterval;
 
         // Ensure that collateral is maintained after changes made.
         require(_isCollateralMaintained(), "MLI:ANT:INSUFFICIENT_COLLATERAL");
@@ -292,68 +275,26 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     function _fundLoan(address lender_) internal returns (uint256 fundsLent_) {
         require(lender_ != address(0), "MLI:FL:INVALID_LENDER");
 
-        uint256 paymentsRemaining = _paymentsRemaining;
-
         // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
-        require((_nextPaymentDueDate == uint256(0)) && (paymentsRemaining != uint256(0)), "MLI:FL:LOAN_ACTIVE");
-
-        uint256 paymentInterval = _paymentInterval;
+        require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "MLI:FL:LOAN_ACTIVE");
 
         _lender = lender_;
 
-        _nextPaymentDueDate = block.timestamp + paymentInterval;
+        _nextPaymentDueDate = block.timestamp + _paymentInterval;
 
         // Amount funded and principal are as requested.
         fundsLent_ = _principal = _principalRequested;
 
-        address fundsAsset = _fundsAsset;
-
         // Cannot under-fund loan, but over-funding results in additional funds left unaccounted for.
-        require(_getUnaccountedAmount(fundsAsset) >= fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
+        require(_getUnaccountedAmount(_fundsAsset) >= fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
 
         _drawableFunds = fundsLent_;
-    }
-
-    /// @dev Process establishment fees for a payment.
-    function _processEstablishmentFees(uint256 delegateFee_, uint256 treasuryFee_) internal {
-        if (!_sendFee(_lender, ILenderLike.poolDelegate.selector, delegateFee_)) {
-            _claimableFunds += delegateFee_;
-        }
-
-        if (!_sendFee(_mapleGlobals(), IMapleGlobalsLike.mapleTreasury.selector, treasuryFee_)) {
-            _claimableFunds += treasuryFee_;
-        }
     }
 
     /// @dev Explicitly cancel a proposed refinance commitment
     function _rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 rejectedRefinanceCommitment_){
         require(_refinanceCommitment == (rejectedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)), "MLI:RNT:COMMITMENT_MISMATCH");
         _refinanceCommitment = bytes32(0);
-    }
-
-    function _sendFee(address lookup_, bytes4 selector_, uint256 amount_) internal returns (bool success_) {
-        if (amount_ == uint256(0)) return true;
-
-        ( bool success , bytes memory data ) = lookup_.call(abi.encodeWithSelector(selector_));
-
-        if (!success || data.length != uint256(32)) return false;
-
-        address destination = abi.decode(data, (address));
-
-        if (destination == address(0)) return false;
-
-        return ERC20Helper.transfer(_fundsAsset, destination, amount_);
-    }
-
-    /// @dev Set establishment fees for funds lent, capturing unpaid establishment fees from refinance.
-    function _setEstablishmentFees(uint256 fundsLent_, uint256 paymentInterval_, uint256 extraDelegateFee_, uint256 extraTreasuryFee_) internal {
-        IMapleGlobalsLike globals = IMapleGlobalsLike(_mapleGlobals());
-
-        // Store the annualized delegate fee.
-        _delegateFee = (fundsLent_ * globals.investorFee() * paymentInterval_) / uint256(365 days * 10_000) + extraDelegateFee_;
-
-        // Store the annualized treasury fee.
-        _treasuryFee = (fundsLent_ * globals.treasuryFee() * paymentInterval_) / uint256(365 days * 10_000) + extraTreasuryFee_;
     }
 
     /// @dev Reset all state variables in order to release funds and collateral of a loan in default.
@@ -401,18 +342,13 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     }
 
     /// @dev Get principal and interest breakdown for paying off the entire loan early.
-    function _getEarlyPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function _getEarlyPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
         // Compute interest and include any uncaptured interest from refinance.
         interest_ = (((principal_ = _principal) * _earlyFeeRate) / SCALED_ONE) + _refinanceInterest;
-
-        uint256 paymentsRemaining = _paymentsRemaining;
-
-        delegateFee_ = _delegateFee * paymentsRemaining;
-        treasuryFee_ = _treasuryFee * paymentsRemaining;
     }
 
     /// @dev Get principal and interest breakdown for next standard payment.
-    function _getNextPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function _getNextPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
         ( principal_, interest_ ) = _getPaymentBreakdown(
             block.timestamp,
             _nextPaymentDueDate,
@@ -427,9 +363,6 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
 
         // Include any uncaptured interest from refinance.
         interest_ += _refinanceInterest;
-
-        delegateFee_ = _delegateFee;
-        treasuryFee_ = _treasuryFee;
     }
 
     /// @dev Returns the amount of an `asset_` that this contract owns, which is not currently accounted for by its state variables.
@@ -437,11 +370,6 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         return IERC20(asset_).balanceOf(address(this))
             - (asset_ == _collateralAsset ? _collateral : uint256(0))                   // `_collateral` is `_collateralAsset` accounted for.
             - (asset_ == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));  // `_claimableFunds` and `_drawableFunds` are `_fundsAsset` accounted for.
-    }
-
-    /// @dev Returns the address of the Maple Globals contract.
-    function _mapleGlobals() internal view returns (address mapleGlobals_) {
-        return IMapleLoanFactory(_factory()).mapleGlobals();
     }
 
     /*******************************/
@@ -544,12 +472,12 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         uint256 lateFeeRate_,
         uint256 lateInterestPremium_
     )
-        internal pure returns (uint256 refinanceInterest_, uint256 timeSinceLastPaymentDueDate_)
+        internal pure returns (uint256 refinanceInterest_)
     {
         // If the user has made an early payment, there is no refinance interest owed.
-        if (currentTime_ + paymentInterval_ < nextPaymentDueDate_) return (0, 0);
+        if (currentTime_ + paymentInterval_ < nextPaymentDueDate_) return 0;
 
-        timeSinceLastPaymentDueDate_ = currentTime_ - (nextPaymentDueDate_ - paymentInterval_);
+        uint256 timeSinceLastPaymentDueDate_ = currentTime_ - (nextPaymentDueDate_ - paymentInterval_);
 
         ( , refinanceInterest_ ) = _getInstallment(
             principal_,

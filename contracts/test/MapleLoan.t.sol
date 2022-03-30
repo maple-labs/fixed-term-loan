@@ -7,44 +7,24 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { ConstructableMapleLoan, EmptyContract, LenderMock, ManipulatableMapleLoan, MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, EmptyContract, ManipulatableMapleLoan, MockFactory } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
+import { Lender }   from "./accounts/Lender.sol";
 import { LoanUser } from "./accounts/LoanUser.sol";
 
 contract MapleLoanTests is TestUtils {
 
     ManipulatableMapleLoan loan;
-    MapleGlobalsMock       globals;
 
     bool locked;  // Helper state variable to avoid infinite loops when using the modifier.
 
     function setUp() external {
-        globals = new MapleGlobalsMock(address(this), address(1111), 0, 0);
-
         MockFactory factoryMock = new MockFactory();
-        factoryMock.setGlobals(address(globals));
 
         loan = new ManipulatableMapleLoan();
 
         loan.__setFactory(address(factoryMock));
-    }
-
-    modifier assertFailureWhenPaused() {
-        if (!locked) {
-            locked = true;
-
-            globals.setProtocolPaused(true);
-
-            ( bool success, ) = address(this).call(msg.data);
-            assertTrue(!success || failed, "test should have failed when paused");
-
-            globals.setProtocolPaused(false);
-        }
-
-        _;
-
-        locked = false;
     }
 
     /***********************************/
@@ -242,7 +222,7 @@ contract MapleLoanTests is TestUtils {
         loan.setImplementation(address(this));
     }
 
-    function test_drawdownFunds_acl() external assertFailureWhenPaused {
+    function test_drawdownFunds_acl() external {
         MockERC20 fundsAsset = new MockERC20("Funds Asset", "FA", 18);
 
         fundsAsset.mint(address(loan), 1_000_000);
@@ -258,7 +238,7 @@ contract MapleLoanTests is TestUtils {
         loan.drawdownFunds(1, address(this));
     }
 
-    function test_proposeNewTerms_acl() external assertFailureWhenPaused {
+    function test_proposeNewTerms_acl() external {
         address mockRefinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
@@ -272,7 +252,7 @@ contract MapleLoanTests is TestUtils {
         loan.proposeNewTerms(mockRefinancer, deadline, calls);
     }
 
-    function test_proposeNewTerms_invalidDeadline() external assertFailureWhenPaused {
+    function test_proposeNewTerms_invalidDeadline() external {
         address mockRefinancer = address(new EmptyContract());
         bytes[] memory calls = new bytes[](1);
         calls[0] = new bytes(0);
@@ -285,7 +265,7 @@ contract MapleLoanTests is TestUtils {
         loan.proposeNewTerms(mockRefinancer, block.timestamp, calls);
     }
 
-    function test_rejectNewTerms_acl() external assertFailureWhenPaused {
+    function test_rejectNewTerms_acl() external {
         address mockRefinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
@@ -312,7 +292,7 @@ contract MapleLoanTests is TestUtils {
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
     }
 
-    function test_removeCollateral_acl() external assertFailureWhenPaused {
+    function test_removeCollateral_acl() external {
         MockERC20 collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
 
         loan.__setPrincipalRequested(1); // Needed for the collateralMaintained check
@@ -346,16 +326,16 @@ contract MapleLoanTests is TestUtils {
         loan.acceptBorrower();
     }
 
-    function test_acceptNewTerms_acl() external assertFailureWhenPaused {
+    function test_acceptNewTerms_acl() external {
         MockERC20 token = new MockERC20("MockToken", "MA", 18);
 
         loan.__setPrincipalRequested(1);            // Needed for the collateralMaintained check
         loan.__setCollateralAsset(address(token));  // Needed for the getUnaccountedAmount check
         loan.__setFundsAsset(address(token));       // Needed for the getUnaccountedAmount check
 
-        loan.__setPaymentInterval(30 days);                       // Needed for estab fee checks
-        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for estab fee checks
-        loan.__setPaymentsRemaining(3);                           // Needed for estab fee checks
+        loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for establishment fee checks (TODO update)
+        loan.__setPaymentsRemaining(3);                           // Needed for establishment fee checks (TODO update)
 
         address mockRefinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;
@@ -372,7 +352,7 @@ contract MapleLoanTests is TestUtils {
         loan.acceptNewTerms(mockRefinancer, deadline, calls, uint256(0));
     }
 
-    function test_claimFunds_acl() external assertFailureWhenPaused {
+    function test_claimFunds_acl() external {
         MockERC20 fundsAsset = new MockERC20("Funds Asset", "FA", 18);
 
         fundsAsset.mint(address(loan), 200_000);
@@ -387,7 +367,7 @@ contract MapleLoanTests is TestUtils {
         loan.claimFunds(uint256(200_000), address(this));
     }
 
-    function test_repossess_acl() external assertFailureWhenPaused {
+    function test_repossess_acl() external {
         MockERC20 asset = new MockERC20("Asset", "AST", 18);
 
         loan.__setNextPaymentDueDate(1);
@@ -421,7 +401,7 @@ contract MapleLoanTests is TestUtils {
         loan.acceptLender();
     }
 
-    function test_skim_acl() external assertFailureWhenPaused {
+    function test_skim_acl() external {
         MockERC20 otherAsset = new MockERC20("OA", "OA", 18);
 
         otherAsset.mint(address(loan), 1);
@@ -472,42 +452,16 @@ contract MapleLoanTests is TestUtils {
     /*** Loan Transfer-Related Tests ***/
     /***********************************/
 
-    function test_acceptNewTerms_extraFunds() external assertFailureWhenPaused {
-        EmptyContract refinancer = new EmptyContract();
-        LenderMock    lender     = new LenderMock();
-        MockERC20     token      = new MockERC20("FA", "FundsAsset", 0);
-
-        loan.__setFundsAsset(address(token));
-        loan.__setLender(address(lender));
-        loan.__setPrincipalRequested(1_000_000);  // This is needed so that _getCollateralRequiredFor doesn't divide by zero.
-
-        loan.__setPaymentInterval(30 days);                       // Needed for estab fee checks
-        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for estab fee checks
-        loan.__setPaymentsRemaining(3);                           // Needed for estab fee checks
-
-        token.mint(address(loan), 1);
-
-        uint256 deadline = block.timestamp + 10 days;
-        bytes[] memory calls = new bytes[](0);
-
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(address(refinancer), deadline, calls)));
-
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, calls, 0);
-
-        assertEq(token.balanceOf(address(loan)),   0);
-        assertEq(token.balanceOf(address(lender)), 1);
-    }
-
-    function test_acceptNewTerms_pullPattern() external assertFailureWhenPaused {
+    function test_acceptNewTerms_pullPattern() external {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         loan.__setPrincipalRequested(1);
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setLender(address(this));
 
-        loan.__setPaymentInterval(30 days);                       // Needed for estab fee checks
-        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for estab fee checks
-        loan.__setPaymentsRemaining(3);                           // Needed for estab fee checks
+        loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for establishment fee checks (TODO update)
+        loan.__setPaymentsRemaining(3);                           // Needed for establishment fee checks (TODO update)
 
         address refinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;
@@ -530,24 +484,23 @@ contract MapleLoanTests is TestUtils {
 
         loan.acceptNewTerms(refinancer, deadline, calls, 1);
 
-        // Does not change, since no increase in principal was done in the loan
-        // All unaccounted amount goes back to the lender at the end of acceptNewTerms
-        assertEq(fundsAsset.balanceOf(address(this)), 1);
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(loan.claimableFunds(),               0);
+        // All unaccounted amount is claimable lender at the end of acceptNewTerms
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)), 1);
+        assertEq(loan.claimableFunds(),               1);
         assertEq(loan.drawableFunds(),                0);
     }
 
-    function test_acceptNewTerms_pushPattern() external assertFailureWhenPaused {
+    function test_acceptNewTerms_pushPattern() external {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         loan.__setPrincipalRequested(1);
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setLender(address(this));
 
-        loan.__setPaymentInterval(30 days);                       // Needed for estab fee checks
-        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for estab fee checks
-        loan.__setPaymentsRemaining(3);                           // Needed for estab fee checks
+        loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for establishment fee checks (TODO update)
+        loan.__setPaymentsRemaining(3);                           // Needed for establishment fee checks (TODO update)
 
         address refinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;
@@ -567,19 +520,22 @@ contract MapleLoanTests is TestUtils {
 
         loan.acceptNewTerms(refinancer, deadline, calls, 0);
 
-        // Does not change, since no increase in principal was done in the loan
-        // All unaccounted amount goes back to the lender at the end of acceptNewTerms
-        assertEq(fundsAsset.balanceOf(address(this)), 1);
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(loan.claimableFunds(),               0);
+        // All unaccounted amount is claimable lender at the end of acceptNewTerms
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        assertEq(fundsAsset.balanceOf(address(loan)), 1);
+        assertEq(loan.claimableFunds(),               1);
         assertEq(loan.drawableFunds(),                0);
     }
 
-    function test_fundLoan_pullPattern() external assertFailureWhenPaused {
-        LenderMock lender     = new LenderMock();
-        MockERC20  fundsAsset = new MockERC20("FA", "FA", 18);
+    // TODO: test_acceptNewTerms_pullPatternOverFund (since test_acceptNewTerms_pullPattern already overfunds)
+
+    // TODO: test_acceptNewTerms_pushPatternOverFund (since test_acceptNewTerms_pushPattern already overfunds)
+
+    function test_fundLoan_pullPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 amount = 1_000_000;
+        address lender = address(1111);
 
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setPrincipalRequested(amount);
@@ -587,7 +543,7 @@ contract MapleLoanTests is TestUtils {
 
         fundsAsset.mint(address(this), amount);
 
-        try loan.fundLoan(address(lender), amount) { assertTrue(false, "Able to fund"); } catch { }
+        try loan.fundLoan(lender, amount) { assertTrue(false, "Able to fund"); } catch { }
 
         fundsAsset.approve(address(loan), amount);
 
@@ -595,77 +551,43 @@ contract MapleLoanTests is TestUtils {
         assertEq(fundsAsset.balanceOf(address(loan)), 0);
         assertEq(loan.principal(),                    0);
 
-        loan.fundLoan(address(lender), amount);
+        loan.fundLoan(lender, amount);
 
         assertEq(fundsAsset.balanceOf(address(this)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), amount);
         assertEq(loan.principal(),                    amount);
     }
 
-    function test_fundLoan_pushPattern() external assertFailureWhenPaused{
-        LenderMock lender     = new LenderMock();
-        MockERC20  fundsAsset = new MockERC20("FA", "FA", 18);
+    function test_fundLoan_pushPattern() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 amount = 1_000_000;
+        address lender = address(1111);
 
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setPrincipalRequested(amount);
         loan.__setPaymentsRemaining(1);
 
         // Fails without pushing funds
-        try loan.fundLoan(address(lender), uint256(0)) { assertTrue(false, "Able to fund"); } catch { }
+        try loan.fundLoan(lender, uint256(0)) { assertTrue(false, "Able to fund"); } catch { }
 
         fundsAsset.mint(address(loan), amount);
 
         assertEq(fundsAsset.balanceOf(address(loan)), amount);
         assertEq(loan.principal(),                    0);
 
-        loan.fundLoan(address(lender), uint256(0));
+        loan.fundLoan(lender, uint256(0));
 
         assertEq(fundsAsset.balanceOf(address(loan)), amount);
         assertEq(loan.principal(),                    amount);
     }
 
-    function test_fundLoan_pushPatternExtraFundsWhileNotActive() external assertFailureWhenPaused {
-        LenderMock lender = new LenderMock();
-        MockERC20  token  = new MockERC20("FA", "FundsAsset", 0);
-
-        loan.__setFundsAsset(address(token));
-        loan.__setPaymentsRemaining(1);
-        loan.__setPrincipalRequested(1_000_000);
-
-        token.mint(address(loan), 1_000_000 + 1);
-
-        loan.fundLoan(address(lender), 0);
-
-        assertEq(token.balanceOf(address(loan)),   1_000_000);
-        assertEq(token.balanceOf(address(lender)), 1);
-    }
-
-    function test_fundLoan_pushPatternExtraFundsWhileActive() external assertFailureWhenPaused {
-        LenderMock lender = new LenderMock();
-        MockERC20  token  = new MockERC20("FA", "FundsAsset", 0);
-
-        loan.__setFundsAsset(address(token));
-        loan.__setLender(address(lender));
-        loan.__setNextPaymentDueDate(1);
-        loan.__setPaymentsRemaining(1);
-        loan.__setPrincipalRequested(1_000_000);
-
-        token.mint(address(loan), 1_000_000 + 1);
-
-        loan.fundLoan(address(lender), 0);
-
-        assertEq(token.balanceOf(address(loan)),   0);
-        assertEq(token.balanceOf(address(lender)), 1_000_001);
-    }
-
-    function test_fundLoan_pullPatternOverFund() external assertFailureWhenPaused {
-        LenderMock lender     = new LenderMock();
-        MockERC20  fundsAsset = new MockERC20("FA", "FA", 18);
+    function test_fundLoan_pullPatternOverFund() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 principalRequested = 1_000_000;
         uint256 fundAmount         = 2_000_000;
+        address lender             = address(1111);
 
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setPrincipalRequested(principalRequested);
@@ -673,114 +595,53 @@ contract MapleLoanTests is TestUtils {
 
         fundsAsset.mint(address(this), fundAmount);
 
-        try loan.fundLoan(address(lender), fundAmount) { assertTrue(false, "Able to fund"); } catch { }
+        try loan.fundLoan(lender, fundAmount) { assertTrue(false, "Able to fund"); } catch { }
 
         fundsAsset.approve(address(loan), fundAmount);
 
-        assertEq(fundsAsset.balanceOf(address(this)),   fundAmount);
-        assertEq(fundsAsset.balanceOf(address(lender)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)),   0);
-        assertEq(loan.principal(),                      0);
+        assertEq(fundsAsset.balanceOf(address(this)), fundAmount);
+        assertEq(fundsAsset.balanceOf(lender),        0);
+        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(loan.principal(),                    0);
 
-        loan.fundLoan(address(lender), fundAmount);
+        loan.fundLoan(lender, fundAmount);
 
-        assertEq(fundsAsset.balanceOf(address(this)),   0);
-        assertEq(fundsAsset.balanceOf(address(lender)), fundAmount - principalRequested);
-        assertEq(fundsAsset.balanceOf(address(loan)),   principalRequested);
-        assertEq(loan.principal(),                      principalRequested);
+        assertEq(fundsAsset.balanceOf(address(this)), 0);
+        assertEq(fundsAsset.balanceOf(lender),        0);
+        assertEq(fundsAsset.balanceOf(address(loan)), fundAmount);
+        assertEq(loan.principal(),                    principalRequested);
+        assertEq(loan.claimableFunds(),               fundAmount - principalRequested);
     }
 
-    function test_fundLoan_pushPatternOverFund() external assertFailureWhenPaused {
-        LenderMock lender     = new LenderMock();
-        MockERC20  fundsAsset = new MockERC20("FA", "FA", 18);
+    function test_fundLoan_pushPatternOverFund() external {
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 principalRequested = 1_000_000;
         uint256 fundAmount         = 2_000_000;
+        address lender             = address(1111);
 
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setPrincipalRequested(principalRequested);
         loan.__setPaymentsRemaining(1);
 
         // Fails without pushing funds
-        try loan.fundLoan(address(lender), uint256(0)) { assertTrue(false, "Able to fund"); } catch { }
+        try loan.fundLoan(lender, uint256(0)) { assertTrue(false, "Able to fund"); } catch { }
 
         fundsAsset.mint(address(loan), fundAmount);
 
-        assertEq(fundsAsset.balanceOf(address(lender)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)),   fundAmount);
-        assertEq(loan.principal(),                      0);
+        assertEq(fundsAsset.balanceOf(lender),        0);
+        assertEq(fundsAsset.balanceOf(address(loan)), fundAmount);
+        assertEq(loan.principal(),                    0);
 
-        loan.fundLoan(address(lender), 0);
+        loan.fundLoan(lender, 0);
 
-        assertEq(fundsAsset.balanceOf(address(lender)), fundAmount - principalRequested);
-        assertEq(fundsAsset.balanceOf(address(loan)),   principalRequested);
-        assertEq(loan.principal(),                      principalRequested);
+        assertEq(fundsAsset.balanceOf(lender),        0);
+        assertEq(fundsAsset.balanceOf(address(loan)), fundAmount);
+        assertEq(loan.principal(),                    principalRequested);
+        assertEq(loan.claimableFunds(),               fundAmount - principalRequested);
     }
 
-    function test_fundLoan_pullPatternFundsRedirect() external assertFailureWhenPaused {
-        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
-
-        uint256 amount = 1_000_000;
-        address lender = address(1);
-
-        // Loan already funded
-        loan.__setNextPaymentDueDate(block.timestamp + 1);
-        loan.__setLender(lender);
-        loan.__setFundsAsset(address(fundsAsset));
-        loan.__setPrincipalRequested(1_000_000);
-        loan.__setPrincipal(1_000_000);
-
-        fundsAsset.mint(address(this), amount);
-        fundsAsset.approve(address(loan), amount);
-
-        assertEq(fundsAsset.balanceOf(address(this)),   amount);
-        assertEq(fundsAsset.balanceOf(address(lender)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)),   0);
-        assertEq(loan.claimableFunds(),                 0);
-        assertEq(loan.drawableFunds(),                  0);
-
-        loan.fundLoan(address(this), amount);
-
-        // Funds move from sender to lender since no increase in principal was done in the loan
-        // All unaccounted amount goes back to the lender at the end of fundLoan
-        assertEq(fundsAsset.balanceOf(address(this)),   0);
-        assertEq(fundsAsset.balanceOf(address(lender)), amount);
-        assertEq(fundsAsset.balanceOf(address(loan)),   0);
-        assertEq(loan.claimableFunds(),                 0);
-        assertEq(loan.drawableFunds(),                  0);
-    }
-
-    function test_fundLoan_pushPatternFundsRedirect() external assertFailureWhenPaused {
-        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
-
-        uint256 amount = 1_000_000;
-        address lender = address(1);
-
-        // Loan already funded
-        loan.__setNextPaymentDueDate(block.timestamp + 1);
-        loan.__setLender(lender);
-        loan.__setFundsAsset(address(fundsAsset));
-        loan.__setPrincipalRequested(1_000_000);
-        loan.__setPrincipal(1_000_000);
-
-        fundsAsset.mint(address(loan), amount);
-
-        assertEq(fundsAsset.balanceOf(address(lender)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)),   amount);
-        assertEq(loan.claimableFunds(),                 0);
-        assertEq(loan.drawableFunds(),                  0);
-
-        loan.fundLoan(address(this), 0);
-
-        // Funds move from sender to lender since no increase in principal was done in the loan
-        // All unaccounted amount goes back to the lender at the end of fundLoan
-        assertEq(fundsAsset.balanceOf(address(lender)), amount);
-        assertEq(fundsAsset.balanceOf(address(loan)),   0);
-        assertEq(loan.claimableFunds(),                 0);
-        assertEq(loan.drawableFunds(),                  0);
-    }
-
-    function test_drawdownFunds_withoutAdditionalCollateralRequired() external assertFailureWhenPaused {
+    function test_drawdownFunds_withoutAdditionalCollateralRequired() external {
         MockERC20 fundsAsset      = new MockERC20("FA", "FA", 18);
         MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
 
@@ -807,7 +668,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.drawableFunds(),                0);
     }
 
-    function test_drawdownFunds_pullPatternForCollateral() external assertFailureWhenPaused {
+    function test_drawdownFunds_pullPatternForCollateral() external {
         MockERC20 fundsAsset      = new MockERC20("FA", "FA", 18);
         MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
 
@@ -849,7 +710,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.drawableFunds(),                     0);
     }
 
-    function test_drawdownFunds_pushPatternForCollateral() external assertFailureWhenPaused {
+    function test_drawdownFunds_pushPatternForCollateral() external {
         MockERC20 fundsAsset      = new MockERC20("FA", "FA", 18);
         MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
 
@@ -1020,8 +881,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getEarlyPaymentBreakdown();
-        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
+        ( uint256 principal, uint256 interest ) = loan.getEarlyPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
         loan.__setDrawableFunds(1);
@@ -1052,8 +913,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getEarlyPaymentBreakdown();
-        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
+        ( uint256 principal, uint256 interest ) = loan.getEarlyPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
         loan.__setDrawableFunds(1);
@@ -1081,8 +942,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(borrower), totalPayment);
 
@@ -1116,8 +977,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(borrower), totalPayment);
 
@@ -1150,8 +1011,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(user), totalPayment);
 
@@ -1184,8 +1045,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(user), totalPayment);
 
@@ -1220,8 +1081,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
         loan.__setDrawableFunds(1);
@@ -1253,8 +1114,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
-        uint256 totalPayment = principal + interest + delegateFee + treasuryFee;
+        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
         loan.__setDrawableFunds(1);
@@ -1269,7 +1130,7 @@ contract MapleLoanTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 0));
     }
 
-    function test_postCollateral_pullPattern() external assertFailureWhenPaused {
+    function test_postCollateral_pullPattern() external {
         MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
 
         loan.__setCollateralAsset(address(collateralAsset));
@@ -1293,7 +1154,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.collateral(),                        amount);
     }
 
-    function test_postCollateral_pushPattern() external assertFailureWhenPaused {
+    function test_postCollateral_pushPattern() external {
         MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
 
         loan.__setCollateralAsset(address(collateralAsset));
@@ -1311,7 +1172,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.collateral(),                        amount);
     }
 
-    function test_returnFunds_pullPattern() external assertFailureWhenPaused {
+    function test_returnFunds_pullPattern() external {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         loan.__setFundsAsset(address(fundsAsset));
@@ -1335,7 +1196,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.drawableFunds(),                amount);
     }
 
-    function test_returnFunds_pushPattern() external assertFailureWhenPaused {
+    function test_returnFunds_pushPattern() external {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         loan.__setFundsAsset(address(fundsAsset));
@@ -1353,38 +1214,26 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.drawableFunds(),                amount);
     }
 
-    /*******************/
-    /*** Other Tests ***/
-    /*******************/
-
-    function test_superFactory() external {
-        assertEq(loan.factory(), loan.superFactory());
-    }
-
 }
 
 contract MapleLoanRoleTests is TestUtils {
 
     ConstructableMapleLoan internal _loan;
     Borrower               internal _borrower;
-    LenderMock             internal _lender;
-    MapleGlobalsMock       internal _globals;
+    Lender                 internal _lender;
     MockFactory            internal _factory;
     MockERC20              internal _token;
 
     function setUp() public {
         _borrower = new Borrower();
         _factory  = new MockFactory();
-        _globals  = new MapleGlobalsMock(address(0), address(0), 0, 0);
-        _lender   = new LenderMock();
+        _lender   = new Lender();
         _token    = new MockERC20("Token", "T", 0);
 
         address[2] memory assets      = [address(_token), address(_token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
-
-        _factory.setGlobals(address(_globals));
 
         _loan = new ConstructableMapleLoan(address(_factory), address(_borrower), assets, termDetails, amounts, rates);
     }
@@ -1428,7 +1277,7 @@ contract MapleLoanRoleTests is TestUtils {
         _lender.erc20_approve(address(_token), address(_loan),    1_000_000);
         _lender.loan_fundLoan(address(_loan),   address(_lender), 1_000_000);
 
-        LenderMock newLender = new LenderMock();
+        Lender newLender = new Lender();
 
         assertEq(_loan.pendingLender(), address(0));
         assertEq(_loan.lender(),        address(_lender));

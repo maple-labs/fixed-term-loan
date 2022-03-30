@@ -21,7 +21,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _clearLoanAccounting();
     }
 
-    function closeLoan() external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function closeLoan() external returns (uint256 principal_, uint256 interest_) {
         return _closeLoan();
     }
 
@@ -47,7 +47,7 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _fundLoan(lender_);
     }
 
-    function makePayment() external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function makePayment() external returns (uint256 principal_, uint256 interest_) {
         return _makePayment();
     }
 
@@ -75,11 +75,11 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
     /*** View Functions ****/
     /***********************/
 
-    function getEarlyPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function getEarlyPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
         return _getEarlyPaymentBreakdown();
     }
 
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_) {
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
         return _getNextPaymentBreakdown();
     }
 
@@ -113,10 +113,6 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
 
     function collateralRequired() external view returns (uint256 collateralRequired_) {
         return _collateralRequired;
-    }
-
-    function delegateFee() external view returns (uint256 delegateFee_) {
-        return _delegateFee;
     }
 
     function drawableFunds() external view returns (uint256 drawableFunds_) {
@@ -183,10 +179,6 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _refinanceInterest;
     }
 
-    function treasuryFee() external view returns (uint256 treasuryFee_) {
-        return _treasuryFee;
-    }
-
     /**********************/
     /*** State Setters ****/
     /**********************/
@@ -209,10 +201,6 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
 
     function setCollateralRequired(uint256 collateralRequired_) external {
         _collateralRequired = collateralRequired_;
-    }
-
-    function setDelegateFee(uint256 delegateFee_) external {
-        _delegateFee = delegateFee_;
     }
 
     function setDrawableFunds(uint256 drawableFunds_) external {
@@ -281,10 +269,6 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
 
     function setRefinanceInterest(uint256 refinanceInterest_) external {
         _refinanceInterest = refinanceInterest_;
-    }
-
-    function setTreasuryFee(uint256 treasuryFee_) external {
-        _treasuryFee = treasuryFee_;
     }
 
     /***********************/

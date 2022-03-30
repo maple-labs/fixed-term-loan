@@ -24,13 +24,6 @@ interface IMapleLoanEvents {
     event CollateralRemoved(uint256 amount_, address indexed destination_);
 
     /**
-     *  @dev   Establishment fees were set.
-     *  @param delegateFee_ The amount that will be paid as an establishment fee to the delegate.
-     *  @param treasuryFee_ The amount that will be paid as an establishment fee to the treasury.
-     */
-    event EstablishmentFeesSet(uint256 delegateFee_, uint256 treasuryFee_);
-
-    /**
      *  @dev   The loan was funded.
      *  @param lender_             The address of the lender.
      *  @param amount_             The amount funded.
@@ -51,13 +44,6 @@ interface IMapleLoanEvents {
      *  @param destination_ The recipient of the funds drawn down.
      */
     event FundsDrawnDown(uint256 amount_, address indexed destination_);
-
-    /**
-     *  @dev   Funds were redirected on an additional `fundLoan` call.
-     *  @param amount_      The amount of funds redirected.
-     *  @param destination_ The recipient of the redirected funds.
-     */
-    event FundsRedirected(uint256 amount_, address indexed destination_);
 
     /**
      *  @dev   Funds were returned.
@@ -95,12 +81,10 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Loan was repaid early and closed.
-     *  @param principalPaid_   The portion of the total amount that went towards principal.
-     *  @param interestPaid_    The portion of the total amount that went towards interest.
-     *  @param delegateFeePaid_ The portion of the total amount that went towards the establishment fee for the delegate.
-     *  @param treasuryFeePaid_ The portion of the total amount that went towards the establishment fee for the treasury.
+     *  @param principalPaid_ The portion of the total amount that went towards principal.
+     *  @param interestPaid_  The portion of the total amount that went towards interest.
      */
-    event LoanClosed(uint256 principalPaid_, uint256 interestPaid_, uint256 delegateFeePaid_, uint256 treasuryFeePaid_);
+    event LoanClosed(uint256 principalPaid_, uint256 interestPaid_);
 
     /**
      *  @dev   The terms of the refinance proposal were accepted.
@@ -131,12 +115,10 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Payments were made.
-     *  @param principalPaid_   The portion of the total amount that went towards principal.
-     *  @param interestPaid_    The portion of the total amount that went towards interest.
-     *  @param delegateFeePaid_ The portion of the total amount that went towards the establishment fee for the delegate.
-     *  @param treasuryFeePaid_ The portion of the total amount that went towards the establishment fee for the treasury.
+     *  @param principalPaid_ The portion of the total amount that went towards principal.
+     *  @param interestPaid_  The portion of the total amount that went towards interest.
      */
-    event PaymentMade(uint256 principalPaid_, uint256 interestPaid_, uint256 delegateFeePaid_, uint256 treasuryFeePaid_);
+    event PaymentMade(uint256 principalPaid_, uint256 interestPaid_);
 
     /**
      *  @dev   Pending borrower was set.

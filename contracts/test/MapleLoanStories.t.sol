@@ -5,26 +5,23 @@ import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol"
 import { IERC20 }    from "../../modules/erc20/contracts/interfaces/IERC20.sol";
 import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { ConstructableMapleLoan, LenderMock, MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, MockFactory } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
+import { Lender }   from "./accounts/Lender.sol";
 
 contract MapleLoanStoryTests is TestUtils {
 
     Borrower         borrower;
-    LenderMock       lender;
-    MapleGlobalsMock globals;
+    Lender           lender;
     MockERC20        token;
     MockFactory      factory;
 
     function setUp() external {
         borrower = new Borrower();
-        lender   = new LenderMock();
-        globals  = new MapleGlobalsMock(address(this), address(0), 0, 0);
+        lender   = new Lender();
         token    = new MockERC20("Test", "TST", 0);
         factory  = new MockFactory();
-
-        factory.setGlobals(address(globals));
     }
 
     function test_story_fullyAmortized() external {
@@ -56,7 +53,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertEq(loan.drawableFunds(), 0, "Different drawable funds");
 
         // Check details for upcoming payment #1
-        ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         158_525,   "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -73,7 +70,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 100_000), "Cannot pay");
 
         // Check details for upcoming payment #2
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         161_696, "Different principal");
         assertEq(interestPortion,          16_829,  "Different interest");
@@ -89,7 +86,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #3
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         164_930, "Different principal");
         assertEq(interestPortion,          13_595,  "Different interest");
@@ -111,7 +108,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertEq(loan.collateral(), 154_454, "Different collateral");
 
         // Check details for upcoming payment #4
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         168_230, "Different principal");
         assertEq(interestPortion,          10_296,  "Different interest");
@@ -143,7 +140,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(lender.try_loan_claimFunds(address(loan), 714_101, address(lender)), "Cannot claim funds");
 
         // Check details for upcoming payment #5
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         171_593, "Different principal");
         assertEq(interestPortion,          6_932,   "Different interest");
@@ -159,7 +156,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #6
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         175_026, "Different principal");
         assertEq(interestPortion,          3_500,   "Different interest");
@@ -217,7 +214,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertEq(loan.drawableFunds(), 0, "Different drawable funds");
 
         // Check details for upcoming payment #1
-        ( uint256 principalPortion, uint256 interestPortion, uint256 delegateFee, uint256 treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -234,7 +231,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 10_000), "Cannot pay");
 
         // Check details for upcoming payment #2
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -250,7 +247,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #3
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -266,7 +263,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #4
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -297,7 +294,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(lender.try_loan_claimFunds(address(loan), 80000, address(lender)), "Cannot claim funds");
 
         // Check details for upcoming payment #5
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         0,         "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -313,7 +310,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 0), "Cannot pay");
 
         // Check details for upcoming payment #6
-        ( principalPortion, interestPortion, delegateFee, treasuryFee ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, interestPortion ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion,         1_000_000, "Different principal");
         assertEq(interestPortion,          20_000,    "Different interest");
@@ -340,39 +337,6 @@ contract MapleLoanStoryTests is TestUtils {
 
         // Claim remaining loan proceeds
         assertTrue(lender.try_loan_claimFunds(address(loan), 1_040_000, address(lender)), "Cannot remove collateral");
-    }
-
-    function test_story_redirectFundsToLender() external {
-        token.mint(address(borrower), 1_000_000);
-        token.mint(address(lender),   2_000_000);
-
-        address[2] memory assets      = [address(token), address(token)];
-        uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
-        uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
-        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
-
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(borrower), assets, termDetails, amounts, rates);
-
-        // Fund via a 500k approval and a 500k transfer, totaling 1M
-        lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan), 500_000);
-
-        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
-
-        assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
-
-        //Funding a second time will redirect to lender
-        uint256 balanceBefore = token.balanceOf(address(lender));
-
-        lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan), 500_000);
-
-        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000));
-
-        uint256 balanceAfter = token.balanceOf(address(lender));
-
-        // Lender got back what he sent
-        assertEq(balanceBefore, balanceAfter, "Balance does not match");
     }
 
 }
