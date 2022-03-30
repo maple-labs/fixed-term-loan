@@ -38,11 +38,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function collateralRequired() external view returns (uint256 collateralRequired_);
 
     /**
-     *  @dev The delegate establishment fee.
-     */
-    function delegateFee() external view returns (uint256 delegateFee_);
-
-    /**
      *  @dev The amount of funds that have yet to be drawn down by the borrower.
      */
     function drawableFunds() external view returns (uint256 drawableFunds_);
@@ -135,16 +130,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function refinanceInterest() external view returns (uint256 refinanceInterest_);
 
-    /**
-     *  @dev The factory address that deployed this contract (necessary for PoolV1 integration).
-     */
-    function superFactory() external view returns (address superFactory_);
-
-    /**
-     *  @dev The treasury establishment fee.
-     */
-    function treasuryFee() external view returns (uint256 treasuryFee_);
-
     /********************************/
     /*** State Changing Functions ***/
     /********************************/
@@ -176,14 +161,12 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function claimFunds(uint256 amount_, address destination_) external;
 
     /**
-     *  @dev    Repay all principal and fees and close a loan.
-     *  @param  amount_      An amount to pull from the caller, if any.
-     *  @return principal_   The portion of the amount paying back principal.
-     *  @return interest_    The portion of the amount paying interest.
-     *  @return delegateFee_ The portion of the amount paying establishment fees to the delegate.
-     *  @return treasuryFee_ The portion of the amount paying establishment fees to the treasury.
+     *  @dev    Repay all principal and interest and close a loan.
+     *  @param  amount_    An amount to pull from the caller, if any.
+     *  @return principal_ The portion of the amount paying back principal.
+     *  @return interest_  The portion of the amount paying interest.
      */
-    function closeLoan(uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
+    function closeLoan(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Draw down funds from the loan.
@@ -203,13 +186,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Make a payment to the loan.
-     *  @param  amount_      An amount to pull from the caller, if any.
-     *  @return principal_   The portion of the amount paying back principal.
-     *  @return interest_    The portion of the amount paying interest fees.
-     *  @return delegateFee_ The portion of the amount paying establishment fees to the delegate.
-     *  @return treasuryFee_ The portion of the amount paying establishment fees to the treasury.
+     *  @param  amount_    An amount to pull from the caller, if any.
+     *  @return principal_ The portion of the amount paying back principal.
+     *  @return interest_  The portion of the amount paying interest fees.
      */
-    function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
+    function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Post collateral to the loan.
@@ -295,21 +276,17 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy an early repayment.
-     *  @return principal_   The portion of the total amount that will go towards principal.
-     *  @return interest_    The portion of the total amount that will go towards interest fees.
-     *  @return delegateFee_ The portion of the total amount that will go towards establishment fees to the delegate.
-     *  @return treasuryFee_ The portion of the total amount that will go towards establishment fees to the treasury.
+     *  @return principal_ The portion of the total amount that will go towards principal.
+     *  @return interest_  The portion of the total amount that will go towards interest fees.
      */
-    function getEarlyPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
+    function getEarlyPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy the next payment installment.
-     *  @return principal_   The portion of the total amount that will go towards principal.
-     *  @return interest_    The portion of the total amount that will go towards interest fees.
-     *  @return delegateFee_ The portion of the total amount that will go towards establishment fees to the delegate.
-     *  @return treasuryFee_ The portion of the total amount that will go towards establishment fees to the treasury.
+     *  @return principal_ The portion of the total amount that will go towards principal.
+     *  @return interest_  The portion of the total amount that will go towards interest fees.
      */
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Get the extra interest that will be charged according to loan terms before refinance, based on a given timestamp.
@@ -317,11 +294,5 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @return proRataInterest_ The interest portion to be added in the next payment.
      */
     function getRefinanceInterest(uint256 timestamp_) external view returns (uint256 proRataInterest_);
-
-    /**
-     *  @dev    Returns whether the protocol is paused.
-     *  @return paused_ A boolean indicating if protocol is paused.
-     */
-    function isProtocolPaused() external view returns (bool paused_);
 
 }
