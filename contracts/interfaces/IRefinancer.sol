@@ -63,12 +63,6 @@ interface IRefinancer {
     event PaymentsRemainingSet(uint256 paymentsRemaining_);
 
     /**
-     *  @dev   The value of the principal has been decreased.
-     *  @param decreasedBy_ The amount of which the value was decreased by.
-     */
-    event PrincipalDecreased(uint256 decreasedBy_);
-
-    /**
      *  @dev   The value of the principal has been increased.
      *  @param increasedBy_ The amount of which the value was increased by.
      */
@@ -77,12 +71,6 @@ interface IRefinancer {
     /*****************/
     /*** Functions ***/
     /*****************/
-
-    /**
-     *  @dev   Function to decrease the principal during a refinance.
-     *  @param amount_ The amount of which the value will decrease by.
-     */
-    function decreasePrincipal(uint256 amount_) external;
 
     /**
      *  @dev   Function to increase the principal during a refinance.

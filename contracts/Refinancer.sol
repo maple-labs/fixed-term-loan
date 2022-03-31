@@ -8,19 +8,6 @@ import { MapleLoanInternals } from "./MapleLoanInternals.sol";
 /// @title Refinancer uses storage from a MapleLoan defined by MapleLoanInternals.
 contract Refinancer is IRefinancer, MapleLoanInternals {
 
-    function decreasePrincipal(uint256 amount_) external override {
-        require(_drawableFunds >= amount_, "R:DP:OUTSTANDING_TOO_LARGE");
-
-        _principal          -= amount_;
-        _principalRequested -= amount_;
-        _drawableFunds      -= amount_;
-        _claimableFunds     += amount_;
-
-        require(_principal >= _endingPrincipal, "R:DP:BELOW_ENDING_PRINCIPAL");
-
-        emit PrincipalDecreased(amount_);
-    }
-
     function increasePrincipal(uint256 amount_) external override {
         // Cannot under-fund the principal increase, but over-funding results in additional funds left unaccounted for.
         require(_getUnaccountedAmount(_fundsAsset) >= amount_, "R:IP:INSUFFICIENT_AMOUNT");
