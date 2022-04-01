@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
+import { IERC20 } from "../modules/erc20/contracts/interfaces/IERC20.sol";
+
 import { IRefinancer } from "./interfaces/IRefinancer.sol";
 
-import { MapleLoanInternals } from "./MapleLoanInternals.sol";
+import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
-/// @title Refinancer uses storage from a MapleLoan defined by MapleLoanInternals.
-contract Refinancer is IRefinancer, MapleLoanInternals {
+/// @title Refinancer uses storage from a MapleLoan defined by MapleLoanStorage.
+contract Refinancer is IRefinancer, MapleLoanStorage {
 
     function increasePrincipal(uint256 amount_) external override {
         // Cannot under-fund the principal increase, but over-funding results in additional funds left unaccounted for.
@@ -58,6 +60,13 @@ contract Refinancer is IRefinancer, MapleLoanInternals {
         require(paymentsRemaining_ != 0, "R:SPR:ZERO_AMOUNT");
 
         emit PaymentsRemainingSet(_paymentsRemaining = paymentsRemaining_);
+    }
+
+    /// @dev Returns the amount of an `asset_` that this contract owns, which is not currently accounted for by its state variables.
+    function _getUnaccountedAmount(address asset_) internal view returns (uint256 unaccountedAmount_) {
+        return IERC20(asset_).balanceOf(address(this))
+            - (asset_ == _collateralAsset ? _collateral : uint256(0))                   // `_collateral` is `_collateralAsset` accounted for.
+            - (asset_ == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));  // `_claimableFunds` and `_drawableFunds` are `_fundsAsset` accounted for.
     }
 
 }

@@ -5,7 +5,8 @@ import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol"
 import { IERC20 }    from "../../modules/erc20/contracts/interfaces/IERC20.sol";
 import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { ConstructableMapleLoan, MockFactory } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
+import { MockFactory }            from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { Lender }   from "./accounts/Lender.sol";

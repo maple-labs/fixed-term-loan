@@ -6,7 +6,8 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { Refinancer } from "../Refinancer.sol";
 
-import { ConstructableMapleLoan, MockFactory } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
+import { MockFactory }            from "./mocks/Mocks.sol";
 
 import { Lender } from "./accounts/Lender.sol";
 
@@ -117,7 +118,7 @@ contract RefinancerCollateralRequiredTests is RefinancerTestBase {
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
-        uint256 requiredCollateral = loan.getCollateralRequiredFor(loan.principal(), loan.drawableFunds(), loan.principalRequested(), newCollateralRequired_);
+        uint256 requiredCollateral = loan.__getCollateralRequiredFor(loan.principal(), loan.drawableFunds(), loan.principalRequested(), newCollateralRequired_);
         uint256 currentCollateral  = loan.collateral();
 
         if (requiredCollateral > currentCollateral) {

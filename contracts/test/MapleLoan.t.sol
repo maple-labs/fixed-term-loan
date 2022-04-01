@@ -7,7 +7,8 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { ConstructableMapleLoan, EmptyContract, ManipulatableMapleLoan, MockFactory } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
+import { EmptyContract, MockFactory }               from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { Lender }   from "./accounts/Lender.sol";
@@ -15,14 +16,14 @@ import { LoanUser } from "./accounts/LoanUser.sol";
 
 contract MapleLoanTests is TestUtils {
 
-    ManipulatableMapleLoan loan;
+    MapleLoanHarness loan;
 
     bool locked;  // Helper state variable to avoid infinite loops when using the modifier.
 
     function setUp() external {
         MockFactory factoryMock = new MockFactory();
 
-        loan = new ManipulatableMapleLoan();
+        loan = new MapleLoanHarness();
 
         loan.__setFactory(address(factoryMock));
     }
@@ -284,7 +285,7 @@ contract MapleLoanTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = new bytes(0);
 
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(address(mockRefinancer), deadline, calls)));
+        loan.__setRefinanceCommitment(keccak256(abi.encode(address(mockRefinancer), deadline, calls)));
 
         vm.expectRevert(bytes("L:RNT:NO_AUTH"));
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
@@ -294,7 +295,7 @@ contract MapleLoanTests is TestUtils {
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
 
         // Set again
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(address(mockRefinancer), deadline, calls)));
+        loan.__setRefinanceCommitment(keccak256(abi.encode(address(mockRefinancer), deadline, calls)));
         loan.__setBorrower(address(1));
 
         vm.expectRevert(bytes("L:RNT:NO_AUTH"));
@@ -355,7 +356,7 @@ contract MapleLoanTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = new bytes(0);
 
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(mockRefinancer, deadline, calls)));
+        loan.__setRefinanceCommitment(keccak256(abi.encode(mockRefinancer, deadline, calls)));
 
         vm.expectRevert("ML:ANT:NOT_LENDER");
         loan.acceptNewTerms(mockRefinancer, deadline, calls, uint256(0));
@@ -450,7 +451,7 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setFactory(address(factory));
 
-        address newImplementation = address(new ManipulatableMapleLoan());
+        address newImplementation = address(new MapleLoanHarness());
 
         try loan.upgrade(1, abi.encode(newImplementation)) { assertTrue(false, "Non-borrower was able to set implementation"); } catch { }
 
@@ -481,7 +482,7 @@ contract MapleLoanTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = new bytes(0);
 
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(refinancer, deadline, calls)));
+        loan.__setRefinanceCommitment(keccak256(abi.encode(refinancer, deadline, calls)));
 
         fundsAsset.mint(address(this), 1);
 
@@ -520,7 +521,7 @@ contract MapleLoanTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = new bytes(0);
 
-        loan.__setRefinanceCommitmentHash(keccak256(abi.encode(refinancer, deadline, calls)));
+        loan.__setRefinanceCommitment(keccak256(abi.encode(refinancer, deadline, calls)));
 
         fundsAsset.mint(address(this), 1);
 
