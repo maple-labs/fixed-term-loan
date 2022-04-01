@@ -2,7 +2,6 @@
 pragma solidity 0.8.7;
 
 // TODO: flatten internals into MapleLoan (new PR)
-// TODO: exposed getUnaccountedAmount (new PR)
 // TODO: custom error messages (later maybe)
 // TODO: closeLoan only by borrower and instantly returns funds and collateral to borrower (later maybe)
 // TODO: drawdownFunds calls destination_ with data_ before _postCollateral and endsWithCollateralMaintained() check (later maybe)
@@ -269,6 +268,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
             _lateFeeRate,
             _lateInterestPremium
         );
+    }
+
+    function getUnaccountedAmount(address asset_) external view override returns (uint256 unaccountedAmount_) {
+        return _getUnaccountedAmount(asset_);
     }
 
     /****************************/

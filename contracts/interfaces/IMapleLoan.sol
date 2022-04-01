@@ -296,4 +296,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function getRefinanceInterest(uint256 timestamp_) external view returns (uint256 proRataInterest_);
 
+    /**
+     *  @dev    Get the amount on an asset that in not accounted for by the accounting variables (and thus can be skimmed).
+     *  @param  asset_             The address of a asset contract.
+     *  @return unaccountedAmount_ The amount that is not accounted for.
+     */
+    function getUnaccountedAmount(address asset_) external view returns (uint256 unaccountedAmount_);
+
 }
