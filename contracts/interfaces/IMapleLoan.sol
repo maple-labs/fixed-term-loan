@@ -303,7 +303,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function getEarlyPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 delegateFee_, uint256 treasuryFee_);
 
     /**
-     *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.
+     *  @dev    Get the breakdown of the total payment needed to satisfy the next payment installment.
      *  @return principal_   The portion of the total amount that will go towards principal.
      *  @return interest_    The portion of the total amount that will go towards interest fees.
      *  @return delegateFee_ The portion of the total amount that will go towards establishment fees to the delegate.
