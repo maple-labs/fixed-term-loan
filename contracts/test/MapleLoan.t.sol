@@ -894,7 +894,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        ( uint256 principal, uint256 interest ) = loan.getEarlyPaymentBreakdown();
+        ( uint256 principal, uint256 interest ) = loan.getClosingPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
@@ -926,7 +926,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        ( uint256 principal, uint256 interest ) = loan.getEarlyPaymentBreakdown();
+        ( uint256 principal, uint256 interest ) = loan.getClosingPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);

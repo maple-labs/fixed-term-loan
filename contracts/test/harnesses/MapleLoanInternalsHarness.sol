@@ -75,8 +75,8 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
     /*** View Functions ****/
     /***********************/
 
-    function getEarlyPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
-        return _getEarlyPaymentBreakdown();
+    function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
+        return _getClosingPaymentBreakdown();
     }
 
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_) {
@@ -103,6 +103,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         return _claimableFunds;
     }
 
+    function closingRate() external view returns (uint256 closingRate_) {
+        return _closingRate;
+    }
+
     function collateral() external view returns (uint256 collateral_) {
         return _collateral;
     }
@@ -125,10 +129,6 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
 
     function fundsAsset() external view returns (address fundsAsset_) {
         return _fundsAsset;
-    }
-
-    function earlyFeeRate() external view returns (uint256 earlyFeeRate_) {
-        return _earlyFeeRate;
     }
 
     function gracePeriod() external view returns (uint256 gracePeriod_) {
@@ -191,6 +191,10 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
         _claimableFunds = claimableFunds_;
     }
 
+    function setClosingRate(uint256 closingRate_) external {
+        _closingRate = closingRate_;
+    }
+
     function setCollateral(uint256 collateral_) external {
         _collateral = collateral_;
     }
@@ -217,10 +221,6 @@ contract MapleLoanInternalsHarness is MapleLoanInternals {
 
     function setFundsAsset(address fundsAsset_) external {
         _fundsAsset = fundsAsset_;
-    }
-
-    function setEarlyFeeRate(uint256 earlyFeeRate_) external {
-        _earlyFeeRate = earlyFeeRate_;
     }
 
     function setGracePeriod(uint256 gracePeriod_) external {

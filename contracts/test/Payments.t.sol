@@ -157,9 +157,9 @@ contract MapleLoanPaymentsTestBase is TestUtils {
 
 }
 
-contract EarlyRepaymentsTests is MapleLoanPaymentsTestBase {
+contract ClosingTests is MapleLoanPaymentsTestBase {
 
-    function test_payments_earlyRepayment_flatRate_case1() external {
+    function test_payments_closing_flatRate_case1() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -168,7 +168,7 @@ contract EarlyRepaymentsTests is MapleLoanPaymentsTestBase {
         /*** Payment Interval (days)   30
         /*** Term                      180
         /*** Number of payments        6
-        /*** Early Repayment Fee Rate  2%
+        /*** Closing Rate              2%
         /*** Early Repayment Day       113
         /****************************************/
 
@@ -182,7 +182,7 @@ contract EarlyRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for early repayment
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for closing loan
 
         uint256[3] memory onTimeTotals = [
             uint256(43_138.893875 ether),
@@ -228,7 +228,7 @@ contract EarlyRepaymentsTests is MapleLoanPaymentsTestBase {
         vm.warp(block.timestamp + 23 days);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion ) = loan.getEarlyPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion ) = loan.getClosingPaymentBreakdown();
 
         uint256 paymentAmount = principalPortion + interestPortion;
 
@@ -251,7 +251,7 @@ contract EarlyRepaymentsTests is MapleLoanPaymentsTestBase {
         assertEq(loan.nextPaymentDueDate(), 0);  // Payment due date increases
     }
 
-    function test_payments_earlyRepayment_flatRate_case2() external {
+    function test_payments_closing_flatRate_case2() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -260,7 +260,7 @@ contract EarlyRepaymentsTests is MapleLoanPaymentsTestBase {
         /*** Payment Interval (days)   30
         /*** Term                      90
         /*** Number of payments        6
-        /*** Early Repayment Fee Rate  2%
+        /*** Closing Rate              2%
         /*** Early Repayment Day       78
         /****************************************/
 
@@ -274,7 +274,7 @@ contract EarlyRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for early repayment
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for closing loan
 
         uint256[2] memory onTimeTotals = [
             uint256(169_796.942404 ether),
@@ -316,7 +316,7 @@ contract EarlyRepaymentsTests is MapleLoanPaymentsTestBase {
         vm.warp(block.timestamp + 14 days);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion ) = loan.getEarlyPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion ) = loan.getClosingPaymentBreakdown();
 
         uint256 paymentAmount = principalPortion + interestPortion;
 

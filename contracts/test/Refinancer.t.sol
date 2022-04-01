@@ -333,7 +333,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
 
 contract RefinancerFeeTests is RefinancerTestBase {
 
-    function test_refinance_earlyFeeRate(
+    function test_refinance_closingRate(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -342,7 +342,7 @@ contract RefinancerFeeTests is RefinancerTestBase {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newEarlyFeeRate_,
+        uint256 newClosingRate_,
         uint256 deadline_
     )
         external
@@ -358,17 +358,17 @@ contract RefinancerFeeTests is RefinancerTestBase {
 
         setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
 
-        newEarlyFeeRate_ = constrictToRange(newEarlyFeeRate_, 0,               MAX_RATE);
-        deadline_        = constrictToRange(deadline_,        block.timestamp, type(uint256).max);
+        newClosingRate_ = constrictToRange(newClosingRate_, 0,               MAX_RATE);
+        deadline_       = constrictToRange(deadline_,       block.timestamp, type(uint256).max);
 
-        assertEq(loan.earlyFeeRate(), 0.1e18);
+        assertEq(loan.closingRate(), 0.1e18);
 
-        bytes[] memory data = _encodeWithSignatureAndUint("setEarlyFeeRate(uint256)", newEarlyFeeRate_);
+        bytes[] memory data = _encodeWithSignatureAndUint("setClosingRate(uint256)", newClosingRate_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
         lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
 
-        assertEq(loan.earlyFeeRate(), newEarlyFeeRate_);
+        assertEq(loan.closingRate(), newClosingRate_);
     }
 
     function test_refinance_lateFeeRate(

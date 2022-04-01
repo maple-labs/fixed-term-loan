@@ -67,7 +67,7 @@ interface IMapleLoanEvents {
      *                          [2]: endingPrincipal.
      *  @param rates_       Fee parameters:
      *                          [0]: interestRate,
-     *                          [1]: earlyFeeRate,
+     *                          [1]: closingRate,
      *                          [2]: lateFeeRate,
      *                          [3]: lateInterestPremium.
      */

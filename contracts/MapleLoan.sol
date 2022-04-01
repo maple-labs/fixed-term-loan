@@ -2,7 +2,6 @@
 pragma solidity 0.8.7;
 
 // TODO: flatten internals into MapleLoan (new PR)
-// TODO: getEarlyPaymentBreakdown renamed to getClosingPaymentBreakdown (new PR)
 // TODO: exposed getUnaccountedAmount (new PR)
 // TODO: custom error messages (later maybe)
 // TODO: closeLoan only by borrower and instantly returns funds and collateral to borrower (later maybe)
@@ -250,8 +249,8 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return collateralNeeded > currentCollateral ? collateralNeeded - currentCollateral : uint256(0);
     }
 
-    function getEarlyPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
-        ( principal_, interest_ ) = _getEarlyPaymentBreakdown();
+    function getClosingPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
+        ( principal_, interest_ ) = _getClosingPaymentBreakdown();
     }
 
     function getNextPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
@@ -284,6 +283,10 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         return _claimableFunds;
     }
 
+    function closingRate() external view override returns (uint256 closingRate_) {
+        return _closingRate;
+    }
+
     function collateral() external view override returns (uint256 collateral_) {
         return _collateral;
     }
@@ -298,10 +301,6 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
 
     function drawableFunds() external view override returns (uint256 drawableFunds_) {
         return _drawableFunds;
-    }
-
-    function earlyFeeRate() external view override returns (uint256 earlyFeeRate_) {
-        return _earlyFeeRate;
     }
 
     function endingPrincipal() external view override returns (uint256 endingPrincipal_) {

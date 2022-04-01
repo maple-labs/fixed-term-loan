@@ -28,7 +28,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
 
     // Rates
     uint256 internal _interestRate;         // The annualized interest rate of the loan.
-    uint256 internal _earlyFeeRate;         // The fee rate for prematurely closing loans.
+    uint256 internal _closingRate;          // The fee rate (applied to principal) to close the loan.
     uint256 internal _lateFeeRate;          // The fee rate for late payments.
     uint256 internal _lateInterestPremium;  // The amount to increase the interest rate by for late payments.
 
@@ -64,7 +64,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         _paymentInterval = uint256(0);
 
         _interestRate        = uint256(0);
-        _earlyFeeRate        = uint256(0);
+        _closingRate         = uint256(0);
         _lateFeeRate         = uint256(0);
         _lateInterestPremium = uint256(0);
 
@@ -91,7 +91,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
      *                          [2]: endingPrincipal.
      *  @param rates_       Fee parameters:
      *                          [0]: interestRate,
-     *                          [1]: earlyFeeRate,
+     *                          [1]: closingFeeRate,
      *                          [2]: lateFeeRate,
      *                          [3]: lateInterestPremium.
      */
@@ -124,7 +124,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         _endingPrincipal    = amounts_[2];
 
         _interestRate        = rates_[0];
-        _earlyFeeRate        = rates_[1];
+        _closingRate         = rates_[1];
         _lateFeeRate         = rates_[2];
         _lateInterestPremium = rates_[3];
     }
@@ -137,7 +137,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     function _closeLoan() internal returns (uint256 principal_, uint256 interest_) {
         require(block.timestamp <= _nextPaymentDueDate, "MLI:CL:PAYMENT_IS_LATE");
 
-        ( principal_, interest_ ) = _getEarlyPaymentBreakdown();
+        ( principal_, interest_ ) = _getClosingPaymentBreakdown();
 
         _refinanceInterest  = uint256(0);
 
@@ -341,10 +341,10 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
         return _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
-    /// @dev Get principal and interest breakdown for paying off the entire loan early.
-    function _getEarlyPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
+    /// @dev Get principal and interest breakdown for closing (paying off) the loan early.
+    function _getClosingPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
         // Compute interest and include any uncaptured interest from refinance.
-        interest_ = (((principal_ = _principal) * _earlyFeeRate) / SCALED_ONE) + _refinanceInterest;
+        interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
     }
 
     /// @dev Get principal and interest breakdown for next standard payment.

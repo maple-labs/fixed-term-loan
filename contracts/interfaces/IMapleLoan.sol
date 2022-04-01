@@ -23,6 +23,13 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function claimableFunds() external view returns (uint256 claimableFunds_);
 
     /**
+     *  @dev The fee rate (applied to principal) to close the loan.
+     *       This value should be configured so that it is less expensive to close a loan with more than one payment remaining, but
+     *       more expensive to close it if on the last payment.
+     */
+    function closingRate() external view returns (uint256 closingRate_);
+
+    /**
      *  @dev The amount of collateral posted against outstanding (drawn down) principal.
      */
     function collateral() external view returns (uint256 collateral_);
@@ -41,13 +48,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @dev The amount of funds that have yet to be drawn down by the borrower.
      */
     function drawableFunds() external view returns (uint256 drawableFunds_);
-
-    /**
-     *  @dev The rate charged at early payments.
-     *       This value should be configured so that it is less expensive to close a loan with more than one payment remaining, but
-     *       more expensive to close it if on the last payment.
-     */
-    function earlyFeeRate() external view returns (uint256 earlyFeeRate_);
 
     /**
      *  @dev The portion of principal to not be paid down as part of payment installments, which would need to be paid back upon final payment.
@@ -276,11 +276,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function getAdditionalCollateralRequiredFor(uint256 drawdown_) external view returns (uint256 additionalCollateral_);
 
     /**
-     *  @dev    Get the breakdown of the total payment needed to satisfy an early repayment.
+     *  @dev    Get the breakdown of the total payment needed to satisfy an early repayment to close the loan.
      *  @return principal_ The portion of the total amount that will go towards principal.
      *  @return interest_  The portion of the total amount that will go towards interest fees.
      */
-    function getEarlyPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+    function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy the next payment installment.
