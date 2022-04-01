@@ -238,6 +238,19 @@ contract MapleLoanTests is TestUtils {
         loan.drawdownFunds(1, address(this));
     }
 
+    function test_proposeNewTerms() external {
+        address mockRefinancer = address(new EmptyContract());
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = new bytes(0);
+
+        loan.__setBorrower(address(this));
+
+        bytes32 refinanceCommitment = loan.proposeNewTerms(mockRefinancer, deadline, calls);
+
+        assertEq(refinanceCommitment, bytes32(0xb9c302c0c40e8fbb64fd5a5469fb6ebaaf0ff37294952ae34536078fbdfff83e));
+    }
+
     function test_proposeNewTerms_acl() external {
         address mockRefinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;

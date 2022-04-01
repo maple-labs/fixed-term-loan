@@ -200,12 +200,13 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function postCollateral(uint256 amount_) external returns (uint256 collateralPosted_);
 
     /**
-     *  @dev   Propose new terms for refinance
-     *  @param refinancer_ The address of the refinancer contract.
-     *  @param deadline_   The deadline for accepting the new terms.
-     *  @param calls_      The encoded arguments to be passed to refinancer.
+     *  @dev    Propose new terms for refinance
+     *  @param  refinancer_          The address of the refinancer contract.
+     *  @param  deadline_            The deadline for accepting the new terms.
+     *  @param  calls_               The encoded arguments to be passed to refinancer.
+     *  @return refinanceCommitment_ The hash of the proposed refinance agreement.
      */
-    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external;
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
 
     /**
      *  @dev   Nullify the current proposed terms.

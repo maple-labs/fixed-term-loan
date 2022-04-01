@@ -191,7 +191,7 @@ abstract contract MapleLoanInternals is MapleProxiedInternals {
     }
 
     /// @dev Sets refinance commitment given refinance operations.
-    function _proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 proposedRefinanceCommitment_) {
+    function _proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 refinanceCommitment_) {
         return _refinanceCommitment =
             calls_.length > uint256(0)
                 ? _getRefinanceCommitment(refinancer_, deadline_, calls_)

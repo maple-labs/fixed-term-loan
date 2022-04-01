@@ -2,7 +2,6 @@
 pragma solidity 0.8.7;
 
 // TODO: flatten internals into MapleLoan (new PR)
-// TODO: proposeNewTerms returns refinanceCommitment_ (new PR)
 // TODO: getEarlyPaymentBreakdown renamed to getClosingPaymentBreakdown (new PR)
 // TODO: exposed getUnaccountedAmount (new PR)
 // TODO: custom error messages (later maybe)
@@ -120,11 +119,11 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit CollateralPosted(collateralPosted_ = _postCollateral());
     }
 
-    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override {
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
         require(msg.sender == _borrower,      "ML:PNT:NOT_BORROWER");
         require(deadline_ >= block.timestamp, "ML:PNT:INVALID_DEADLINE");
 
-        emit NewTermsProposed(_proposeNewTerms(refinancer_, deadline_, calls_), refinancer_, deadline_, calls_);
+        emit NewTermsProposed(refinanceCommitment_ = _proposeNewTerms(refinancer_, deadline_, calls_), refinancer_, deadline_, calls_);
     }
 
     function removeCollateral(uint256 amount_, address destination_) external override {
