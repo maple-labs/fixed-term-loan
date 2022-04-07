@@ -145,13 +145,14 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function acceptLender() external;
 
     /**
-     *  @dev   Accept the proposed terms ans trigger refinance execution
-     *  @param refinancer_ The address of the refinancer contract.
-     *  @param deadline_   The deadline for accepting the new terms.
-     *  @param calls_      The encoded arguments to be passed to refinancer.
-     *  @param amount_     An amount to pull from the caller, if any.
+     *  @dev    Accept the proposed terms ans trigger refinance execution
+     *  @param  refinancer_          The address of the refinancer contract.
+     *  @param  deadline_            The deadline for accepting the new terms.
+     *  @param  calls_               The encoded arguments to be passed to refinancer.
+     *  @param  amount_              An amount to pull from the caller, if any.
+     *  @return refinanceCommitment_ The hash of the accepted refinance agreement.
      */
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external;
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external returns (bytes32 refinanceCommitment_);
 
     /**
      *  @dev   Claim funds that have been paid (principal, interest, and late fees).
@@ -209,12 +210,13 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
 
     /**
-     *  @dev   Nullify the current proposed terms.
-     *  @param refinancer_ The address of the refinancer contract.
-     *  @param deadline_   The deadline for accepting the new terms.
-     *  @param calls_      The encoded arguments to be passed to refinancer.
+     *  @dev    Nullify the current proposed terms.
+     *  @param  refinancer_          The address of the refinancer contract.
+     *  @param  deadline_            The deadline for accepting the new terms.
+     *  @param  calls_               The encoded arguments to be passed to refinancer.
+     *  @return refinanceCommitment_ The hash of the rejected refinance agreement.
      */
-    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external;
+    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
 
     /**
      *  @dev   Remove collateral from the loan (opposite of posting collateral).

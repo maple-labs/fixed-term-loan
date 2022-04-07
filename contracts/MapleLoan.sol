@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-// TODO: flatten internals into MapleLoan (new PR)
 // TODO: custom error messages (later maybe)
 // TODO: closeLoan only by borrower and instantly returns funds and collateral to borrower (later maybe)
-// TODO: drawdownFunds calls destination_ with data_ before _postCollateral and endsWithCollateralMaintained() check (later maybe)
+// TODO: drawdownFunds calls destination_ with data_ before postCollateral and endsWithCollateralMaintained() check (later maybe)
 // TODO: last payment is a loan close (later maybe)
 // TODO: removeCollateral calls destination_ with data_ before endsWithCollateralMaintained() check (later maybe)
 // TODO: only push pattern (no more transferFrom) (later maybe)
@@ -27,6 +26,20 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     uint256 private constant SCALED_ONE = uint256(10 ** 18);
+
+    modifier limitDrawableUse() {
+        if (msg.sender == _borrower) {
+            _;
+            return;
+        }
+
+        uint256 drawableFundsBeforePayment = _drawableFunds;
+
+        _;
+
+        // Either the caller is the borrower or `_drawableFunds` has not decreased.
+        require(_drawableFunds >= drawableFundsBeforePayment, "ML:CANNOT_USE_DRAWABLE");
+    }
 
     /********************************/
     /*** Administrative Functions ***/
@@ -62,16 +75,25 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(_borrower = msg.sender);
     }
 
-    function closeLoan(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
-        uint256 drawableFundsBeforePayment = _drawableFunds;
-
+    function closeLoan(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
 
-        ( principal_, interest_ ) = _closeLoan();
+        require(block.timestamp <= _nextPaymentDueDate, "ML:CL:PAYMENT_IS_LATE");
 
-        // Either the caller is the borrower or `_drawableFunds` has not decreased.
-        require(msg.sender == _borrower || _drawableFunds >= drawableFundsBeforePayment, "ML:CL:CANNOT_USE_DRAWABLE");
+        ( principal_, interest_ ) = getClosingPaymentBreakdown();
+
+        _refinanceInterest = uint256(0);
+
+        uint256 principalAndInterest = principal_ + interest_;
+
+        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
+        // NOTE: This line will revert if not enough funds were added for the full payment amount.
+        _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
+
+        _claimableFunds += principalAndInterest;
+
+        _clearLoanAccounting();
 
         emit LoanClosed(principal_, interest_);
     }
@@ -86,7 +108,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         if (additionalCollateralRequired > uint256(0)) {
             // Determine collateral currently unaccounted for.
-            uint256 unaccountedCollateral = _getUnaccountedAmount(_collateralAsset);
+            uint256 unaccountedCollateral = getUnaccountedAmount(_collateralAsset);
 
             // Post required collateral, specifying then amount lacking as the optional amount to be transferred from.
             collateralPosted_ = postCollateral(
@@ -94,19 +116,37 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             );
         }
 
-        _drawdownFunds(amount_, destination_);
+        _drawableFunds -= amount_;
+
+        require(ERC20Helper.transfer(_fundsAsset, destination_, amount_), "ML:DF:TRANSFER_FAILED");
+        require(_isCollateralMaintained(),                                "ML:DF:INSUFFICIENT_COLLATERAL");
     }
 
-    function makePayment(uint256 amount_) external override returns (uint256 principal_, uint256 interest_) {
-        uint256 drawableFundsBeforePayment = _drawableFunds;
-
+    function makePayment(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
 
-        ( principal_, interest_ ) = _makePayment();
+        ( principal_, interest_ ) = getNextPaymentBreakdown();
 
-        // Either the caller is the borrower or `_drawableFunds` has not decreased.
-        require(msg.sender == _borrower || _drawableFunds >= drawableFundsBeforePayment, "ML:MP:CANNOT_USE_DRAWABLE");
+        _refinanceInterest = uint256(0);
+
+        uint256 principalAndInterest = principal_ + interest_;
+
+        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
+        // NOTE: This line will revert if not enough funds were added for the full payment amount.
+        _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
+
+        _claimableFunds += principalAndInterest;
+
+        uint256 paymentsRemainingCache = _paymentsRemaining;
+
+        if (paymentsRemainingCache == uint256(1)) {
+            _clearLoanAccounting();  // Assumes `getNextPaymentBreakdown` returns a `principal_` that is `_principal`.
+        } else {
+            _nextPaymentDueDate += _paymentInterval;
+            _principal          -= principal_;
+            _paymentsRemaining   = paymentsRemainingCache - uint256(1);
+        }
 
         emit PaymentMade(principal_, interest_);
     }
@@ -118,14 +158,23 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             "ML:PC:TRANSFER_FROM_FAILED"
         );
 
-        emit CollateralPosted(collateralPosted_ = _postCollateral());
+        _collateral += (collateralPosted_ = getUnaccountedAmount(_collateralAsset));
+
+        emit CollateralPosted(collateralPosted_);
     }
 
     function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
         require(msg.sender == _borrower,      "ML:PNT:NOT_BORROWER");
         require(deadline_ >= block.timestamp, "ML:PNT:INVALID_DEADLINE");
 
-        emit NewTermsProposed(refinanceCommitment_ = _proposeNewTerms(refinancer_, deadline_, calls_), refinancer_, deadline_, calls_);
+        emit NewTermsProposed(
+            refinanceCommitment_ = _refinanceCommitment = calls_.length > uint256(0)
+                ? _getRefinanceCommitment(refinancer_, deadline_, calls_)
+                : bytes32(0),
+            refinancer_,
+            deadline_,
+            calls_
+        );
     }
 
     function removeCollateral(uint256 amount_, address destination_) external override {
@@ -133,14 +182,19 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         emit CollateralRemoved(amount_, destination_);
 
-        _removeCollateral(amount_, destination_);
+        _collateral -= amount_;
+
+        require(ERC20Helper.transfer(_collateralAsset, destination_, amount_), "ML:RC:TRANSFER_FAILED");
+        require(_isCollateralMaintained(),                                     "ML:RC:INSUFFICIENT_COLLATERAL");
     }
 
     function returnFunds(uint256 amount_) external override returns (uint256 fundsReturned_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:RF:TRANSFER_FROM_FAILED");
 
-        emit FundsReturned(fundsReturned_ = _returnFunds());
+        _drawableFunds += (fundsReturned_ = getUnaccountedAmount(_fundsAsset));
+
+        emit FundsReturned(fundsReturned_);
     }
 
     function setPendingBorrower(address pendingBorrower_) external override {
@@ -161,7 +215,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit LenderAccepted(_lender = msg.sender);
     }
 
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external override {
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external override returns (bytes32 refinanceCommitment_) {
         require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
 
         address fundsAssetAddress = _fundsAsset;
@@ -172,14 +226,46 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             "ML:ANT:TRANSFER_FROM_FAILED"
         );
 
-        emit NewTermsAccepted(_acceptNewTerms(refinancer_, deadline_, calls_), refinancer_, deadline_, calls_);
+        // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
+        require(
+            _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
+            "ML:ANT:COMMITMENT_MISMATCH"
+        );
 
-        uint256 extra = _getUnaccountedAmount(fundsAssetAddress);
+        require(refinancer_.code.length != uint256(0), "ML:ANT:INVALID_REFINANCER");
 
-        if (extra == uint256(0)) return;
+        require(block.timestamp <= deadline_, "ML:ANT:EXPIRED_COMMITMENT");
 
-        // NOTE: Ensures unaccounted funds (pre-existing or due to over-funding) is claimable by the lender.
-        _claimableFunds += extra;
+        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
+
+        // Get the amount of interest owed since the last payment due date, as well as the time since the last due date
+        uint256 proRataInterest = getRefinanceInterest(block.timestamp);
+
+        // In case there is still a refinance interest, just increment it instead of setting it.
+        _refinanceInterest += proRataInterest;
+
+        // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
+        _refinanceCommitment = bytes32(0);
+
+        for (uint256 i; i < calls_.length;) {
+            ( bool success, ) = refinancer_.delegatecall(calls_[i]);
+            require(success, "ML:ANT:FAILED");
+            unchecked { ++i; }
+        }
+
+        // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
+        // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
+        _nextPaymentDueDate = block.timestamp + _paymentInterval;
+
+        // Ensure that collateral is maintained after changes made.
+        require(_isCollateralMaintained(), "ML:ANT:INSUFFICIENT_COLLATERAL");
+
+        uint256 extra = getUnaccountedAmount(fundsAssetAddress);
+
+        if (extra != uint256(0)) {
+            // NOTE: Ensures unaccounted funds (pre-existing or due to over-funding) is claimable by the lender.
+            _claimableFunds += extra;
+        }
     }
 
     function claimFunds(uint256 amount_, address destination_) external override {
@@ -187,7 +273,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         emit FundsClaimed(amount_, destination_);
 
-        _claimFunds(amount_, destination_);
+        _claimableFunds -= amount_;
+
+        require(ERC20Helper.transfer(_fundsAsset, destination_, amount_), "ML:CF:TRANSFER_FAILED");
     }
 
     function fundLoan(address lender_, uint256 amount_) external override returns (uint256 fundsLent_) {
@@ -196,10 +284,23 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // The amount specified is an optional amount to be transferred from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(fundsAssetAddress, msg.sender, address(this), amount_), "ML:FL:TRANSFER_FROM_FAILED");
 
-        // NOTE: `_nextPaymentDueDate` emitted in event is updated by `_fundLoan`.
-        emit Funded(lender_, fundsLent_ = _fundLoan(lender_), _nextPaymentDueDate);
+        require(lender_ != address(0), "ML:FL:INVALID_LENDER");
 
-        uint256 extra = _getUnaccountedAmount(fundsAssetAddress);
+        // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
+        require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
+
+        _lender = lender_;
+
+        uint256 principalRequestedCache = _principalRequested;
+
+        // Cannot under-fund loan, but over-funding results in additional funds marked as claimable.
+        uint256 extra = getUnaccountedAmount(fundsAssetAddress) - principalRequestedCache;
+
+        emit Funded(
+            lender_,
+            fundsLent_ = _drawableFunds = _principal = principalRequestedCache,
+            _nextPaymentDueDate = block.timestamp + _paymentInterval
+        );
 
         // NOTE: Ensures unaccounted funds (pre-existing or due to over-funding) is claimable by the lender.
         if (extra > uint256(0)) {
@@ -210,7 +311,37 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function repossess(address destination_) external override returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         require(msg.sender == _lender, "ML:R:NOT_LENDER");
 
-        ( collateralRepossessed_, fundsRepossessed_ ) = _repossess(destination_);
+        uint256 nextPaymentDueDateCache = _nextPaymentDueDate;
+
+        require(
+            nextPaymentDueDateCache != uint256(0) && (block.timestamp > nextPaymentDueDateCache + _gracePeriod),
+            "ML:R:NOT_IN_DEFAULT"
+        );
+
+        _clearLoanAccounting();
+
+        // Uniquely in `_repossess`, stop accounting for all funds so that they can be swept.
+        _collateral     = uint256(0);
+        _claimableFunds = uint256(0);
+        _drawableFunds  = uint256(0);
+
+        address collateralAssetCache = _collateralAsset;
+
+        // Either there is no collateral to repossess, or the transfer of the collateral succeeds.
+        require(
+            (collateralRepossessed_ = getUnaccountedAmount(collateralAssetCache)) == uint256(0) ||
+            ERC20Helper.transfer(collateralAssetCache, destination_, collateralRepossessed_),
+            "ML:R:C_TRANSFER_FAILED"
+        );
+
+        address fundsAssetCache = _fundsAsset;
+
+        // Either there are no funds to repossess, or the transfer of the funds succeeds.
+        require(
+            (fundsRepossessed_ = getUnaccountedAmount(fundsAssetCache)) == uint256(0) ||
+            ERC20Helper.transfer(fundsAssetCache, destination_, fundsRepossessed_),
+            "ML:R:F_TRANSFER_FAILED"
+        );
 
         emit Repossessed(collateralRepossessed_, fundsRepossessed_, destination_);
     }
@@ -225,10 +356,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Miscellaneous Functions ***/
     /*******************************/
 
-    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override {
+    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
         require((msg.sender == _borrower) || (msg.sender == _lender), "L:RNT:NO_AUTH");
 
-        emit NewTermsRejected(_rejectNewTerms(refinancer_, deadline_, calls_), refinancer_, deadline_, calls_);
+        require(
+            _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
+            "ML:RNT:COMMITMENT_MISMATCH"
+        );
+
+        _refinanceCommitment = bytes32(0);
+
+        emit NewTermsRejected(refinanceCommitment_, refinancer_, deadline_, calls_);
     }
 
     function skim(address token_, address destination_) external override returns (uint256 skimmed_) {
@@ -252,16 +390,30 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return collateralNeeded > currentCollateral ? collateralNeeded - currentCollateral : uint256(0);
     }
 
-    function getClosingPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
-        ( principal_, interest_ ) = _getClosingPaymentBreakdown();
+    function getClosingPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_) {
+        // Compute interest and include any uncaptured interest from refinance.
+        interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
     }
 
-    function getNextPaymentBreakdown() external view override returns (uint256 principal_, uint256 interest_) {
-        ( principal_, interest_ ) = _getNextPaymentBreakdown();
+    function getNextPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_) {
+        ( principal_, interest_ ) = _getPaymentBreakdown(
+            block.timestamp,
+            _nextPaymentDueDate,
+            _paymentInterval,
+            _principal,
+            _endingPrincipal,
+            _paymentsRemaining,
+            _interestRate,
+            _lateFeeRate,
+            _lateInterestPremium
+        );
+
+        // Include any uncaptured interest from refinance.
+        interest_ += _refinanceInterest;
     }
 
-    function getRefinanceInterest(uint256 timestamp_) external view override returns (uint256 proRataInterest_) {
-        proRataInterest_ = _getRefinanceInterestParams(
+    function getRefinanceInterest(uint256 timestamp_) public view override returns (uint256 proRataInterest_) {
+        proRataInterest_ = _getRefinanceInterest(
             timestamp_,
             _paymentInterval,
             _principal,
@@ -274,8 +426,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function getUnaccountedAmount(address asset_) external view override returns (uint256 unaccountedAmount_) {
-        return _getUnaccountedAmount(asset_);
+    function getUnaccountedAmount(address asset_) public view override returns (uint256 unaccountedAmount_) {
+        return IERC20(asset_).balanceOf(address(this))
+            - (asset_ == _collateralAsset ? _collateral : uint256(0))                   // `_collateral` is `_collateralAsset` accounted for.
+            - (asset_ == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));  // `_claimableFunds` and `_drawableFunds` are `_fundsAsset` accounted for.
     }
 
     /****************************/
@@ -373,12 +527,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _pendingLender;
     }
 
-    function principalRequested() external view override returns (uint256 principalRequested_) {
-        return _principalRequested;
-    }
-
     function principal() external view override returns (uint256 principal_) {
         return _principal;
+    }
+
+    function principalRequested() external view override returns (uint256 principalRequested_) {
+        return _principalRequested;
     }
 
     function refinanceCommitment() external view override returns (bytes32 refinanceCommitment_) {
@@ -410,209 +564,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _principal          = uint256(0);
     }
 
-    /**************************************/
-    /*** Internal Borrow-side Functions ***/
-    /**************************************/
-
-    /// @dev Prematurely ends a loan by making all remaining payments.
-    function _closeLoan() internal returns (uint256 principal_, uint256 interest_) {
-        require(block.timestamp <= _nextPaymentDueDate, "MLI:CL:PAYMENT_IS_LATE");
-
-        ( principal_, interest_ ) = _getClosingPaymentBreakdown();
-
-        _refinanceInterest  = uint256(0);
-
-        uint256 principalAndInterest = principal_ + interest_;
-
-        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
-        // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + _getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
-
-        _claimableFunds += principalAndInterest;
-
-        _clearLoanAccounting();
-    }
-
-    /// @dev Sends `amount_` of `_drawableFunds` to `destination_`.
-    function _drawdownFunds(uint256 amount_, address destination_) internal {
-        _drawableFunds -= amount_;
-
-        require(ERC20Helper.transfer(_fundsAsset, destination_, amount_), "MLI:DF:TRANSFER_FAILED");
-        require(_isCollateralMaintained(),                                "MLI:DF:INSUFFICIENT_COLLATERAL");
-    }
-
-    /// @dev Makes a payment to progress the loan closer to maturity.
-    function _makePayment() internal returns (uint256 principal_, uint256 interest_) {
-        ( principal_, interest_ ) = _getNextPaymentBreakdown();
-
-        _refinanceInterest = uint256(0);
-
-        uint256 principalAndInterest = principal_ + interest_;
-
-        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
-        // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + _getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
-
-        _claimableFunds += principalAndInterest;
-
-        uint256 paymentsRemaining = _paymentsRemaining;
-
-        if (paymentsRemaining == uint256(1)) {
-            _clearLoanAccounting();  // Assumes `_getNextPaymentBreakdown` returns a `principal_` that is `_principal`.
-        } else {
-            _nextPaymentDueDate += _paymentInterval;
-            _principal          -= principal_;
-            _paymentsRemaining   = paymentsRemaining - uint256(1);
-        }
-    }
-
-    /// @dev Registers the delivery of an amount of collateral to be posted.
-    function _postCollateral() internal returns (uint256 collateralPosted_) {
-        _collateral += (collateralPosted_ = _getUnaccountedAmount(_collateralAsset));
-    }
-
-    /// @dev Sets refinance commitment given refinance operations.
-    function _proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 refinanceCommitment_) {
-        return _refinanceCommitment =
-            calls_.length > uint256(0)
-                ? _getRefinanceCommitment(refinancer_, deadline_, calls_)
-                : bytes32(0);
-    }
-
-    /// @dev Sends `amount_` of `_collateral` to `destination_`.
-    function _removeCollateral(uint256 amount_, address destination_) internal {
-        _collateral -= amount_;
-
-        require(ERC20Helper.transfer(_collateralAsset, destination_, amount_), "MLI:RC:TRANSFER_FAILED");
-        require(_isCollateralMaintained(),                                     "MLI:RC:INSUFFICIENT_COLLATERAL");
-    }
-
-    /// @dev Registers the delivery of an amount of funds to be returned as `_drawableFunds`.
-    function _returnFunds() internal returns (uint256 fundsReturned_) {
-        _drawableFunds += (fundsReturned_ = _getUnaccountedAmount(_fundsAsset));
-    }
-
-    /************************************/
-    /*** Internal Lend-side Functions ***/
-    /************************************/
-
-    /// @dev Processes refinance operations.
-    function _acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 acceptedRefinanceCommitment_) {
-        // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
-        require(
-            _refinanceCommitment == (acceptedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
-            "MLI:ANT:COMMITMENT_MISMATCH"
-        );
-
-        require(refinancer_.code.length != uint256(0), "MLI:ANT:INVALID_REFINANCER");
-
-        require(block.timestamp <= deadline_, "MLI:ANT:EXPIRED_COMMITMENT");
-
-        uint256 preRefinancePaymentInterval = _paymentInterval;
-
-        // Get the amount of interest owed since the last payment due date, as well as the time since the last due date
-        uint256 proRataInterest = _getRefinanceInterestParams(
-            block.timestamp,
-            preRefinancePaymentInterval,
-            _principal,
-            _endingPrincipal,
-            _interestRate,
-            _paymentsRemaining,
-            _nextPaymentDueDate,
-            _lateFeeRate,
-            _lateInterestPremium
-        );
-
-        // In case there is still a refinance interest, just increment it instead of setting it.
-        _refinanceInterest += proRataInterest;
-
-        // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
-        _refinanceCommitment = bytes32(0);
-
-        uint256 length = calls_.length;
-        for (uint256 i; i < length;) {
-            ( bool success, ) = refinancer_.delegatecall(calls_[i]);
-            require(success, "MLI:ANT:FAILED");
-            unchecked { ++i; }
-        }
-
-        // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
-        // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
-        _nextPaymentDueDate = block.timestamp + _paymentInterval;
-
-        // Ensure that collateral is maintained after changes made.
-        require(_isCollateralMaintained(), "MLI:ANT:INSUFFICIENT_COLLATERAL");
-    }
-
-    /// @dev Sends `amount_` of `_claimableFunds` to `destination_`.
-    ///      If `amount_` is higher than `_claimableFunds` the transaction will underflow and revert.
-    function _claimFunds(uint256 amount_, address destination_) internal {
-        _claimableFunds -= amount_;
-
-        require(ERC20Helper.transfer(_fundsAsset, destination_, amount_), "MLI:CF:TRANSFER_FAILED");
-    }
-
-    /// @dev Fund the loan and kick off the repayment requirements.
-    function _fundLoan(address lender_) internal returns (uint256 fundsLent_) {
-        require(lender_ != address(0), "MLI:FL:INVALID_LENDER");
-
-        // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
-        require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "MLI:FL:LOAN_ACTIVE");
-
-        _lender = lender_;
-
-        _nextPaymentDueDate = block.timestamp + _paymentInterval;
-
-        // Amount funded and principal are as requested.
-        fundsLent_ = _principal = _principalRequested;
-
-        // Cannot under-fund loan, but over-funding results in additional funds left unaccounted for.
-        require(_getUnaccountedAmount(_fundsAsset) >= fundsLent_, "MLI:FL:WRONG_FUND_AMOUNT");
-
-        _drawableFunds = fundsLent_;
-    }
-
-    /// @dev Explicitly cancel a proposed refinance commitment
-    function _rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal returns (bytes32 rejectedRefinanceCommitment_){
-        require(_refinanceCommitment == (rejectedRefinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)), "MLI:RNT:COMMITMENT_MISMATCH");
-        _refinanceCommitment = bytes32(0);
-    }
-
-    /// @dev Reset all state variables in order to release funds and collateral of a loan in default.
-    function _repossess(address destination_) internal returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
-        uint256 nextPaymentDueDate = _nextPaymentDueDate;
-
-        require(
-            nextPaymentDueDate != uint256(0) && (block.timestamp > nextPaymentDueDate + _gracePeriod),
-            "MLI:R:NOT_IN_DEFAULT"
-        );
-
-        _clearLoanAccounting();
-
-        // Uniquely in `_repossess`, stop accounting for all funds so that they can be swept.
-        _collateral     = uint256(0);
-        _claimableFunds = uint256(0);
-        _drawableFunds  = uint256(0);
-
-        address collateralAsset = _collateralAsset;
-
-        // Either there is no collateral to repossess, or the transfer of the collateral succeeds.
-        require(
-            (collateralRepossessed_ = _getUnaccountedAmount(collateralAsset)) == uint256(0) ||
-            ERC20Helper.transfer(collateralAsset, destination_, collateralRepossessed_),
-            "MLI:R:C_TRANSFER_FAILED"
-        );
-
-        address fundsAsset = _fundsAsset;
-
-        // Either there are no funds to repossess, or the transfer of the funds succeeds.
-        require(
-            (fundsRepossessed_ = _getUnaccountedAmount(fundsAsset)) == uint256(0) ||
-            ERC20Helper.transfer(fundsAsset, destination_, fundsRepossessed_),
-            "MLI:R:F_TRANSFER_FAILED"
-        );
-    }
-
     /*******************************/
     /*** Internal View Functions ***/
     /*******************************/
@@ -620,37 +571,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
     function _isCollateralMaintained() internal view returns (bool isMaintained_) {
         return _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
-    }
-
-    /// @dev Get principal and interest breakdown for closing (paying off) the loan early.
-    function _getClosingPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
-        // Compute interest and include any uncaptured interest from refinance.
-        interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
-    }
-
-    /// @dev Get principal and interest breakdown for next standard payment.
-    function _getNextPaymentBreakdown() internal view returns (uint256 principal_, uint256 interest_) {
-        ( principal_, interest_ ) = _getPaymentBreakdown(
-            block.timestamp,
-            _nextPaymentDueDate,
-            _paymentInterval,
-            _principal,
-            _endingPrincipal,
-            _paymentsRemaining,
-            _interestRate,
-            _lateFeeRate,
-            _lateInterestPremium
-        );
-
-        // Include any uncaptured interest from refinance.
-        interest_ += _refinanceInterest;
-    }
-
-    /// @dev Returns the amount of an `asset_` that this contract owns, which is not currently accounted for by its state variables.
-    function _getUnaccountedAmount(address asset_) internal view returns (uint256 unaccountedAmount_) {
-        return IERC20(asset_).balanceOf(address(this))
-            - (asset_ == _collateralAsset ? _collateral : uint256(0))                   // `_collateral` is `_collateralAsset` accounted for.
-            - (asset_ == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));  // `_claimableFunds` and `_drawableFunds` are `_fundsAsset` accounted for.
     }
 
     /*******************************/
@@ -742,7 +662,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function _getRefinanceInterestParams(
+    function _getRefinanceInterest(
         uint256 currentTime_,
         uint256 paymentInterval_,
         uint256 principal_,

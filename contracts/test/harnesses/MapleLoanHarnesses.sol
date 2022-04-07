@@ -10,56 +10,8 @@ contract MapleLoanHarness is MapleLoan {
     /*** Mutating Functions ***/
     /**************************/
 
-    function __acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
-        return _acceptNewTerms(refinancer_, deadline_,  calls_);
-    }
-
-    function __claimFunds(uint256 amount_, address destination_) external {
-        _claimFunds(amount_, destination_);
-    }
-
     function __clearLoanAccounting() external {
         _clearLoanAccounting();
-    }
-
-    function __closeLoan() external returns (uint256 principal_, uint256 interest_) {
-        return _closeLoan();
-    }
-
-    function __drawdownFunds(uint256 amount_, address destination_) external {
-        _drawdownFunds(amount_, destination_);
-    }
-
-    function __rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {
-        _rejectNewTerms(refinancer_, deadline_,  calls_);
-    }
-
-    function __fundLoan(address lender_) external returns (uint256 fundsLent_) {
-        return _fundLoan(lender_);
-    }
-
-    function __makePayment() external returns (uint256 principal_, uint256 interest_) {
-        return _makePayment();
-    }
-
-    function __postCollateral() external returns (uint256 collateralPosted_) {
-        return _postCollateral();
-    }
-
-    function __proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
-        return _proposeNewTerms(refinancer_, deadline_, calls_);
-    }
-
-    function __removeCollateral(uint256 amount_, address destination_) external {
-        _removeCollateral(amount_, destination_);
-    }
-
-    function __repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
-        return _repossess(destination_);
-    }
-
-    function __returnFunds() external returns (uint256 fundsReturned_) {
-        return _returnFunds();
     }
 
     /***********************/

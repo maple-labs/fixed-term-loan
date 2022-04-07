@@ -27,8 +27,8 @@ contract LoanUser is ERC20User {
         return IMapleLoan(loan_).postCollateral(amount_);
     }
 
-    function loan_rejectNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {
-        IMapleLoan(loan_).rejectNewTerms(refinancer_, deadline_, calls_);
+    function loan_rejectNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
+        return IMapleLoan(loan_).rejectNewTerms(refinancer_, deadline_, calls_);
     }
 
     function loan_returnFunds(address loan_, uint256 amount_) external returns (uint256 fundsReturned_) {

@@ -210,6 +210,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.migrate(mockMigrator, new bytes(0)) { assertTrue(false, "Non-factory was able to migrate"); } catch { }
 
+        // TODO: prank
         loan.__setFactory(address(this));
 
         loan.migrate(mockMigrator, new bytes(0));
@@ -218,6 +219,7 @@ contract MapleLoanTests is TestUtils {
     function test_setImplementation_acl() external {
         try loan.setImplementation(address(this)) { assertTrue(false, "Non-factory was able to set implementation"); } catch { }
 
+        // TODO: prank
         loan.__setFactory(address(this));
 
         loan.setImplementation(address(this));
@@ -234,6 +236,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.drawdownFunds(1, address(this)) { assertTrue(false, "Non-borrower was able to drawdown"); } catch { }
 
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         loan.drawdownFunds(1, address(this));
@@ -245,6 +248,7 @@ contract MapleLoanTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = new bytes(0);
 
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         bytes32 refinanceCommitment = loan.proposeNewTerms(mockRefinancer, deadline, calls);
@@ -261,6 +265,7 @@ contract MapleLoanTests is TestUtils {
         vm.expectRevert("ML:PNT:NOT_BORROWER");
         loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         loan.proposeNewTerms(mockRefinancer, deadline, calls);
@@ -271,6 +276,7 @@ contract MapleLoanTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = new bytes(0);
 
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         vm.expectRevert("ML:PNT:INVALID_DEADLINE");
@@ -290,6 +296,7 @@ contract MapleLoanTests is TestUtils {
         vm.expectRevert(bytes("L:RNT:NO_AUTH"));
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
 
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
@@ -301,6 +308,7 @@ contract MapleLoanTests is TestUtils {
         vm.expectRevert(bytes("L:RNT:NO_AUTH"));
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
 
+        // TODO: prank
         loan.__setLender(address(this));
 
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
@@ -317,6 +325,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.removeCollateral(1, address(this)) { assertTrue(false, "Non-borrower was able to remove collateral"); } catch { }
 
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         loan.removeCollateral(1, address(this));
@@ -325,6 +334,7 @@ contract MapleLoanTests is TestUtils {
     function test_setBorrower_acl() external {
         try loan.setPendingBorrower(address(1)) { assertTrue(false, "Non-borrower was able to set borrower"); } catch { }
 
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         loan.setPendingBorrower(address(1));
@@ -335,6 +345,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.acceptBorrower() { assertTrue(false, "Non-pendingBorrower was able to set borrower"); } catch { }
 
+        // TODO: prank
         loan.__setPendingBorrower(address(this));
 
         loan.acceptBorrower();
@@ -361,6 +372,7 @@ contract MapleLoanTests is TestUtils {
         vm.expectRevert("ML:ANT:NOT_LENDER");
         loan.acceptNewTerms(mockRefinancer, deadline, calls, uint256(0));
 
+        // TODO: prank
         loan.__setLender(address(this));
 
         loan.acceptNewTerms(mockRefinancer, deadline, calls, uint256(0));
@@ -376,6 +388,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.claimFunds(uint256(200_000), address(this)) { assertTrue(false, "Non-lender was able to claim funds"); } catch { }
 
+        // TODO: prank
         loan.__setLender(address(this));
 
         loan.claimFunds(uint256(200_000), address(this));
@@ -392,6 +405,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.repossess(address(this)) {  assertTrue(false, "Non-lender was able to repossess"); } catch { }
 
+        // TODO: prank
         loan.__setLender(address(this));
 
         loan.repossess(address(this));
@@ -400,6 +414,7 @@ contract MapleLoanTests is TestUtils {
     function test_setLender_acl() external {
         try loan.setPendingLender(address(this)) {  assertTrue(false, "Non-lender was able to set lender"); } catch { }
 
+        // TODO: prank
         loan.__setLender(address(this));
 
         loan.setPendingLender(address(this));
@@ -410,6 +425,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.acceptLender() { assertTrue(false, "Non-pendingLender was able to set borrower"); } catch { }
 
+        // TODO: prank
         loan.__setPendingLender(address(this));
 
         loan.acceptLender();
@@ -422,6 +438,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.skim(address(otherAsset), address(this)) { assertTrue(false, "Non-lender or borrower was able to set lender"); } catch { }
 
+        // TODO: prank
         loan.__setLender(address(this));
 
         assertEq(otherAsset.balanceOf(address(loan)), 1);
@@ -433,6 +450,8 @@ contract MapleLoanTests is TestUtils {
         assertEq(otherAsset.balanceOf(address(1)),    1);
 
         loan.__setLender(address(2));
+
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         otherAsset.mint(address(loan), 1);
@@ -455,6 +474,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.upgrade(1, abi.encode(newImplementation)) { assertTrue(false, "Non-borrower was able to set implementation"); } catch { }
 
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         loan.upgrade(1, abi.encode(newImplementation));
@@ -471,6 +491,8 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setPrincipalRequested(1);
         loan.__setFundsAsset(address(fundsAsset));
+
+        // TODO: prank
         loan.__setLender(address(this));
 
         loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
@@ -510,6 +532,8 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setPrincipalRequested(1);
         loan.__setFundsAsset(address(fundsAsset));
+
+        // TODO: prank
         loan.__setLender(address(this));
 
         loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
@@ -666,6 +690,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipalRequested(amount);
         loan.__setPrincipal(amount);
         loan.__setDrawableFunds(amount);
+
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         // Send amount to loan
@@ -696,6 +722,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipal(fundsAssetAmount);
         loan.__setDrawableFunds(fundsAssetAmount);
         loan.__setPaymentsRemaining(1);
+
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         // Send amount to loan
@@ -738,6 +766,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipal(fundsAssetAmount);
         loan.__setDrawableFunds(fundsAssetAmount);
         loan.__setPaymentsRemaining(1);
+
+        // TODO: prank
         loan.__setBorrower(address(this));
 
         // Send amount to loan

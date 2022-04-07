@@ -12,8 +12,6 @@ import { Refinancer } from "../Refinancer.sol";
 
 contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
-    address internal constant LENDER = address(1111);
-
     address    internal _defaultBorrower;
     address[2] internal _defaultAssets;
     uint256[3] internal _defaultTermDetails;
@@ -24,8 +22,8 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
     ConstructableMapleLoan internal _loan;
     Refinancer             internal _refinancer;
-    MockERC20              internal _token0;
-    MockERC20              internal _token1;
+    MockERC20              internal _collateralAsset;
+    MockERC20              internal _fundsAsset;
     MockFactory            internal _factory;
 
     function setUp() external {
@@ -33,212 +31,187 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         _refinancer = new Refinancer();
 
         // Set _initialize() parameters.
-        _token0 = new MockERC20("Token0", "T0", 0);
-        _token1 = new MockERC20("Token1", "T1", 0);
+        _collateralAsset = new MockERC20("Token0", "T0", 0);
+        _fundsAsset      = new MockERC20("Token1", "T1", 0);
 
         _defaultBorrower    = address(1);
-        _defaultAssets      = [address(_token0), address(_token1)];
+        _defaultAssets      = [address(_collateralAsset), address(_fundsAsset)];
         _defaultTermDetails = [uint256(1), uint256(30 days), uint256(12)];
-        _defaultAmounts     = [uint256(500), uint256(1000), uint256(0)];
+        _defaultAmounts     = [uint256(0), uint256(1000), uint256(0)];
         _defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9)];
 
         _loan = new ConstructableMapleLoan(address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
 
-        _token0.mint(address(_loan), _defaultAmounts[0]);
-
         vm.warp(_start = 1_500_000_000);
 
-        _loan.__setLender(LENDER);
+        // TODO: prank both
+        _loan.__setBorrower(address(this));
+        _loan.__setLender(address(this));
+
         _loan.__setPrincipal(_defaultAmounts[1]);
-        _loan.__setCollateral(_defaultAmounts[0]);
+        _loan.__setDrawableFunds(_defaultAmounts[1]);
         _loan.__setNextPaymentDueDate(_start + 25 days);  // 5 days into a loan
+
+        _fundsAsset.mint(address(_loan), _defaultAmounts[1]);
     }
 
     function test_acceptNewTerms_commitmentMismatch_emptyCallsArray() external {
         uint256 deadline = block.timestamp + 10 days;
 
-        // Empty calls array in _proposeNewTerms() always resets _refinanceCommitment to bytes32(0).
-        // _acceptNewTerms() will never accept a 0-valued _refinanceCommitment, so any call to it should fail.
-        bytes[] memory calls = new bytes[](0);
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
 
-        // Set _refinanceCommitment via _proposeNewTerms() using valid refinancer and empty calls array.
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        // Set _refinanceCommitment via proposeNewTerms() using valid refinancer and valid calls array.
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        // Try again with valid refinancer.
-        vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        // Try with empty calls array.
+        vm.expectRevert("ML:ANT:COMMITMENT_MISMATCH");
+        _loan.acceptNewTerms(address(_refinancer), deadline, new bytes[](0), 0);
 
-        calls = new bytes[](1);
-        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
-
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
-
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        // Try with correct calls array.
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
     }
 
     function test_acceptNewTerms_commitmentMismatch_mismatchedCalls() external {
         uint256 deadline = block.timestamp + 10 days;
+
         bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
 
-        // Add a refinance call.
-        bytes memory originalCall = calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
+        // Set _refinanceCommitment via proposeNewTerms() using valid refinancer and valid calls array.
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
-
-        // Mutate the input parameter of the call to something different than proposed.
+        // Try with different calls array.
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(456));
 
-        // Try to accept terms with different calls than proposed.
-        vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        vm.expectRevert("ML:ANT:COMMITMENT_MISMATCH");
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
 
-        calls[0] = originalCall;
+        // Try with correct calls array.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
 
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
     }
 
     function test_acceptNewTerms_commitmentMismatch_mismatchedRefinancer() external {
         uint256 deadline = block.timestamp + 10 days;
-        Refinancer differentRefinancer = new Refinancer();
-        bytes[] memory calls = new bytes[](1);
 
-        // Add a refinance call.
+        bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
 
-        // Set _refinanceCommitment via _proposeNewTerms() using correct refinancer.
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        // Set _refinanceCommitment via proposeNewTerms() using valid refinancer and valid calls array.
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        // Try to accept terms with a different refinancer than proposed.
-        vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
-        _loan.__acceptNewTerms(address(differentRefinancer), deadline, calls);
+        // Try with different refinancer.
+        vm.expectRevert("ML:ANT:COMMITMENT_MISMATCH");
+        _loan.acceptNewTerms(address(1111), deadline, calls, 0);
 
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        // Try with correct refinancer.
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
     }
 
     function test_acceptNewTerms_commitmentMismatch_mismatchedDeadline() external {
         uint256 deadline = block.timestamp + 10 days;
-        bytes[] memory calls = new bytes[](1);
 
-        // Add a refinance call.
+        bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
 
-        // Set _refinanceCommitment via _proposeNewTerms() using correct refinancer.
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        // Set _refinanceCommitment via proposeNewTerms() using valid refinancer and valid calls array.
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        // Try to accept terms with a different refinancer than proposed.
-        vm.expectRevert("MLI:ANT:COMMITMENT_MISMATCH");
-        _loan.__acceptNewTerms(address(_refinancer), deadline + 1, calls);
+        // Try with different deadline.
+        vm.expectRevert("ML:ANT:COMMITMENT_MISMATCH");
+        _loan.acceptNewTerms(address(_refinancer), deadline + 1, calls, 0);
 
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        // Try with correct deadline.
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
     }
 
     function test_acceptNewTerms_invalidRefinancer() external {
         uint256 deadline = block.timestamp + 10 days;
-        address notARefinancer = address(0);
+
         bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
 
-        // Add a refinance call.
-        calls[0] = abi.encodeWithSignature("setInterestRate(uint256)", _defaultRates[0] - 1);
-
-        // Set _refinanceCommitment via _proposeNewTerms() using invalid refinancer.
-        _loan.__proposeNewTerms(notARefinancer, deadline, calls);
+        // Set _refinanceCommitment via proposeNewTerms() using invalid refinancer and valid calls array.
+        _loan.proposeNewTerms(address(0), deadline, calls);
 
         // Try with invalid refinancer.
-        vm.expectRevert("MLI:ANT:INVALID_REFINANCER");
-        _loan.__acceptNewTerms(notARefinancer, deadline, calls);
-
-        // Set _refinanceCommitment via _proposeNewTerms() using valid refinancer.
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
-
-        // Try again with valid refinancer.
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        vm.expectRevert("ML:ANT:INVALID_REFINANCER");
+        _loan.acceptNewTerms(address(0), deadline, calls, 0);
     }
 
     function test_acceptNewTerms_afterDeadline() external {
         uint256 deadline = block.timestamp + 10 days;
-        bytes[] memory calls = new bytes[](1);
-        calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", _defaultAmounts[2] + 1);
 
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
+
+        // Set _refinanceCommitment via proposeNewTerms() using valid refinancer and valid calls array.
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
         vm.warp(deadline + 1);
 
-        vm.expectRevert("MLI:ANT:EXPIRED_COMMITMENT");
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        // Try after deadline.
+        vm.expectRevert("ML:ANT:EXPIRED_COMMITMENT");
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
 
+        // Try before deadline.
         vm.warp(deadline);
 
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
     }
 
     function test_acceptNewTerms_callFailed() external {
         uint256 deadline = block.timestamp + 10 days;
+
         bytes[] memory calls = new bytes[](1);
 
         // Add a refinance call with invalid ending principal, where new ending principal is larger than principal requested.
-        uint256 invalidEndingPrincipal = _defaultAmounts[1] + 1;
-        calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", invalidEndingPrincipal);
+        calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", _defaultAmounts[1] + 1);
 
-        // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        // Set _refinanceCommitment via proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        vm.expectRevert("MLI:ANT:FAILED");
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
-
-        // Set to half principalRequested passed to _initialize().
-        uint256 validEndingPrincipal = _defaultAmounts[1] / 2;
-        calls[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", validEndingPrincipal);
-
-        // Propose new valid terms.
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
-
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        // Try with invalid new term.
+        vm.expectRevert("ML:ANT:FAILED");
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
     }
 
     function test_acceptNewTerms_insufficientCollateral() external {
         // Setup state variables for necessary prerequisite state.
-        uint256 principal = uint256(1000);
-        _loan.__setPrincipal(principal);
-        _loan.__setDrawableFunds(uint256(500));
-        _loan.__setCollateral(uint256(0));
+        _loan.__setDrawableFunds(uint256(0));
 
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
 
         // Add a refinance call with new collateral required amount (fully collateralized principal) which will make current collateral amount insufficient.
-        uint256 newCollateralRequired = principal;
+        uint256 newCollateralRequired = _defaultAmounts[1];
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", newCollateralRequired);
 
-        // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        // Set _refinanceCommitment via proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        vm.expectRevert("MLI:ANT:INSUFFICIENT_COLLATERAL");
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        // Try with insufficient collateral.
+        vm.expectRevert("ML:ANT:INSUFFICIENT_COLLATERAL");
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
 
+        // Try with sufficient collateral.
         _loan.__setCollateral(newCollateralRequired);
+        _collateralAsset.mint(address(_loan), newCollateralRequired);
 
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
     }
 
     function test_acceptNewTerms() external {
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", 1);
 
-        // Add a refinance call.
-        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
+        // Set _refinanceCommitment via proposeNewTerms().
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        // Set _refinanceCommitment via _proposeNewTerms().
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
-
-        _loan.__acceptNewTerms(address(_refinancer), deadline, calls);
-
-        // Refinance commitment should be reset after accepting new terms.
-        assertEq(_loan.refinanceCommitment(), bytes32(0));
-        assertEq(_loan.refinanceInterest(),   1);
-
-        // Check that establishment fees are properly set.
-        assertEq(_loan.nextPaymentDueDate(), block.timestamp + _loan.paymentInterval());
+        _loan.acceptNewTerms(address(_refinancer), deadline, calls, 0);
     }
 
 }
@@ -249,10 +222,12 @@ contract MapleLoanLogic_ClaimFundsTests is TestUtils {
     MockERC20        internal _fundsAsset;
 
     function setUp() external {
-        _fundsAsset = new MockERC20("Funds Asset",      "FA", 0);
+        _fundsAsset = new MockERC20("Funds Asset", "FA", 0);
         _loan       = new MapleLoanHarness();
 
         _loan.__setFundsAsset(address(_fundsAsset));
+
+        // TODO: prank
         _loan.__setLender(address(this));
     }
 
@@ -264,7 +239,7 @@ contract MapleLoanLogic_ClaimFundsTests is TestUtils {
 
         _loan.__setClaimableFunds(claimable_);
 
-        _loan.__claimFunds(amountToClaim_, address(this));
+        _loan.claimFunds(amountToClaim_, address(this));
 
         assertEq(_loan.claimableFunds(),                claimable_ - amountToClaim_);
         assertEq(_fundsAsset.balanceOf(address(_loan)), claimable_ - amountToClaim_);
@@ -279,18 +254,15 @@ contract MapleLoanLogic_ClaimFundsTests is TestUtils {
 
         _loan.__setClaimableFunds(claimable_);
 
-        _loan.__claimFunds(amountToClaim_, address(this));
+        _loan.claimFunds(amountToClaim_, address(this));
     }
 
     function test_claimFunds_transferFail() external {
         // ClaimableFunds is set, but the loan doesn't actually have any tokens, which causes the transfer to fail.
         _loan.__setClaimableFunds(1);
 
-        try _loan.__claimFunds(1, address(this)) {
-            assertTrue(false, "Funds must not be transferred.");
-        } catch Error(string memory reason) {
-            assertEq(reason, "MLI:CF:TRANSFER_FAILED");
-        }
+        vm.expectRevert("ML:CF:TRANSFER_FAILED");
+        _loan.claimFunds(1, address(this));
     }
 
 }
@@ -313,6 +285,9 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
         _loan.__setFactory(address(_factory));
         _loan.__setFundsAsset(address(_fundsAsset));
+
+        // TODO: prank both
+        _loan.__setBorrower(address(this));
         _loan.__setLender(LENDER);
     }
 
@@ -370,7 +345,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
             _fundsAsset.mint(address(_loan), additionalAmount = (expectedPayment - _loan.drawableFunds()));
         }
 
-        ( principal, interest ) = _loan.__closeLoan();
+        ( principal, interest ) = _loan.closeLoan(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -413,7 +388,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), fundsForPayments);
 
-        ( principal, interest ) = _loan.__closeLoan();
+        ( principal, interest ) = _loan.closeLoan(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -443,7 +418,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, closingRate_, endingPrincipal_);
 
         // Drawdown all loan funds.
-        _loan.__drawdownFunds(_loan.drawableFunds(), address(this));
+        _loan.drawdownFunds(_loan.drawableFunds(), address(this));
 
         ( uint256 principal, uint256 interest ) = _loan.getClosingPaymentBreakdown();
 
@@ -453,13 +428,13 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
         // Try to pay with insufficient amount, should underflow.
         vm.expectRevert(abi.encodeWithSignature("Panic(uint256)", UNDERFLOW_ERROR_CODE));
-        _loan.__closeLoan();
+        _loan.closeLoan(0);
 
         // Mint remaining amount.
         _fundsAsset.mint(address(_loan), 1);
 
         // Pay off loan with exact amount.
-        _loan.__closeLoan();
+        _loan.closeLoan(0);
     }
 
     function test_closeLoan_latePayment(
@@ -484,12 +459,12 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         // Set time such that payment is late.
         vm.warp(block.timestamp + paymentInterval_ + 1);
 
-        try _loan.__closeLoan() { assertTrue(false, "Cannot close when late"); } catch { }
+        try _loan.closeLoan(0) { assertTrue(false, "Cannot close when late"); } catch { }
 
         // Returning to being on-time.
         vm.warp(block.timestamp - 2);
 
-        _loan.__closeLoan();
+        _loan.closeLoan(0);
     }
 
     function test_closeLoan_withRefinanceInterest(
@@ -525,7 +500,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
 
-        ( principal, interest ) = _loan.__closeLoan();
+        ( principal, interest ) = _loan.closeLoan(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -541,8 +516,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
 contract MapleLoanLogic_CollateralMaintainedTests is TestUtils {
 
-    uint256 private constant SCALED_ONE = uint256(10 ** 36);
-
+    uint256 internal constant SCALED_ONE       = uint256(10 ** 36);
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 1e18;
 
     MapleLoanHarness internal _loan;
@@ -655,6 +629,7 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
         _fundsAsset = new MockERC20("Funds Asset", "FA", 0);
         _loan       = new MapleLoanHarness();
 
+        // TODO: prank
         _loan.__setBorrower(address(this));
         _loan.__setFundsAsset(address(_fundsAsset));
     }
@@ -673,7 +648,7 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        _loan.__drawdownFunds(drawdownAmount_, address(this));
+        _loan.drawdownFunds(drawdownAmount_, address(this));
 
         assertEq(_loan.drawableFunds(),                 principalRequested_ - drawdownAmount_);
         assertEq(_fundsAsset.balanceOf(address(_loan)), principalRequested_ - drawdownAmount_);
@@ -693,7 +668,7 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        _loan.__drawdownFunds(drawdownAmount_, address(this));
+        _loan.drawdownFunds(drawdownAmount_, address(this));
 
         assertEq(_loan.drawableFunds(),                 principalRequested_ - drawdownAmount_);
         assertEq(_fundsAsset.balanceOf(address(_loan)), principalRequested_ - drawdownAmount_);
@@ -708,17 +683,17 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        _loan.__drawdownFunds(principalRequested_ + extraAmount_, address(this));
+        _loan.drawdownFunds(principalRequested_ + extraAmount_, address(this));
     }
 
     function test_drawdownFunds_transferFailed() external {
         // DrawableFunds is set, but the loan doesn't actually have any tokens which causes the transfer to fail.
         _loan.__setDrawableFunds(1);
 
-        try _loan.__drawdownFunds(1, address(this)) {
+        try _loan.drawdownFunds(1, address(this)) {
             assertTrue(false, "Funds must not be transferred.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:DF:TRANSFER_FAILED");
+            assertEq(reason, "ML:DF:TRANSFER_FAILED");
         }
     }
 
@@ -735,13 +710,13 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        _loan.__drawdownFunds(drawdownAmount_, address(this));
+        _loan.drawdownFunds(drawdownAmount_, address(this));
 
         assertEq(_loan.drawableFunds(),                 principalRequested_ - drawdownAmount_);
         assertEq(_fundsAsset.balanceOf(address(_loan)), principalRequested_ - drawdownAmount_);
         assertEq(_fundsAsset.balanceOf(address(this)),  drawdownAmount_);
 
-        _loan.__drawdownFunds(_loan.drawableFunds(), address(this));
+        _loan.drawdownFunds(_loan.drawableFunds(), address(this));
 
         assertEq(_loan.drawableFunds(),                 0);
         assertEq(_fundsAsset.balanceOf(address(_loan)), 0);
@@ -763,7 +738,7 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        _loan.__drawdownFunds(principalRequested_, address(this));
+        _loan.drawdownFunds(principalRequested_, address(this));
     }
 
 }
@@ -788,14 +763,14 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
     }
 
     function testFail_fundLoan_withInvalidLender() external {
-        _loan.__fundLoan(address(0));
+        _loan.fundLoan(address(0), 0);
     }
 
     function testFail_fundLoan_withoutSendingAsset() external {
         _loan.__setFundsAsset(address(_fundsAsset));
         _loan.__setPaymentsRemaining(1);
         _loan.__setPrincipalRequested(1);
-        _loan.__fundLoan(LENDER);
+        _loan.fundLoan(LENDER, 0);
     }
 
     function test_fundLoan_fullFunding(uint256 principalRequested_) external {
@@ -808,7 +783,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        assertEq(_loan.__fundLoan(LENDER),                           principalRequested_);
+        assertEq(_loan.fundLoan(LENDER, 0),                        principalRequested_);
         assertEq(_loan.lender(),                                   LENDER);
         assertEq(_loan.nextPaymentDueDate(),                       block.timestamp + _loan.paymentInterval());
         assertEq(_loan.principal(),                                principalRequested_);
@@ -827,13 +802,13 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_ + extraAmount_);
 
-        assertEq(_loan.__fundLoan(LENDER),                           principalRequested_);
+        assertEq(_loan.fundLoan(LENDER, 0),                        principalRequested_);
         assertEq(_loan.lender(),                                   LENDER);
         assertEq(_loan.nextPaymentDueDate(),                       block.timestamp + _loan.paymentInterval());
         assertEq(_loan.principal(),                                principalRequested_);
         assertEq(_loan.drawableFunds(),                            principalRequested_);
-        assertEq(_loan.claimableFunds(),                           0);
-        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), extraAmount_);
+        assertEq(_loan.claimableFunds(),                           extraAmount_);
+        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), 0);
     }
 
     function testFail_fundLoan_partialFunding(uint256 principalRequested_) external {
@@ -845,7 +820,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_ - 1);
 
-        _loan.__fundLoan(LENDER);
+        _loan.fundLoan(LENDER, 0);
     }
 
     function testFail_fundLoan_doubleFund(uint256 principalRequested_) external {
@@ -857,11 +832,11 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        _loan.__fundLoan(LENDER);
+        _loan.fundLoan(LENDER, 0);
 
         _fundsAsset.mint(address(_loan), 1);
 
-        _loan.__fundLoan(LENDER);
+        _loan.fundLoan(LENDER, 0);
     }
 
     function testFail_fundLoan_claimImmediatelyAfterFullFunding(uint256 principalRequested_, uint256 claim_) external {
@@ -874,7 +849,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        _loan.__fundLoan(LENDER);
+        _loan.fundLoan(LENDER, 0);
 
         _loan.claimFunds(claim_, address(this));
     }
@@ -886,7 +861,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), 1);
 
-        _loan.__fundLoan(LENDER);
+        _loan.fundLoan(LENDER, 0);
     }
 
     function test_fundLoan_withUnaccountedCollateralAsset() external {
@@ -900,7 +875,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         collateralAsset.mint(address(_loan), 1);
         _fundsAsset.mint(address(_loan), 1);
 
-        _loan.__fundLoan(LENDER);
+        _loan.fundLoan(LENDER, 0);
 
         assertEq(_loan.getUnaccountedAmount(address(collateralAsset)), 1);
     }
@@ -913,10 +888,10 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), 1);
 
-        try _loan.__fundLoan(LENDER) {
+        try _loan.fundLoan(LENDER, 0) {
             assertTrue(false, "Next payment due date must not be set.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:FL:LOAN_ACTIVE");
+            assertEq(reason, "ML:FL:LOAN_ACTIVE");
         }
     }
 
@@ -925,10 +900,10 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         _loan.__setPaymentsRemaining(0);
         _loan.__setPrincipalRequested(1);
 
-        try _loan.__fundLoan(LENDER) {
+        try _loan.fundLoan(LENDER, 0) {
             assertTrue(false, "Number of remaining payments must be greater than zero.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:FL:LOAN_ACTIVE");
+            assertEq(reason, "ML:FL:LOAN_ACTIVE");
         }
     }
 
@@ -1562,7 +1537,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
     }
 
-    function test_initialize_x() external {
+    function test_initialize() external {
         // Call initialize() with all happy path arguments, should not revert().
         _loan = new ConstructableMapleLoan(address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
 
@@ -1647,6 +1622,9 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
         _loan.__setFactory(address(_factory));
         _loan.__setFundsAsset(address(_fundsAsset));
+
+        // TODO: prank
+        _loan.__setBorrower(address(this));
         _loan.__setLender(LENDER);
     }
 
@@ -1704,7 +1682,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
             _fundsAsset.mint(address(_loan), additionalAmount = (expectedPayment - _loan.drawableFunds()));
         }
 
-        ( principal, interest ) = _loan.__makePayment();
+        ( principal, interest ) = _loan.makePayment(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -1747,7 +1725,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), fundsForPayments);
 
-        ( principal, interest ) = _loan.__makePayment();
+        ( principal, interest ) = _loan.makePayment(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -1777,7 +1755,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
 
         // Drawdown all loan funds.
-        _loan.__drawdownFunds(_loan.drawableFunds(), address(this));
+        _loan.drawdownFunds(_loan.drawableFunds(), address(this));
 
         ( uint256 principal, uint256 interest ) = _loan.getNextPaymentBreakdown();
 
@@ -1787,13 +1765,13 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
         // Try to pay with insufficient amount, should underflow.
         vm.expectRevert(abi.encodeWithSignature("Panic(uint256)", UNDERFLOW_ERROR_CODE));
-        _loan.__makePayment();
+        _loan.makePayment(0);
 
         // Mint remaining amount.
         _fundsAsset.mint(address(_loan), 1);
 
         // Pay off loan with exact amount.
-        _loan.__makePayment();
+        _loan.makePayment(0);
     }
 
     function test_makePayment_lastPaymentClearsLoan(
@@ -1813,7 +1791,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         setupLoan(address(_loan), principalRequested_, 1, paymentInterval_, interestRate_, endingPrincipal_);
 
         // Drawdown all loan funds.
-        _loan.__drawdownFunds(_loan.drawableFunds(), address(this));
+        _loan.drawdownFunds(_loan.drawableFunds(), address(this));
 
         ( uint256 principal, uint256 interest ) = _loan.getNextPaymentBreakdown();
 
@@ -1826,7 +1804,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(principal,                 _loan.principal());
 
         // Pay off rest of loan, expecting loan accounting to be reset.
-        ( principal, interest ) = _loan.__makePayment();
+        ( principal, interest ) = _loan.makePayment(0);
 
         uint256 actualInstallmentAmount = principal + interest;
 
@@ -1882,7 +1860,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
         assertEq(_loan.refinanceInterest(),  refinanceInterest_);
 
-        ( principal, interest ) = _loan.__makePayment();
+        ( principal, interest ) = _loan.makePayment(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -1917,7 +1895,7 @@ contract MapleLoanLogic_PostCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), 1);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
     }
 
     function test_postCollateral_once(uint256 collateral_) external {
@@ -1925,8 +1903,8 @@ contract MapleLoanLogic_PostCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        assertEq(_loan.__postCollateral(), collateral_);
-        assertEq(_loan.collateral(),     collateral_);
+        assertEq(_loan.postCollateral(0), collateral_);
+        assertEq(_loan.collateral(),      collateral_);
     }
 
     function test_postCollateral_multiple(uint256 collateral_, uint256 posts_) external {
@@ -1936,8 +1914,8 @@ contract MapleLoanLogic_PostCollateralTests is TestUtils {
         for (uint256 i = 1; i <= posts_; ++i) {
             _collateralAsset.mint(address(_loan), collateral_);
 
-            assertEq(_loan.__postCollateral(), collateral_);
-            assertEq(_loan.collateral(),     collateral_ * i);
+            assertEq(_loan.postCollateral(0), collateral_);
+            assertEq(_loan.collateral(),      collateral_ * i);
         }
     }
 
@@ -1949,7 +1927,7 @@ contract MapleLoanLogic_PostCollateralTests is TestUtils {
         fundsAsset.mint(address(_loan), 1);
         _collateralAsset.mint(address(_loan), 1);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
         assertEq(_loan.getUnaccountedAmount(address(fundsAsset)), 1);
     }
@@ -1962,24 +1940,31 @@ contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
 
     function setUp() external {
         _loan = new MapleLoanHarness();
+
+        // TODO: prank
+        _loan.__setBorrower(address(this));
     }
 
     function test_proposeNewTerms(address refinancer_, uint256 deadline_, uint256 newCollateralRequired_, uint256 newEndingPrincipal_, uint256 newInterestRate_) external {
+        deadline_ = block.timestamp + constrictToRange(deadline_, 1, 2000 days);
+
         bytes[] memory data = new bytes[](3);
         data[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", newCollateralRequired_);
         data[1] = abi.encodeWithSignature("setEndingPrincipal(uint256)",    newEndingPrincipal_);
         data[2] = abi.encodeWithSignature("setInterestRate(uint256)",       newInterestRate_);
 
-        bytes32 proposedRefinanceCommitment = _loan.__proposeNewTerms(refinancer_, deadline_, data);
+        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, deadline_, data);
 
         assertEq(proposedRefinanceCommitment, keccak256(abi.encode(refinancer_, deadline_, data)));
         assertEq(_loan.refinanceCommitment(), keccak256(abi.encode(refinancer_, deadline_, data)));
     }
 
     function test_proposeNewTerms_emptyArray(address refinancer_, uint256 deadline_) external {
+        deadline_ = block.timestamp + constrictToRange(deadline_, 1, 2000 days);
+
         bytes[] memory data = new bytes[](0);
 
-        bytes32 proposedRefinanceCommitment = _loan.__proposeNewTerms(refinancer_, deadline_, data);
+        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, deadline_, data);
 
         assertEq(proposedRefinanceCommitment, bytes32(0));
         assertEq(_loan.refinanceCommitment(), bytes32(0));
@@ -1994,6 +1979,9 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
     function setUp() external {
         _loan       = new MapleLoanHarness();
         _refinancer = new Refinancer();
+
+        // TODO: prank
+        _loan.__setBorrower(address(this));
     }
 
     function test_rejectNewTerms_commitmentMismatch_emptyCallsArray() external {
@@ -2001,12 +1989,12 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
 
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        vm.expectRevert("MLI:RNT:COMMITMENT_MISMATCH");
-        _loan.__rejectNewTerms(address(_refinancer), deadline, new bytes[](0));
+        vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
+        _loan.rejectNewTerms(address(_refinancer), deadline, new bytes[](0));
 
-        _loan.__rejectNewTerms(address(_refinancer), deadline, calls);
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_rejectNewTerms_commitmentMismatch_mismatchedRefinancer() external {
@@ -2015,12 +2003,12 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
 
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        vm.expectRevert("MLI:RNT:COMMITMENT_MISMATCH");
-        _loan.__rejectNewTerms(address(anotherRefinancer), deadline, calls);
+        vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
+        _loan.rejectNewTerms(address(anotherRefinancer), deadline, calls);
 
-        _loan.__rejectNewTerms(address(_refinancer), deadline, calls);
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_rejectNewTerms_commitmentMismatch_mismatchedDeadline() external {
@@ -2028,12 +2016,12 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
 
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
-        vm.expectRevert("MLI:RNT:COMMITMENT_MISMATCH");
-        _loan.__rejectNewTerms(address(_refinancer), deadline + 1, calls);
+        vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
+        _loan.rejectNewTerms(address(_refinancer), deadline + 1, calls);
 
-        _loan.__rejectNewTerms(address(_refinancer), deadline, calls);
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_rejectNewTerms_commitmentMismatch_mismatchedCalls() external {
@@ -2041,16 +2029,16 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         bytes memory originalCall = calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
 
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(100));
 
-        vm.expectRevert("MLI:RNT:COMMITMENT_MISMATCH");
-        _loan.__rejectNewTerms(address(_refinancer), deadline, calls);
+        vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
 
         calls[0] = originalCall;
 
-        _loan.__rejectNewTerms(address(_refinancer), deadline, calls);
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_rejectNewTerms_success() external {
@@ -2058,11 +2046,11 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(0));
 
-        _loan.__proposeNewTerms(address(_refinancer), deadline, calls);
+        _loan.proposeNewTerms(address(_refinancer), deadline, calls);
 
         assertEq(_loan.refinanceCommitment(), keccak256(abi.encode(address(_refinancer), deadline, calls)));
 
-        _loan.__rejectNewTerms(address(_refinancer), deadline, calls);
+        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
 
         assertEq(_loan.refinanceCommitment(), bytes32(0));
     }
@@ -2084,6 +2072,7 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
         _collateralAsset = new MockERC20("CollateralAsset", "CA", 0);
         _loan            = new MapleLoanHarness();
 
+        // TODO: prank
         _loan.__setBorrower(address(this));
         _loan.__setCollateralAsset(address(_collateralAsset));
         _loan.__setPrincipalRequested(1);
@@ -2094,9 +2083,9 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
-        _loan.__removeCollateral(collateral_, address(this));
+        _loan.removeCollateral(collateral_, address(this));
 
         assertEq(_loan.collateral(),                         0);
         assertEq(_collateralAsset.balanceOf(address(_loan)), 0);
@@ -2109,9 +2098,9 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
-        _loan.__removeCollateral(removedAmount_, address(this));
+        _loan.removeCollateral(removedAmount_, address(this));
 
         assertEq(_loan.collateral(),                         collateral_ - removedAmount_);
         assertEq(_collateralAsset.balanceOf(address(_loan)), collateral_ - removedAmount_);
@@ -2123,9 +2112,9 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
-        _loan.__removeCollateral(collateral_ + 1, address(this));
+        _loan.removeCollateral(collateral_ + 1, address(this));
     }
 
     function test_removeCollateral_sameAssetAsFundingAsset(uint256 collateral_) external {
@@ -2139,14 +2128,14 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
         assertEq(_loan.collateral(),                         collateral_);
         assertEq(_loan.claimableFunds(),                     1);
         assertEq(_collateralAsset.balanceOf(address(_loan)), collateral_ + 1);
         assertEq(_collateralAsset.balanceOf(address(this)),  0);
 
-        _loan.__removeCollateral(collateral_, address(this));
+        _loan.removeCollateral(collateral_, address(this));
 
         assertEq(_loan.collateral(),                         0);
         assertEq(_loan.claimableFunds(),                     1);
@@ -2176,8 +2165,8 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        _loan.__postCollateral();
-        _loan.__removeCollateral(collateral_, address(this));
+        _loan.postCollateral(0);
+        _loan.removeCollateral(collateral_, address(this));
 
         assertEq(_loan.collateral(),                         0);
         assertEq(_collateralAsset.balanceOf(address(_loan)), 0);
@@ -2192,8 +2181,8 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateralRequired_);
 
-        _loan.__postCollateral();
-        _loan.__removeCollateral(collateralRequired_, address(this));
+        _loan.postCollateral(0);
+        _loan.removeCollateral(collateralRequired_, address(this));
 
         assertEq(_loan.collateral(),                         0);
         assertEq(_collateralAsset.balanceOf(address(_loan)), 0);
@@ -2209,15 +2198,15 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
-        try _loan.__removeCollateral(collateral_ - collateralRequired_ + 1, address(this)) {
+        try _loan.removeCollateral(collateral_ - collateralRequired_ + 1, address(this)) {
             assertTrue(false, "Collateral must not be removed.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:RC:INSUFFICIENT_COLLATERAL");
+            assertEq(reason, "ML:RC:INSUFFICIENT_COLLATERAL");
         }
 
-        _loan.__removeCollateral(collateral_ - collateralRequired_, address(this));
+        _loan.removeCollateral(collateral_ - collateralRequired_, address(this));
 
         assertEq(_loan.collateral(),                         collateralRequired_);
         assertEq(_collateralAsset.balanceOf(address(_loan)), collateralRequired_);
@@ -2230,12 +2219,12 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), 1000);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
-        try _loan.__removeCollateral(1, address(this)) {
+        try _loan.removeCollateral(1, address(this)) {
             assertTrue(false, "No collateral can be removed.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:RC:INSUFFICIENT_COLLATERAL");
+            assertEq(reason, "ML:RC:INSUFFICIENT_COLLATERAL");
         }
     }
 
@@ -2247,12 +2236,12 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
-        try _loan.__removeCollateral(collateral_, address(this)) {
+        try _loan.removeCollateral(collateral_, address(this)) {
             assertTrue(false, "Full collateral must not be removed.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:RC:INSUFFICIENT_COLLATERAL");
+            assertEq(reason, "ML:RC:INSUFFICIENT_COLLATERAL");
         }
     }
 
@@ -2265,12 +2254,12 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _collateralAsset.mint(address(_loan), collateral_);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
-        try _loan.__removeCollateral(collateralRemoved_, address(this)) {
+        try _loan.removeCollateral(collateralRemoved_, address(this)) {
             assertTrue(false, "Partial collateral must not be removed.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:RC:INSUFFICIENT_COLLATERAL");
+            assertEq(reason, "ML:RC:INSUFFICIENT_COLLATERAL");
         }
     }
 
@@ -2281,12 +2270,12 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         collateralAsset.mint(address(_loan), 1);
 
-        _loan.__postCollateral();
+        _loan.postCollateral(0);
 
-        try _loan.__removeCollateral(1, address(this)) {
+        try _loan.removeCollateral(1, address(this)) {
             assertTrue(false, "Collateral must not be transferred.");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:RC:TRANSFER_FAILED");
+            assertEq(reason, "ML:RC:TRANSFER_FAILED");
         }
     }
 
@@ -2309,6 +2298,8 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
         _loan.__setDrawableFunds(1);
         _loan.__setClaimableFunds(1);
         _loan.__setCollateral(1);
+
+        // TODO: prank
         _loan.__setLender(address(this));
         _loan.__setPaymentsRemaining(1);
         _loan.__setPrincipal(1);
@@ -2321,7 +2312,7 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
     function test_repossess() external {
         _loan.__setNextPaymentDueDate(block.timestamp - 11);
 
-        _loan.__repossess(address(this));
+        _loan.repossess(address(this));
 
         assertEq(_loan.drawableFunds(),                     0);
         assertEq(_loan.claimableFunds(),                    0);
@@ -2335,22 +2326,22 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
     function testFail_repossess_beforePaymentDue() external {
         _loan.__setNextPaymentDueDate(block.timestamp + 1);
-        _loan.__repossess(address(this));
+        _loan.repossess(address(this));
     }
 
     function testFail_repossess_onPaymentDue() external {
         _loan.__setNextPaymentDueDate(block.timestamp);
-        _loan.__repossess(address(this));
+        _loan.repossess(address(this));
     }
 
     function testFail_repossess_withinGracePeriod() external {
         _loan.__setNextPaymentDueDate(block.timestamp - 5);
-        _loan.__repossess(address(this));
+        _loan.repossess(address(this));
     }
 
     function testFail_repossess_onGracePeriod() external {
         _loan.__setNextPaymentDueDate(block.timestamp - 10);
-        _loan.__repossess(address(this));
+        _loan.repossess(address(this));
     }
 
     function test_repossess_fundsTransferFailed() external {
@@ -2361,10 +2352,10 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
         token.mint(address(_loan), 1);
 
-        try _loan.__repossess(address(this)) {
-            assertTrue(false, "Able to __repossess");
+        try _loan.repossess(address(this)) {
+            assertTrue(false, "Able to repossess");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:R:F_TRANSFER_FAILED");
+            assertEq(reason, "ML:R:F_TRANSFER_FAILED");
         }
     }
 
@@ -2376,10 +2367,10 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
         token.mint(address(_loan), 1);
 
-        try _loan.__repossess(address(this)) {
-            assertTrue(false, "Able to __repossess");
+        try _loan.repossess(address(this)) {
+            assertTrue(false, "Able to repossess");
         } catch Error(string memory reason) {
-            assertEq(reason, "MLI:R:C_TRANSFER_FAILED");
+            assertEq(reason, "ML:R:C_TRANSFER_FAILED");
         }
     }
 
@@ -2400,17 +2391,17 @@ contract MapleLoanLogic_ReturnFundsTests is TestUtils {
     function test_returnFunds(uint256 fundsToReturn_) external {
         fundsToReturn_ = constrictToRange(fundsToReturn_, 0, type(uint256).max >> 3);
 
-        assertEq(_loan.__returnFunds(), 0);
+        assertEq(_loan.returnFunds(0), 0);
         assertEq(_loan.drawableFunds(), 0);
 
         _fundsAsset.mint(address(_loan), fundsToReturn_);
 
-        assertEq(_loan.__returnFunds(), fundsToReturn_);
+        assertEq(_loan.returnFunds(0),  fundsToReturn_);
         assertEq(_loan.drawableFunds(), fundsToReturn_);
 
         _fundsAsset.mint(address(_loan), fundsToReturn_);
 
-        assertEq(_loan.__returnFunds(), fundsToReturn_);
+        assertEq(_loan.returnFunds(0),  fundsToReturn_);
         assertEq(_loan.drawableFunds(), 2 * fundsToReturn_);
     }
 
@@ -2419,12 +2410,12 @@ contract MapleLoanLogic_ReturnFundsTests is TestUtils {
 
         _loan.__setCollateralAsset(address(_collateralAsset));
 
-        assertEq(_loan.__returnFunds(),   0);
+        assertEq(_loan.returnFunds(0),  0);
         assertEq(_loan.drawableFunds(), 0);
 
         _collateralAsset.mint(address(_loan), 1);
 
-        assertEq(_loan.__returnFunds(),   0);
+        assertEq(_loan.returnFunds(0),  0);
         assertEq(_loan.drawableFunds(), 0);
     }
 
