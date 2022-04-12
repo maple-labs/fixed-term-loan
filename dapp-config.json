@@ -16,8 +16,7 @@
     },
     "settings": {
         "optimizer": {
-            "enabled": true,
-            "runs": 200
+            "enabled": false
         },
         "outputSelection": {
             "*": {
@@ -25,13 +24,7 @@
                     "abi",
                     "devdoc",
                     "userdoc",
-                    "metadata",
-                    "evm.bytecode",
-                    "evm.deployedBytecode",
-                    "evm.gasEstimates"
-                ],
-                "": [
-                    "ast"
+                    "metadata"
                 ]
             }
         },

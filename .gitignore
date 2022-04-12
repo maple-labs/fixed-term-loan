@@ -3,7 +3,7 @@ hevm*
 .vscode/*
 /package
 .DS_Store
-artifacts/*
-docs/*
+artifacts/
+docs/
 metadata.json
 cache/

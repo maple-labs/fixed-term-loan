@@ -8,11 +8,7 @@ do
     esac
 done
 
-config=$([ -z "$config" ] && echo "./config/prod.json" || echo "$config")
+export FOUNDRY_PROFILE=$profile
+echo Using profile: $FOUNDRY_PROFILE
 
-export DAPP_SOLC_VERSION=0.8.7
-export DAPP_SRC="contracts"
-export DAPP_LINK_TEST_LIBRARIES=0
-export DAPP_STANDARD_JSON=$config
-
-dapp --use solc:0.8.7 build
+forge build

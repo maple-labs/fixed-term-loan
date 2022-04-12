@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
 set -e
 
-while getopts t:r:p:m: flag
+while getopts p:t: flag
 do
     case "${flag}" in
-        t) test=${OPTARG};;
-        r) runs=${OPTARG};;
         p) profile=${OPTARG};;
-        m) match=${OPTARG};;
+        t) test=${OPTARG};;
     esac
 done
 
 export FOUNDRY_PROFILE=$profile
 
-if [ -z "$test" ]; then match="[contracts/test/*.t.sol]"; else match=$test; fi
-
 echo Using profile: $FOUNDRY_PROFILE
 
-rm -rf out
-
-forge test --match "$match" -vvv
+if [ -z "$test" ];
+then
+    forge test --match-path "contracts/test/*";
+else
+    forge test --match "$test";
+fi
