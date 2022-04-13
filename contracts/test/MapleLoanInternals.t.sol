@@ -1446,6 +1446,9 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
 
         uint256 installmentToPay = principal + interest + delegateFee + treasuryFee;
 
+        // If fuzz params are constrainted to cause zero installment, skip run as this is a non-testable edge case.
+        if (installmentToPay == 0) return;
+
         _fundsAsset.mint(address(_loan), installmentToPay - 1);
 
         // Try to pay with insufficient amount, should underflow.
