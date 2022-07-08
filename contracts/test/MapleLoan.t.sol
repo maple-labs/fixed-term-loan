@@ -7,10 +7,11 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
-import { EmptyContract, MockFactory }               from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, MapleLoanHarness }     from "./harnesses/MapleLoanHarnesses.sol";
+import { EmptyContract, MockFactory, MapleGlobalsMock } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
+import { Governor } from "./accounts/Governor.sol";
 import { Lender }   from "./accounts/Lender.sol";
 import { LoanUser } from "./accounts/LoanUser.sol";
 
@@ -1263,23 +1264,32 @@ contract MapleLoanTests is TestUtils {
 contract MapleLoanRoleTests is TestUtils {
 
     ConstructableMapleLoan internal _loan;
-    Borrower               internal _borrower;
-    Lender                 internal _lender;
-    MockFactory            internal _factory;
-    MockERC20              internal _token;
+
+    Borrower internal _borrower;
+    Governor internal _governor;
+    Lender   internal _lender;
+
+    MapleGlobalsMock internal _globals;
+    MockERC20        internal _token;
+    MockFactory      internal _factory;
 
     function setUp() public {
         _borrower = new Borrower();
-        _factory  = new MockFactory();
+        _governor = new Governor();
         _lender   = new Lender();
-        _token    = new MockERC20("Token", "T", 0);
+
+        _globals = new MapleGlobalsMock(address(this));
+        _token   = new MockERC20("Token", "T", 0);
+        _factory = new MockFactory();
 
         address[2] memory assets      = [address(_token), address(_token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
-        _loan = new ConstructableMapleLoan(address(_factory), address(_borrower), assets, termDetails, amounts, rates);
+        _globals.setValidBorrower(address(_borrower), true);
+
+        _loan = new ConstructableMapleLoan(address(_globals), address(_factory), address(_borrower), assets, termDetails, amounts, rates);
     }
 
     function test_transferBorrowerRole() public {

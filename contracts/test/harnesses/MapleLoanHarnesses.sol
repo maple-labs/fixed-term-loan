@@ -199,12 +199,12 @@ contract MapleLoanHarness is MapleLoan {
 
 contract ConstructableMapleLoan is MapleLoanHarness {
 
-    constructor(address factory_, address borrower_, address[2] memory assets_, uint256[3] memory termDetails_, uint256[3] memory amounts_, uint256[4] memory rates_) {
+    constructor(address globals_, address factory_, address borrower_, address[2] memory assets_, uint256[3] memory termDetails_, uint256[3] memory amounts_, uint256[4] memory rates_) {
         _setFactory(factory_);
 
         MapleLoanInitializer initializer = new MapleLoanInitializer();
 
-        _delegateCall(address(initializer), initializer.encodeArguments(borrower_, assets_, termDetails_, amounts_, rates_));
+        _delegateCall(address(initializer), initializer.encodeArguments(globals_, borrower_, assets_, termDetails_, amounts_, rates_));
     }
 
     function _delegateCall(address account_, bytes memory data_) internal {

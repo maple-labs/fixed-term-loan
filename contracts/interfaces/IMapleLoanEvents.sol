@@ -53,6 +53,7 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   The loan was initialized.
+     *  @param globals_     The address of the globals contract.
      *  @param borrower_    The address of the borrower.
      *  @param assets_      Array of asset addresses.
      *                          [0]: collateralAsset,
@@ -71,7 +72,7 @@ interface IMapleLoanEvents {
      *                          [2]: lateFeeRate,
      *                          [3]: lateInterestPremium.
      */
-    event Initialized(address indexed borrower_, address[2] assets_, uint256[3] termDetails_, uint256[3] amounts_, uint256[4] rates_);
+    event Initialized(address globals_, address indexed borrower_, address[2] assets_, uint256[3] termDetails_, uint256[3] amounts_, uint256[4] rates_);
 
     /**
      *  @dev   Lender was accepted, and set to a new account.

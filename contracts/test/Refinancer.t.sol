@@ -6,8 +6,8 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { Refinancer } from "../Refinancer.sol";
 
-import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
-import { MockFactory }            from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan }        from "./harnesses/MapleLoanHarnesses.sol";
+import { MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
 
 import { Lender } from "./accounts/Lender.sol";
 
@@ -21,6 +21,7 @@ contract RefinancerTestBase is  TestUtils {
     uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
     uint256 internal constant MAX_PAYMENTS     = 20;
 
+    MapleGlobalsMock       globals;
     ConstructableMapleLoan loan;
     Lender                 lender;
     MockERC20              token;
@@ -28,9 +29,12 @@ contract RefinancerTestBase is  TestUtils {
     Refinancer             refinancer;
 
     function setUp() external {
+        globals    = new MapleGlobalsMock(address(this));
         lender     = new Lender();
         refinancer = new Refinancer();
         factory    = new MockFactory();
+
+        globals.setValidBorrower(address(this), true);
     }
 
     function setUpOngoingLoan(
@@ -52,7 +56,7 @@ contract RefinancerTestBase is  TestUtils {
         uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
 
         // TODO: prank borrower
-        loan = new ConstructableMapleLoan(address(factory), address(this), assets, termDetails, amounts, rates);
+        loan = new ConstructableMapleLoan(address(globals), address(factory), address(this), assets, termDetails, amounts, rates);
 
         token.mint(address(this), principalRequested_);
         token.approve(address(loan), principalRequested_);
@@ -544,6 +548,7 @@ contract RefinancerInterestTests is TestUtils {
     uint256 internal constant USD              = 1e6;
     uint256 internal constant WAD              = 1e18;
 
+    MapleGlobalsMock       globals;
     ConstructableMapleLoan loan;
     Lender                 lender;
     MockERC20              token;
@@ -551,9 +556,12 @@ contract RefinancerInterestTests is TestUtils {
     Refinancer             refinancer;
 
     function setUp() external {
-        factory    = new MockFactory();
+        globals    = new MapleGlobalsMock(address(this));
         lender     = new Lender();
         refinancer = new Refinancer();
+        factory    = new MockFactory();
+
+        globals.setValidBorrower(address(this), true);
     }
 
     function test_acceptNewTerms_makePayment_withRefinanceInterest() external {
@@ -643,7 +651,7 @@ contract RefinancerInterestTests is TestUtils {
         uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
 
         // TODO: prank borrower
-        loan = new ConstructableMapleLoan(address(factory), address(this), assets, termDetails, amounts, rates);
+        loan = new ConstructableMapleLoan(address(globals), address(factory), address(this), assets, termDetails, amounts, rates);
 
         token.mint(address(this), principalRequested_);
         token.approve(address(loan), principalRequested_);

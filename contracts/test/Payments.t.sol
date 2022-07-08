@@ -39,11 +39,12 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
 
-        globals = new MapleGlobalsMock(address(governor));
-
+        globals        = new MapleGlobalsMock(address(governor));
         factory        = new MapleProxyFactory(address(globals));
         implementation = new MapleLoan();
         initializer    = new MapleLoanInitializer();
+
+        globals.setValidBorrower(address(borrower), true);
 
         governor.mapleProxyFactory_registerImplementation(address(factory), 1, address(implementation), address(initializer));
         governor.mapleProxyFactory_setDefaultVersion(address(factory), 1);
@@ -61,7 +62,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         fundsAsset.mint(address(lender),        amounts[1]);
         fundsAsset.mint(address(borrower),      amounts[1]);  // Mint more than enough for borrower to make payments
 
-        bytes memory arguments = initializer.encodeArguments(address(borrower), assets, termDetails, amounts, rates);
+        bytes memory arguments = initializer.encodeArguments(address(globals), address(borrower), assets, termDetails, amounts, rates);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create Loan

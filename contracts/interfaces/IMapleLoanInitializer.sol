@@ -3,10 +3,10 @@ pragma solidity 0.8.7;
 
 import { IMapleLoanEvents } from "./IMapleLoanEvents.sol";
 
-/// @title MapleLoanInitializer is intended to initialize the storage of a MapleLoan proxy.
 interface IMapleLoanInitializer is IMapleLoanEvents {
 
     function encodeArguments(
+        address globals_,
         address borrower_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
@@ -14,8 +14,9 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
         uint256[4] memory rates_
     ) external pure returns (bytes memory encodedArguments_);
 
-    function decodeArguments(bytes calldata encodedArguments_)
-        external pure returns (
+    function decodeArguments(bytes calldata encodedArguments_) external pure
+        returns (
+            address globals_,
             address borrower_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,

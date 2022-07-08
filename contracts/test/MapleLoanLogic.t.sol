@@ -6,7 +6,7 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
 
-import { MockFactory, RevertingERC20 } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockFactory, RevertingERC20 } from "./mocks/Mocks.sol";
 
 import { Refinancer } from "../Refinancer.sol";
 
@@ -20,6 +20,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
     uint256 internal _start;
 
+    MapleGlobalsMock       internal _globals;
     ConstructableMapleLoan internal _loan;
     Refinancer             internal _refinancer;
     MockERC20              internal _collateralAsset;
@@ -27,6 +28,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
     MockFactory            internal _factory;
 
     function setUp() external {
+        _globals    = new MapleGlobalsMock(address(this));
         _factory    = new MockFactory();
         _refinancer = new Refinancer();
 
@@ -40,7 +42,9 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         _defaultAmounts     = [uint256(0), uint256(1000), uint256(0)];
         _defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9)];
 
-        _loan = new ConstructableMapleLoan(address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
+        _globals.setValidBorrower(_defaultBorrower, true);
+
+        _loan = new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
 
         vm.warp(_start = 1_500_000_000);
 
@@ -943,12 +947,14 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
     address[2] internal _defaultAssets;
     uint256[3] internal _defaultTermDetails;
 
+    MapleGlobalsMock       internal _globals;
     ConstructableMapleLoan internal _loan;
     MockERC20              internal _token0;
     MockERC20              internal _token1;
     MockFactory            internal _factory;
 
     function setUp() external {
+        _globals = new MapleGlobalsMock(address(123123));
         _factory = new MockFactory();
 
         // Set _initialize() parameters.
@@ -958,6 +964,8 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
         _defaultBorrower    = address(1);
         _defaultAssets      = [address(_token0), address(_token1)];
         _defaultTermDetails = [uint256(1), uint256(20 days), uint256(3)];
+
+        _globals.setValidBorrower(_defaultBorrower, true);
     }
 
     function test_getClosingPaymentBreakdown(uint256 principal_, uint256 closingRate_, uint256 refinanceInterest_) external {
@@ -971,7 +979,7 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
         uint256[3] memory amounts = [uint256(5), principal_, uint256(0)];
         uint256[4] memory rates   = [uint256(0.05 ether), closingRate_, uint256(0.15 ether), uint256(20)];
 
-        _loan = new ConstructableMapleLoan(address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, rates);
+        _loan = new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, rates);
 
         _loan.__setPrincipal(amounts[1]);
         _loan.__setRefinanceInterest(refinanceInterest_);
@@ -1519,12 +1527,14 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
     uint256[3] internal _defaultAmounts;
     uint256[4] internal _defaultRates;
 
+    MapleGlobalsMock       internal _globals;
     ConstructableMapleLoan internal _loan;
     MockERC20              internal _token0;
     MockERC20              internal _token1;
     MockFactory            internal _factory;
 
     function setUp() external {
+        _globals = new MapleGlobalsMock(address(this));
         _factory = new MockFactory();
         _token0  = new MockERC20("Token0", "T0", 0);
         _token1  = new MockERC20("Token1", "T1", 0);
@@ -1535,11 +1545,13 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         _defaultTermDetails = [uint256(1), uint256(20 days), uint256(3)];
         _defaultAmounts     = [uint256(5), uint256(4_000_000), uint256(0)];
         _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
+
+        _globals.setValidBorrower(_defaultBorrower, true);
     }
 
     function test_initialize() external {
         // Call initialize() with all happy path arguments, should not revert().
-        _loan = new ConstructableMapleLoan(address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
+        _loan = new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
 
         assertEq(_loan.collateralAsset(),     _defaultAssets[0]);
         assertEq(_loan.fundsAsset(),          _defaultAssets[1]);
@@ -1565,7 +1577,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         amounts[1] = 0;
 
         // Call initialize, expecting to revert with correct error message.
-        try new ConstructableMapleLoan(address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
+        try new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
             assertTrue(false, "Principal requested must be non-zero.");
         }
         catch Error(string memory reason) {
@@ -1581,7 +1593,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         amounts[2] = 24;
 
         // Call initialize(), expecting to revert with correct error message.
-        try new ConstructableMapleLoan(address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
+        try new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
             assertTrue(false, "Ending principal needs to be less than or equal to principal requested.");
         }
         catch Error(string memory reason) {
@@ -1589,12 +1601,20 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         }
     }
 
-    function test_initialize_invalidBorrower() external {
-        // Define invalid borrower.
-        address invalidBorrower = address(0);
-
+    // TODO: Do try/catch sweep
+    function test_initialize_zeroBorrower() external {
         // Call initialize, expecting to revert with correct error message.
-        try new ConstructableMapleLoan(address(_factory), invalidBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates) {
+        try new ConstructableMapleLoan(address(_globals), address(_factory), address(0), _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates) {
+            assertTrue(false, "Borrow cannot be address(0).");
+        }
+        catch Error(string memory reason) {
+            assertEq(reason, "MLI:I:ZERO_BORROWER");
+        }
+    }
+
+    function test_initialize_invalidBorrower() external {
+        // Call initialize, expecting to revert with correct error message.
+        try new ConstructableMapleLoan(address(_globals), address(_factory), address(1234), _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates) {
             assertTrue(false, "Borrow cannot be address(0).");
         }
         catch Error(string memory reason) {

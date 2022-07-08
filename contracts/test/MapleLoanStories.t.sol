@@ -5,8 +5,8 @@ import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol"
 import { IERC20 }    from "../../modules/erc20/contracts/interfaces/IERC20.sol";
 import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
-import { MockFactory }            from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan }        from "./harnesses/MapleLoanHarnesses.sol";
+import { MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { Lender }   from "./accounts/Lender.sol";
@@ -15,14 +15,18 @@ contract MapleLoanStoryTests is TestUtils {
 
     Borrower         borrower;
     Lender           lender;
+    MapleGlobalsMock globals;
     MockERC20        token;
     MockFactory      factory;
 
     function setUp() external {
+        globals  = new MapleGlobalsMock(address(this));
         borrower = new Borrower();
         lender   = new Lender();
         token    = new MockERC20("Test", "TST", 0);
         factory  = new MockFactory();
+
+        globals.setValidBorrower(address(borrower), true);
     }
 
     function test_story_fullyAmortized() external {
@@ -35,7 +39,7 @@ contract MapleLoanStoryTests is TestUtils {
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(borrower), assets, termDetails, amounts, rates);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(globals), address(factory), address(borrower), assets, termDetails, amounts, rates);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);
@@ -196,7 +200,7 @@ contract MapleLoanStoryTests is TestUtils {
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(borrower), assets, termDetails, amounts, rates);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(globals), address(factory), address(borrower), assets, termDetails, amounts, rates);
 
         // Fund via a 500k approval and a 500k transfer, totaling 1M
         lender.erc20_transfer(address(token), address(loan), 500_000);

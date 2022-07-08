@@ -7,12 +7,18 @@ contract MapleGlobalsMock {
 
     address public governor;
 
+    mapping(address => bool) public isBorrower;
+
     constructor (address governor_) {
         governor = governor_;
     }
 
     function setGovernor(address governor_) external {
         governor = governor_;
+    }
+
+    function setValidBorrower(address borrower_, bool isValid_) external {
+        isBorrower[borrower_] = isValid_;
     }
 
 }
