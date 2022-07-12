@@ -412,6 +412,28 @@ contract MapleLoanTests is TestUtils {
         loan.repossess(address(this));
     }
 
+    function test_triggerDefaultWarning_acl() external {
+        loan.__setLender(address(1));
+
+        uint256 start = 1 days;  // Non-zero start time.
+
+        vm.warp(start);
+
+        uint256 originalNextPaymentDate = start + 10 days;
+
+        loan.__setNextPaymentDueDate(originalNextPaymentDate);
+
+        uint256 timeToFastForwardTo = start + 5 days;
+
+        vm.warp(timeToFastForwardTo);
+
+        vm.expectRevert("ML:TDW:NOT_LENDER");
+        loan.triggerDefaultWarning(block.timestamp);
+
+        loan.__setLender(address(this));
+        loan.triggerDefaultWarning(block.timestamp);
+    }
+
     function test_setLender_acl() external {
         try loan.setPendingLender(address(this)) {  assertTrue(false, "Non-lender was able to set lender"); } catch { }
 
@@ -564,6 +586,71 @@ contract MapleLoanTests is TestUtils {
         assertEq(fundsAsset.balanceOf(address(loan)), 1);
         assertEq(loan.claimableFunds(),               1);
         assertEq(loan.drawableFunds(),                0);
+    }
+
+    function test_triggerDefaultWarning() external {
+        loan.__setLender(address(this));
+
+        uint256 start = 1 days;  // Non-zero start time.
+
+        vm.warp(start);
+
+        uint256 originalNextPaymentDate = start + 10 days;
+
+        loan.__setNextPaymentDueDate(originalNextPaymentDate);
+
+        // Pool delegate wants to force the loan into the grace period 5 days early.
+        uint256 timeToFastForwardTo = start + 5 days;
+
+        vm.warp(timeToFastForwardTo);
+
+        loan.triggerDefaultWarning(timeToFastForwardTo);
+
+        assertEq(loan.nextPaymentDueDate(), timeToFastForwardTo);
+    }
+
+    function test_triggerDefaultWarning_pastDueDate() external {
+        loan.__setLender(address(this));
+
+        uint256 start = 1 days;  // Non-zero start time.
+
+        vm.warp(start);
+
+        uint256 originalNextPaymentDate = start + 10 days;
+
+        loan.__setNextPaymentDueDate(originalNextPaymentDate);
+
+        // At due date, should not be able to fast forward.
+        uint256 timeToFastForwardTo = start + 10 days;
+
+        vm.warp(timeToFastForwardTo);
+
+        vm.expectRevert("ML:TDW:PAST_DUE_DATE");
+        loan.triggerDefaultWarning(block.timestamp);
+
+        vm.warp(timeToFastForwardTo - 1);
+        loan.triggerDefaultWarning(block.timestamp);
+    }
+
+    function test_triggerDefaultWarning_inPast() external {
+        loan.__setLender(address(this));
+
+        uint256 start = 1 days;  // Non-zero start time.
+
+        vm.warp(start);
+
+        uint256 originalNextPaymentDate = start + 10 days;
+
+        loan.__setNextPaymentDueDate(originalNextPaymentDate);
+
+        uint256 timeToFastForwardTo = start + 5 days;
+
+        vm.warp(timeToFastForwardTo);
+
+        vm.expectRevert("ML:TDW:IN_PAST");
+        loan.triggerDefaultWarning(block.timestamp - 1);
+
+        loan.triggerDefaultWarning(block.timestamp);
     }
 
     // TODO: test_acceptNewTerms_pullPatternOverFund (since test_acceptNewTerms_pullPattern already overfunds)

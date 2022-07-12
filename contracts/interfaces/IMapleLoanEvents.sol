@@ -115,6 +115,12 @@ interface IMapleLoanEvents {
     event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
 
     /**
+     *  @dev   The next payment due date was fastforwarded to block.timestamp, activating the grace period. This is in the case that the pool delegate wants to force a payment (or default).
+     *  @param nextPaymentDueDate_ The new next payment due date.
+     */
+    event NextPaymentDueDateFastForwarded(uint256 nextPaymentDueDate_);
+
+    /**
      *  @dev   Payments were made.
      *  @param principalPaid_ The portion of the total amount that went towards principal.
      *  @param interestPaid_  The portion of the total amount that went towards interest.

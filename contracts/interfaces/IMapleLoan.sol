@@ -178,6 +178,12 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function drawdownFunds(uint256 amount_, address destination_) external returns (uint256 collateralPosted_);
 
     /**
+     *  @dev    Fast forward `_nextPaymentDueDate` to `newPaymentDueDate_`. This is in the case that the Pool Delegate wants to force a payment (or default).
+     *  @param  newPaymentDueDate_ The new payment due date.
+     */
+    function triggerDefaultWarning(uint256 newPaymentDueDate_) external;
+
+    /**
      *  @dev    Lend funds to the loan/borrower.
      *  @param  lender_    The address to be registered as the lender.
      *  @param  amount_    An amount to pull from the caller, if any.
