@@ -52,27 +52,39 @@ interface IMapleLoanEvents {
     event FundsReturned(uint256 amount_);
 
     /**
-     *  @dev   The loan was initialized.
-     *  @param globals_     The address of the globals contract.
-     *  @param borrower_    The address of the borrower.
-     *  @param assets_      Array of asset addresses.
+     *  @dev   Loan was initialized.
+     *  @param globals_        The address of the globals contract.
+     *  @param borrower_       The address of the borrower.
+     *  @param feeManager_     The address of the entity responsible for calculating fees
+     *  @param originationFee_ The fee paid by the borrower on loan origination.
+     *  @param assets_         Array of asset addresses.
      *                          [0]: collateralAsset,
      *                          [1]: fundsAsset.
-     *  @param termDetails_ Array of loan parameters:
+     *  @param termDetails_    Array of loan parameters:
      *                          [0]: gracePeriod,
      *                          [1]: paymentInterval,
      *                          [2]: payments,
-     *  @param amounts_     Requested amounts:
+     *  @param amounts_        Requested amounts:
      *                          [0]: collateralRequired,
      *                          [1]: principalRequested,
      *                          [2]: endingPrincipal.
-     *  @param rates_       Fee parameters:
+     *  @param rates_          Fee parameters:
      *                          [0]: interestRate,
-     *                          [1]: closingRate,
+     *                          [1]: closingFeeRate,
      *                          [2]: lateFeeRate,
-     *                          [3]: lateInterestPremium.
+     *                          [3]: lateInterestPremium,
+     *                          [5]: adminFeeRate.
      */
-    event Initialized(address globals_, address indexed borrower_, address[2] assets_, uint256[3] termDetails_, uint256[3] amounts_, uint256[4] rates_);
+    event Initialized(
+        address indexed globals_,
+        address indexed borrower_,
+        address indexed feeManager_,
+        uint256 originationFee_,
+        address[2] assets_,
+        uint256[3] termDetails_,
+        uint256[3] amounts_,
+        uint256[5] rates_
+    );
 
     /**
      *  @dev   Lender was accepted, and set to a new account.
@@ -84,8 +96,9 @@ interface IMapleLoanEvents {
      *  @dev   Loan was repaid early and closed.
      *  @param principalPaid_ The portion of the total amount that went towards principal.
      *  @param interestPaid_  The portion of the total amount that went towards interest.
+     *  @param feesPaid_      The portion of the total amount that went towards fees.
      */
-    event LoanClosed(uint256 principalPaid_, uint256 interestPaid_);
+    event LoanClosed(uint256 principalPaid_, uint256 interestPaid_, uint256 feesPaid_);
 
     /**
      *  @dev   The terms of the refinance proposal were accepted.
@@ -124,8 +137,9 @@ interface IMapleLoanEvents {
      *  @dev   Payments were made.
      *  @param principalPaid_ The portion of the total amount that went towards principal.
      *  @param interestPaid_  The portion of the total amount that went towards interest.
+     *  @param fees_          The portion of the total amount that went towards fees.
      */
-    event PaymentMade(uint256 principalPaid_, uint256 interestPaid_);
+    event PaymentMade(uint256 principalPaid_, uint256 interestPaid_, uint256 fees_);
 
     /**
      *  @dev   Pending borrower was set.

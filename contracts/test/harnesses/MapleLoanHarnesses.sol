@@ -62,6 +62,10 @@ contract MapleLoanHarness is MapleLoan {
         _setFactory(factory_);
     }
 
+    function __setFeeManager(address feeManager_) external {
+        _feeManager = feeManager_;
+    }
+
     function __setFundsAsset(address fundsAsset_) external {
         _fundsAsset = fundsAsset_;
     }
@@ -199,12 +203,22 @@ contract MapleLoanHarness is MapleLoan {
 
 contract ConstructableMapleLoan is MapleLoanHarness {
 
-    constructor(address globals_, address factory_, address borrower_, address[2] memory assets_, uint256[3] memory termDetails_, uint256[3] memory amounts_, uint256[4] memory rates_) {
+    constructor(
+        address factory_,
+        address globals_,
+        address borrower_,
+        address feeManager_,
+        uint256 originationFee_,
+        address[2] memory assets_,
+        uint256[3] memory termDetails_,
+        uint256[3] memory amounts_,
+        uint256[5] memory rates_
+    ) {
         _setFactory(factory_);
 
         MapleLoanInitializer initializer = new MapleLoanInitializer();
 
-        _delegateCall(address(initializer), initializer.encodeArguments(globals_, borrower_, assets_, termDetails_, amounts_, rates_));
+        _delegateCall(address(initializer), initializer.encodeArguments(globals_, borrower_, feeManager_, originationFee_, assets_, termDetails_, amounts_, rates_));
     }
 
     function _delegateCall(address account_, bytes memory data_) internal {

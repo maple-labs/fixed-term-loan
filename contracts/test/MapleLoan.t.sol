@@ -7,8 +7,9 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
-import { ConstructableMapleLoan, MapleLoanHarness }     from "./harnesses/MapleLoanHarnesses.sol";
-import { EmptyContract, MockFactory, MapleGlobalsMock } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
+
+import { EmptyContract, MapleGlobalsMock, MockFactory, MockFeeManager } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { Governor } from "./accounts/Governor.sol";
@@ -22,11 +23,13 @@ contract MapleLoanTests is TestUtils {
     bool locked;  // Helper state variable to avoid infinite loops when using the modifier.
 
     function setUp() external {
-        MockFactory factoryMock = new MockFactory();
+        MockFactory    factoryMock = new MockFactory();
+        MockFeeManager feeManager  = new MockFeeManager();
 
         loan = new MapleLoanHarness();
 
         loan.__setFactory(address(factoryMock));
+        loan.__setFeeManager(address(feeManager));
     }
 
     /***********************************/
@@ -254,7 +257,7 @@ contract MapleLoanTests is TestUtils {
 
         bytes32 refinanceCommitment = loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
-        assertEq(refinanceCommitment, bytes32(0xb9c302c0c40e8fbb64fd5a5469fb6ebaaf0ff37294952ae34536078fbdfff83e));
+        assertEq(refinanceCommitment, bytes32(0x1981fade01c173d23aff6ce8ca84f8d60963a68b6a89e040daeb2059098ebd87));
     }
 
     function test_proposeNewTerms_acl() external {
@@ -1013,7 +1016,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        ( uint256 principal, uint256 interest ) = loan.getClosingPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getClosingPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
@@ -1045,7 +1048,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipal(amount);
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
-        ( uint256 principal, uint256 interest ) = loan.getClosingPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getClosingPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
@@ -1074,7 +1077,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getNextPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(borrower), totalPayment);
@@ -1109,7 +1112,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getNextPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(borrower), totalPayment);
@@ -1143,7 +1146,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getNextPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(user), totalPayment);
@@ -1177,7 +1180,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getNextPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(user), totalPayment);
@@ -1213,7 +1216,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getNextPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
@@ -1246,7 +1249,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setEndingPrincipal(uint256(0));
         loan.__setPaymentsRemaining(3);
 
-        ( uint256 principal, uint256 interest ) = loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getNextPaymentBreakdown();
         uint256 totalPayment = principal + interest;
 
         fundsAsset.mint(address(loan), 1);
@@ -1351,32 +1354,29 @@ contract MapleLoanTests is TestUtils {
 contract MapleLoanRoleTests is TestUtils {
 
     ConstructableMapleLoan internal _loan;
-
-    Borrower internal _borrower;
-    Governor internal _governor;
-    Lender   internal _lender;
-
-    MapleGlobalsMock internal _globals;
-    MockERC20        internal _token;
-    MockFactory      internal _factory;
+    Borrower               internal _borrower;
+    Lender                 internal _lender;
+    MapleGlobalsMock       internal _globals;
+    MockERC20              internal _token;
+    MockFactory            internal _factory;
+    MockFeeManager         internal _feeManager;
 
     function setUp() public {
-        _borrower = new Borrower();
-        _governor = new Governor();
-        _lender   = new Lender();
-
-        _globals = new MapleGlobalsMock(address(this));
-        _token   = new MockERC20("Token", "T", 0);
-        _factory = new MockFactory();
+        _borrower   = new Borrower();
+        _lender     = new Lender();
+        _globals    = new MapleGlobalsMock(address(this));
+        _token      = new MockERC20("Token", "T", 0);
+        _factory    = new MockFactory();
+        _feeManager = new MockFeeManager();
 
         address[2] memory assets      = [address(_token), address(_token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
-        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates       = [uint256(0.12e18), uint256(0), uint256(0), uint256(0), uint256(0)];
 
         _globals.setValidBorrower(address(_borrower), true);
 
-        _loan = new ConstructableMapleLoan(address(_globals), address(_factory), address(_borrower), assets, termDetails, amounts, rates);
+        _loan = new ConstructableMapleLoan(address(_factory), address(_globals), address(_borrower), address(_feeManager), 0, assets, termDetails, amounts, rates);
     }
 
     function test_transferBorrowerRole() public {

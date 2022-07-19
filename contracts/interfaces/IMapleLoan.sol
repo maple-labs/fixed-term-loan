@@ -56,6 +56,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function endingPrincipal() external view returns (uint256 endingPrincipal_);
 
     /**
+     *  @dev The address of the contract that handles payments of fees on behalf of the loan.
+     */
+    function feeManager() external view returns (address feeManager_);
+
+    /**
      *  @dev The asset deposited by the lender to fund the loan.
      */
     function fundsAsset() external view returns (address fundsAsset_);
@@ -166,8 +171,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @param  amount_    An amount to pull from the caller, if any.
      *  @return principal_ The portion of the amount paying back principal.
      *  @return interest_  The portion of the amount paying interest.
+     *  @return fees_      The portion of the amount paying service fees.
      */
-    function closeLoan(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
+    function closeLoan(uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
     /**
      *  @dev    Draw down funds from the loan.
@@ -196,8 +202,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @param  amount_    An amount to pull from the caller, if any.
      *  @return principal_ The portion of the amount paying back principal.
      *  @return interest_  The portion of the amount paying interest fees.
+     *  @return fees_      The portion of the amount paying service fees.
      */
-    function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
+    function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
     /**
      *  @dev    Post collateral to the loan.
@@ -287,15 +294,17 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @dev    Get the breakdown of the total payment needed to satisfy an early repayment to close the loan.
      *  @return principal_ The portion of the total amount that will go towards principal.
      *  @return interest_  The portion of the total amount that will go towards interest fees.
+     *  @return fees_      The portion of the total amount that will go towards fees.
      */
-    function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+    function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy the next payment installment.
      *  @return principal_ The portion of the total amount that will go towards principal.
      *  @return interest_  The portion of the total amount that will go towards interest fees.
+     *  @return fees_      The portion of the total amount that will go towards paying administrative fees.
      */
-    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
     /**
      *  @dev    Get the extra interest that will be charged according to loan terms before refinance, based on a given timestamp.

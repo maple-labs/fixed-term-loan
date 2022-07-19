@@ -7,7 +7,7 @@ import { MapleLoan }            from "../MapleLoan.sol";
 import { MapleLoanFactory }     from "../MapleLoanFactory.sol";
 import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
 
-import { MapleGlobalsMock, SomeAccount } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockFeeManager, SomeAccount } from "./mocks/Mocks.sol";
 
 import { Proxy } from "../../modules/maple-proxy-factory/modules/proxy-factory/contracts/Proxy.sol";
 
@@ -15,12 +15,14 @@ contract MapleLoanFactoryTest is TestUtils {
 
     MapleGlobalsMock internal globals;
     MapleLoanFactory internal factory;
+    MockFeeManager   internal feeManager;
     address          internal implementation;
     address          internal initializer;
 
     function setUp() external {
         globals        = new MapleGlobalsMock(address(this));
         factory        = new MapleLoanFactory(address(globals));
+        feeManager     = new MockFeeManager();
         implementation = address(new MapleLoan());
         initializer    = address(new MapleLoanInitializer());
 
@@ -34,9 +36,9 @@ contract MapleLoanFactoryTest is TestUtils {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
-        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), assets, termDetails, amounts, rates);
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), address(feeManager), 0, assets, termDetails, amounts, rates);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create a "random" loan creator from some fuzzed salt.
@@ -65,9 +67,9 @@ contract MapleLoanFactoryTest is TestUtils {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
-        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), assets, termDetails, amounts, rates);
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), address(2), 0, assets, termDetails, amounts, rates);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         factory.createInstance(arguments, salt);

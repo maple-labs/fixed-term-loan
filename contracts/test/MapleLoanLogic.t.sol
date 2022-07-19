@@ -6,7 +6,7 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
 
-import { MapleGlobalsMock, MockFactory, RevertingERC20 } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockFactory, RevertingERC20, MockFeeManager } from "./mocks/Mocks.sol";
 
 import { Refinancer } from "../Refinancer.sol";
 
@@ -16,7 +16,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
     address[2] internal _defaultAssets;
     uint256[3] internal _defaultTermDetails;
     uint256[3] internal _defaultAmounts;
-    uint256[4] internal _defaultRates;
+    uint256[5] internal _defaultRates;
 
     uint256 internal _start;
 
@@ -26,10 +26,12 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
     MockERC20              internal _collateralAsset;
     MockERC20              internal _fundsAsset;
     MockFactory            internal _factory;
+    MockFeeManager         internal _feeManager;
 
     function setUp() external {
         _globals    = new MapleGlobalsMock(address(this));
         _factory    = new MockFactory();
+        _feeManager = new MockFeeManager();
         _refinancer = new Refinancer();
 
         // Set _initialize() parameters.
@@ -40,11 +42,11 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         _defaultAssets      = [address(_collateralAsset), address(_fundsAsset)];
         _defaultTermDetails = [uint256(1), uint256(30 days), uint256(12)];
         _defaultAmounts     = [uint256(0), uint256(1000), uint256(0)];
-        _defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9)];
+        _defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9), uint256(0)];
 
         _globals.setValidBorrower(_defaultBorrower, true);
 
-        _loan = new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
+        _loan = new ConstructableMapleLoan(address(_factory), address(_globals), _defaultBorrower, address(_feeManager), 0, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
 
         vm.warp(_start = 1_500_000_000);
 
@@ -281,13 +283,16 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
     MapleLoanHarness internal _loan;
     MockERC20        internal _fundsAsset;
     MockFactory      internal _factory;
+    MockFeeManager   internal _feeManager;
 
     function setUp() external {
         _factory    = new MockFactory();
+        _feeManager = new MockFeeManager();
         _fundsAsset = new MockERC20("FundsAsset", "FA", 0);
         _loan       = new MapleLoanHarness();
 
         _loan.__setFactory(address(_factory));
+        _loan.__setFeeManager(address(_feeManager));
         _loan.__setFundsAsset(address(_fundsAsset));
 
         // TODO: prank both
@@ -339,7 +344,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
 
-        ( uint256 principal, uint256 interest ) = _loan.getClosingPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getClosingPaymentBreakdown();
 
         uint256 expectedPayment = principal + interest;
 
@@ -349,7 +354,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
             _fundsAsset.mint(address(_loan), additionalAmount = (expectedPayment - _loan.drawableFunds()));
         }
 
-        ( principal, interest ) = _loan.closeLoan(0);
+        ( principal, interest, ) = _loan.closeLoan(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -384,7 +389,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
 
-        ( uint256 principal, uint256 interest ) = _loan.getClosingPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getClosingPaymentBreakdown();
 
         uint256 expectedPayment = principal + interest;
 
@@ -392,7 +397,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), fundsForPayments);
 
-        ( principal, interest ) = _loan.closeLoan(0);
+        ( principal, interest, ) = _loan.closeLoan(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -424,7 +429,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         // Drawdown all loan funds.
         _loan.drawdownFunds(_loan.drawableFunds(), address(this));
 
-        ( uint256 principal, uint256 interest ) = _loan.getClosingPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getClosingPaymentBreakdown();
 
         uint256 installmentToPay = principal + interest;
 
@@ -490,7 +495,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
         _loan.__setRefinanceInterest(refinanceInterest_);
 
-        ( uint256 principal, uint256 interest ) = _loan.getClosingPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getClosingPaymentBreakdown();
 
         uint256 expectedPayment = principal + interest;
 
@@ -504,7 +509,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
 
-        ( principal, interest ) = _loan.closeLoan(0);
+        ( principal, interest, ) = _loan.closeLoan(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -757,13 +762,16 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
     MapleLoanHarness internal _loan;
     MockERC20        internal _fundsAsset;
     MockFactory      internal _factory;
+    MockFeeManager   internal _feeManager;
 
     function setUp() external {
         _factory    = new MockFactory();
+        _feeManager = new MockFeeManager();
         _fundsAsset = new MockERC20("FundsAsset", "FA", 0);
         _loan       = new MapleLoanHarness();
 
         _loan.__setFactory(address(_factory));
+        _loan.__setFeeManager(address(_feeManager));
     }
 
     function testFail_fundLoan_withInvalidLender() external {
@@ -952,10 +960,12 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
     MockERC20              internal _token0;
     MockERC20              internal _token1;
     MockFactory            internal _factory;
+    MockFeeManager         internal _feeManager;
 
     function setUp() external {
-        _globals = new MapleGlobalsMock(address(123123));
-        _factory = new MockFactory();
+        _globals    = new MapleGlobalsMock(address(123123));
+        _factory    = new MockFactory();
+        _feeManager = new MockFeeManager();
 
         // Set _initialize() parameters.
         _token0 = new MockERC20("Token0", "T0", 0);
@@ -977,14 +987,14 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
 
         // Set principal and closingRate for _initialize().
         uint256[3] memory amounts = [uint256(5), principal_, uint256(0)];
-        uint256[4] memory rates   = [uint256(0.05 ether), closingRate_, uint256(0.15 ether), uint256(20)];
+        uint256[5] memory rates   = [uint256(0.05 ether), closingRate_, uint256(0.15 ether), uint256(20), uint256(0)];
 
-        _loan = new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, rates);
+        _loan = new ConstructableMapleLoan(address(_factory), address(_globals), _defaultBorrower, address(_feeManager), 0, _defaultAssets, _defaultTermDetails, amounts, rates);
 
         _loan.__setPrincipal(amounts[1]);
         _loan.__setRefinanceInterest(refinanceInterest_);
 
-        ( uint256 principal, uint256 interest ) = _loan.getClosingPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getClosingPaymentBreakdown();
 
         uint256 expectedPrincipal = amounts[1];
         uint256 expectedInterest  = (expectedPrincipal * rates[1] / SCALED_ONE) + refinanceInterest_;
@@ -1108,6 +1118,7 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
         _loan.__setLateFeeRate(lateFeeRate_);
         _loan.__setLateInterestPremium(lateInterestPremium_);
         _loan.__setRefinanceInterest(refinanceInterest_);
+        _loan.__setFeeManager(address(new MockFeeManager()));
 
         ( uint256 expectedPrincipal, uint256 expectedInterest ) = _loan.__getPaymentBreakdown(
             block.timestamp,
@@ -1121,7 +1132,7 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
             lateInterestPremium_
         );
 
-        ( uint256 actualPrincipal, uint256 actualInterest ) = _loan.getNextPaymentBreakdown();
+        ( uint256 actualPrincipal, uint256 actualInterest,  ) = _loan.getNextPaymentBreakdown();
 
         assertEq(actualPrincipal, expectedPrincipal);
         assertEq(actualInterest,  expectedInterest + refinanceInterest_);
@@ -1525,33 +1536,36 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
     address[2] internal _defaultAssets;
     uint256[3] internal _defaultTermDetails;
     uint256[3] internal _defaultAmounts;
-    uint256[4] internal _defaultRates;
+    uint256[5] internal _defaultRates;
 
     MapleGlobalsMock       internal _globals;
     ConstructableMapleLoan internal _loan;
     MockERC20              internal _token0;
     MockERC20              internal _token1;
     MockFactory            internal _factory;
+    MockFeeManager         internal _feeManager;
 
     function setUp() external {
         _globals = new MapleGlobalsMock(address(this));
-        _factory = new MockFactory();
-        _token0  = new MockERC20("Token0", "T0", 0);
-        _token1  = new MockERC20("Token1", "T1", 0);
+        _factory    = new MockFactory();
+        _feeManager = new MockFeeManager();
+        _token0     = new MockERC20("Token0", "T0", 0);
+        _token1     = new MockERC20("Token1", "T1", 0);
+
 
         // Happy path dummy arguments to pass to initialize().
         _defaultBorrower    = address(1);
         _defaultAssets      = [address(_token0), address(_token1)];
         _defaultTermDetails = [uint256(1), uint256(20 days), uint256(3)];
         _defaultAmounts     = [uint256(5), uint256(4_000_000), uint256(0)];
-        _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
+        _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9), uint256(0)];
 
         _globals.setValidBorrower(_defaultBorrower, true);
     }
 
     function test_initialize() external {
         // Call initialize() with all happy path arguments, should not revert().
-        _loan = new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
+        _loan = new ConstructableMapleLoan(address(_factory), address(_globals), _defaultBorrower, address(_feeManager), 0, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates);
 
         assertEq(_loan.collateralAsset(),     _defaultAssets[0]);
         assertEq(_loan.fundsAsset(),          _defaultAssets[1]);
@@ -1577,7 +1591,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         amounts[1] = 0;
 
         // Call initialize, expecting to revert with correct error message.
-        try new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
+        try new ConstructableMapleLoan(address(_factory), address(_globals), _defaultBorrower, address(_feeManager), 0, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
             assertTrue(false, "Principal requested must be non-zero.");
         }
         catch Error(string memory reason) {
@@ -1593,7 +1607,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         amounts[2] = 24;
 
         // Call initialize(), expecting to revert with correct error message.
-        try new ConstructableMapleLoan(address(_globals), address(_factory), _defaultBorrower, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
+        try new ConstructableMapleLoan(address(_factory), address(_globals), _defaultBorrower, address(_feeManager), 0, _defaultAssets, _defaultTermDetails, amounts, _defaultRates) {
             assertTrue(false, "Ending principal needs to be less than or equal to principal requested.");
         }
         catch Error(string memory reason) {
@@ -1604,7 +1618,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
     // TODO: Do try/catch sweep
     function test_initialize_zeroBorrower() external {
         // Call initialize, expecting to revert with correct error message.
-        try new ConstructableMapleLoan(address(_globals), address(_factory), address(0), _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates) {
+        try new ConstructableMapleLoan(address(_globals), address(_factory), address(0), address(_feeManager), 0, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates) {
             assertTrue(false, "Borrow cannot be address(0).");
         }
         catch Error(string memory reason) {
@@ -1614,7 +1628,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
 
     function test_initialize_invalidBorrower() external {
         // Call initialize, expecting to revert with correct error message.
-        try new ConstructableMapleLoan(address(_globals), address(_factory), address(1234), _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates) {
+        try new ConstructableMapleLoan(address(_factory), address(_globals), address(1234), address(_feeManager), 0, _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates) {
             assertTrue(false, "Borrow cannot be address(0).");
         }
         catch Error(string memory reason) {
@@ -1634,13 +1648,16 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
     MapleLoanHarness internal _loan;
     MockERC20        internal _fundsAsset;
     MockFactory      internal _factory;
+    MockFeeManager   internal _feeManager;
 
     function setUp() external {
         _factory    = new MockFactory();
+        _feeManager = new MockFeeManager();
         _fundsAsset = new MockERC20("FundsAsset", "FA", 0);
         _loan       = new MapleLoanHarness();
 
         _loan.__setFactory(address(_factory));
+        _loan.__setFeeManager(address(_feeManager));
         _loan.__setFundsAsset(address(_fundsAsset));
 
         // TODO: prank
@@ -1692,7 +1709,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
 
-        ( uint256 principal, uint256 interest ) = _loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest,  ) = _loan.getNextPaymentBreakdown();
 
         uint256 expectedPayment = principal + interest;
 
@@ -1702,7 +1719,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
             _fundsAsset.mint(address(_loan), additionalAmount = (expectedPayment - _loan.drawableFunds()));
         }
 
-        ( principal, interest ) = _loan.makePayment(0);
+        ( principal, interest,  ) = _loan.makePayment(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -1737,7 +1754,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
 
-        ( uint256 principal, uint256 interest ) = _loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getNextPaymentBreakdown();
 
         uint256 expectedPayment = principal + interest;
 
@@ -1745,7 +1762,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), fundsForPayments);
 
-        ( principal, interest ) = _loan.makePayment(0);
+        ( principal, interest, ) = _loan.makePayment(0);
 
         uint256 totalPaid = principal + interest;
 
@@ -1777,7 +1794,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         // Drawdown all loan funds.
         _loan.drawdownFunds(_loan.drawableFunds(), address(this));
 
-        ( uint256 principal, uint256 interest ) = _loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getNextPaymentBreakdown();
 
         uint256 installmentToPay = principal + interest;
 
@@ -1813,7 +1830,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         // Drawdown all loan funds.
         _loan.drawdownFunds(_loan.drawableFunds(), address(this));
 
-        ( uint256 principal, uint256 interest ) = _loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getNextPaymentBreakdown();
 
         uint256 installmentToPay = principal + interest;
 
@@ -1824,7 +1841,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(principal,                 _loan.principal());
 
         // Pay off rest of loan, expecting loan accounting to be reset.
-        ( principal, interest ) = _loan.makePayment(0);
+        ( principal, interest, ) = _loan.makePayment(0);
 
         uint256 actualInstallmentAmount = principal + interest;
 
@@ -1865,7 +1882,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
         _loan.__setRefinanceInterest(refinanceInterest_);
 
-        ( uint256 principal, uint256 interest ) = _loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = _loan.getNextPaymentBreakdown();
 
         uint256 expectedPayment = principal + interest;
 
@@ -1880,7 +1897,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
         assertEq(_loan.refinanceInterest(),  refinanceInterest_);
 
-        ( principal, interest ) = _loan.makePayment(0);
+        ( principal, interest, ) = _loan.makePayment(0);
 
         uint256 totalPaid = principal + interest;
 

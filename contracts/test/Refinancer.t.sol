@@ -6,8 +6,9 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { Refinancer } from "../Refinancer.sol";
 
-import { ConstructableMapleLoan }        from "./harnesses/MapleLoanHarnesses.sol";
-import { MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
+import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
+
+import { MapleGlobalsMock, MockFactory, MockFeeManager } from "./mocks/Mocks.sol";
 
 import { Lender } from "./accounts/Lender.sol";
 
@@ -26,6 +27,7 @@ contract RefinancerTestBase is  TestUtils {
     Lender                 lender;
     MockERC20              token;
     MockFactory            factory;
+    MockFeeManager         feeManager;
     Refinancer             refinancer;
 
     function setUp() external {
@@ -33,6 +35,7 @@ contract RefinancerTestBase is  TestUtils {
         lender     = new Lender();
         refinancer = new Refinancer();
         factory    = new MockFactory();
+        feeManager = new MockFeeManager();
 
         globals.setValidBorrower(address(this), true);
     }
@@ -53,10 +56,10 @@ contract RefinancerTestBase is  TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
-        uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
+        uint256[5] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0), uint256(0)];
 
         // TODO: prank borrower
-        loan = new ConstructableMapleLoan(address(globals), address(factory), address(this), assets, termDetails, amounts, rates);
+        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), 0, assets, termDetails, amounts, rates);
 
         token.mint(address(this), principalRequested_);
         token.approve(address(loan), principalRequested_);
@@ -71,7 +74,7 @@ contract RefinancerTestBase is  TestUtils {
         vm.warp(loan.nextPaymentDueDate());
 
         // Check details for upcoming payment #1
-        ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
 
         // Make payment #1
         token.mint(address(loan), principalPortion + interestPortion);
@@ -241,7 +244,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
         // Current ending principal is requested amount
         assertEq(loan.endingPrincipal(), loan.principalRequested());
 
-        ( uint256 principalPortion, ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion , ,  ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion, 0);
 
@@ -252,7 +255,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
-        ( principalPortion, ) = loan.getNextPaymentBreakdown();
+        ( principalPortion , , ) = loan.getNextPaymentBreakdown();
 
         assertTrue(principalPortion > 0);
     }
@@ -285,7 +288,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
         // Current ending principal is requested amount
         assertTrue(loan.endingPrincipal() < loan.principalRequested());
 
-        ( uint256 principalPortion, ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, , ) = loan.getNextPaymentBreakdown();
 
         assertTrue(principalPortion > 0);
 
@@ -297,7 +300,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
 
         assertEq(loan.endingPrincipal(), loan.principal());
 
-        ( principalPortion, ) = loan.getNextPaymentBreakdown();
+        ( principalPortion, , ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion, 0);
     }
@@ -553,13 +556,15 @@ contract RefinancerInterestTests is TestUtils {
     Lender                 lender;
     MockERC20              token;
     MockFactory            factory;
+    MockFeeManager         feeManager;
     Refinancer             refinancer;
 
     function setUp() external {
         globals    = new MapleGlobalsMock(address(this));
+        factory    = new MockFactory();
+        feeManager = new MockFeeManager();
         lender     = new Lender();
         refinancer = new Refinancer();
-        factory    = new MockFactory();
 
         globals.setValidBorrower(address(this), true);
     }
@@ -590,7 +595,7 @@ contract RefinancerInterestTests is TestUtils {
         vm.warp(loan.nextPaymentDueDate());
 
         // Check details for upcoming payment #1
-        ( , uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+        ( , uint256 interestPortion,  ) = loan.getNextPaymentBreakdown();
 
         assertEq(token.balanceOf(address(loan)), 0);
 
@@ -648,10 +653,10 @@ contract RefinancerInterestTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
-        uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
+        uint256[5] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0), uint256(0)];
 
         // TODO: prank borrower
-        loan = new ConstructableMapleLoan(address(globals), address(factory), address(this), assets, termDetails, amounts, rates);
+        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), 0, assets, termDetails, amounts, rates);
 
         token.mint(address(this), principalRequested_);
         token.approve(address(loan), principalRequested_);

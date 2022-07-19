@@ -13,8 +13,9 @@ import { Borrower } from "./accounts/Borrower.sol";
 import { Governor } from "./accounts/Governor.sol";
 import { Lender }   from "./accounts/Lender.sol";
 
-import { MapleGlobalsMock } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockFeeManager } from "./mocks/Mocks.sol";
 
+// TODO: Add fees
 contract MapleLoanPaymentsTestBase is TestUtils {
 
     uint256 start;
@@ -28,6 +29,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
     MapleLoanInitializer initializer;
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
+    MockFeeManager       feeManager;
 
     function setUp() external {
         start = block.timestamp;
@@ -39,7 +41,9 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
 
-        globals        = new MapleGlobalsMock(address(governor));
+        globals = new MapleGlobalsMock(address(governor));
+
+        feeManager     = new MockFeeManager();
         factory        = new MapleProxyFactory(address(globals));
         implementation = new MapleLoan();
         initializer    = new MapleLoanInitializer();
@@ -54,7 +58,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         address[2] memory assets,
         uint256[3] memory termDetails,
         uint256[3] memory amounts,
-        uint256[4] memory rates
+        uint256[5] memory rates
     )
         internal returns (MapleLoan loan)
     {
@@ -62,7 +66,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         fundsAsset.mint(address(lender),        amounts[1]);
         fundsAsset.mint(address(borrower),      amounts[1]);  // Mint more than enough for borrower to make payments
 
-        bytes memory arguments = initializer.encodeArguments(address(globals), address(borrower), assets, termDetails, amounts, rates);
+        bytes memory arguments = initializer.encodeArguments(address(globals), address(borrower), address(feeManager), 0, assets, termDetails, amounts, rates);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create Loan
@@ -88,7 +92,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
     )
         internal returns (uint256 paymentAmount)
     {
-        ( uint256 actualPrincipalPortion, uint256 actualInterestPortion ) = loan.getNextPaymentBreakdown();
+        ( uint256 actualPrincipalPortion, uint256 actualInterestPortion, ) = loan.getNextPaymentBreakdown();
 
         paymentAmount = actualPrincipalPortion + actualInterestPortion;
 
@@ -183,7 +187,7 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for closing loan
+        uint256[5] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0), uint256(0)];  // 2% flat rate for closing loan
 
         uint256[3] memory onTimeTotals = [
             uint256(43_138.893875 ether),
@@ -229,7 +233,7 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
         vm.warp(block.timestamp + 23 days);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion ) = loan.getClosingPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, ) = loan.getClosingPaymentBreakdown();
 
         uint256 paymentAmount = principalPortion + interestPortion;
 
@@ -275,7 +279,7 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for closing loan
+        uint256[5] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0), uint256(0)];  // 2% flat rate for closing loan
 
         uint256[2] memory onTimeTotals = [
             uint256(169_796.942404 ether),
@@ -317,7 +321,7 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
         vm.warp(block.timestamp + 14 days);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion ) = loan.getClosingPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, ) = loan.getClosingPaymentBreakdown();
 
         uint256 paymentAmount = principalPortion + interestPortion;
 
@@ -367,7 +371,7 @@ contract FullyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(171_493.890825 ether),
@@ -435,7 +439,7 @@ contract FullyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(170_280.971987 ether),
@@ -504,7 +508,7 @@ contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(    8_219.178082 ether),
@@ -570,7 +574,7 @@ contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(    6_164.383562 ether),
@@ -641,7 +645,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal
+        uint256[5] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0), uint256(0)];  // 5% Late fee flat rate on principal
 
         uint256[5] memory onTimeTotals = [
             uint256(112_237.875576 ether),
@@ -695,7 +699,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
         vm.warp(block.timestamp + 15 days + 1 seconds);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion )  = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, )  = loan.getNextPaymentBreakdown();
 
         uint256 lateInterest = loan.principal() * 1300 * uint256(1 days) / 365 days / 10_000;  // Add one day of late payment (one second = one day of late interest)
         uint256 lateFee      = 22_989.075431 ether;
@@ -744,7 +748,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal
+        uint256[5] memory rates = [uint256(0.1e18), uint256(0), uint256(0.05e18), uint256(0), uint256(0)]; // 5% Late fee flat rate on principal
 
         // Payments 1, 2, 4, 5, 6
         uint256[5] memory onTimeTotals = [
@@ -800,7 +804,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             vm.warp(block.timestamp + 30 days + 2 hours);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1000 * uint256(1 days) / 365 days / 10_000;  // Add two hours of late interest (which is 1 day of default interest).
             uint256 lateFee      = uint256(50_000.000000 ether);
@@ -862,7 +866,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0.05e18)];  // 5% Late fee flat rate on principal, 5% premium
+        uint256[5] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal, 5% premium
 
         // All payment amounts under normal amortization schedule in sheet
         uint256[6] memory onTimeTotals = [
@@ -923,7 +927,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             vm.warp(block.timestamp + 31 days);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1800 * uint256(16 days) / 365 days / 10_000;  // Add sixteen days of late interest
             uint256 lateFee      = loan.principal() * 500 / 10_000;
@@ -954,7 +958,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             // Same timestamp - Day 46, due date is day 45
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1800 * uint256(1 days) / 365 days / 10_000;  // Add one day of late interest
             uint256 lateFee      = loan.principal() * 500 / 10_000;
@@ -1018,7 +1022,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
+        uint256[5] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18), uint256(0)];  // 2% Late fee rate on principal
 
         // Payments 2, 3, 4, 5, 6
         uint256[5] memory onTimeTotals = [
@@ -1062,7 +1066,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             vm.warp(block.timestamp + 32 days);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
 
 
             uint256 lateInterest = loan.principal() * 1500 * uint256(2 days) / 365 days / 10_000;  // Add two days of late interest (15%)
@@ -1111,7 +1115,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
+        uint256[5] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18), uint256(0)];  // 2% Late fee rate on principal
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates);
 
@@ -1119,12 +1123,12 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
         vm.warp(start + 30 days + 1 seconds);
 
         // Get amounts for the remaining loan payments
-        ( , uint256 interestPortion1 ) = loan.getNextPaymentBreakdown();
+        ( , uint256 interestPortion1 , ) = loan.getNextPaymentBreakdown();
 
         // Warp to day 31 (one day late exactly)
         vm.warp(start  + 31 days);
 
-        ( , uint256 interestPortion2 ) = loan.getNextPaymentBreakdown();
+        ( , uint256 interestPortion2 , ) = loan.getNextPaymentBreakdown();
 
         assertEq(interestPortion1, interestPortion2);  // Same entire day
 
@@ -1132,7 +1136,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
         vm.warp(start  + 31 days + 1 seconds);
 
         // Get amounts for the remaining loan payments
-        ( , uint256 interestPortion3 ) = loan.getNextPaymentBreakdown();
+        ( , uint256 interestPortion3 , ) = loan.getNextPaymentBreakdown();
 
         assertTrue(interestPortion3 > interestPortion1);  // Default interest gets updated on the day
     }
@@ -1163,7 +1167,7 @@ contract PartiallyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256( 40_874.120631 ether),
@@ -1231,7 +1235,7 @@ contract PartiallyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0), uint256(0)];
+        uint256[5] memory rates = [uint256(0.13e18), uint256(0), uint256(0), uint256(0), uint256(0)];
 
         uint256[6] memory totals = [
             uint256(112_237.875576 ether),

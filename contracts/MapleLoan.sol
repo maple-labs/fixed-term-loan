@@ -17,8 +17,8 @@ import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.s
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
-import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
+import { IMapleLoan }           from "./interfaces/IMapleLoan.sol";
+import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -75,17 +75,19 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(_borrower = msg.sender);
     }
 
-    function closeLoan(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_) {
+    function closeLoan(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
 
         require(block.timestamp <= _nextPaymentDueDate, "ML:CL:PAYMENT_IS_LATE");
 
-        ( principal_, interest_ ) = getClosingPaymentBreakdown();
+        ( principal_, interest_, fees_ ) = getClosingPaymentBreakdown();
 
         _refinanceInterest = uint256(0);
 
         uint256 principalAndInterest = principal_ + interest_;
+
+        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, _principalRequested, _paymentInterval * _paymentsRemaining);
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
@@ -95,7 +97,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         _clearLoanAccounting();
 
-        emit LoanClosed(principal_, interest_);
+        emit LoanClosed(principal_, interest_, fees_);
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override returns (uint256 collateralPosted_) {
@@ -122,15 +124,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_isCollateralMaintained(),                                "ML:DF:INSUFFICIENT_COLLATERAL");
     }
 
-    function makePayment(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_) {
+    function makePayment(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
 
-        ( principal_, interest_ ) = getNextPaymentBreakdown();
+        ( principal_, interest_, fees_ ) = getNextPaymentBreakdown();
 
         _refinanceInterest = uint256(0);
 
         uint256 principalAndInterest = principal_ + interest_;
+
+        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, _principalRequested, _paymentInterval);  // TODO: Reinvestigate to see if we can implement CEI here.
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
@@ -148,7 +152,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             _paymentsRemaining   = paymentsRemainingCache - uint256(1);
         }
 
-        emit PaymentMade(principal_, interest_);
+        emit PaymentMade(principal_, interest_, fees_);
     }
 
     function postCollateral(uint256 amount_) public override returns (uint256 collateralPosted_) {
@@ -297,28 +301,37 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // The amount specified is an optional amount to be transferred from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(fundsAssetAddress, msg.sender, address(this), amount_), "ML:FL:TRANSFER_FROM_FAILED");
 
-        require(lender_ != address(0), "ML:FL:INVALID_LENDER");
+        require((_lender = lender_) != address(0), "ML:FL:INVALID_LENDER");
 
         // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
         require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
 
-        _lender = lender_;
+        // TODO: Investigate using exact approvals
+        IERC20(_fundsAsset).approve(_feeManager, type(uint256).max);
 
         uint256 principalRequestedCache = _principalRequested;
 
-        // Cannot under-fund loan, but over-funding results in additional funds marked as claimable.
-        uint256 extra = getUnaccountedAmount(fundsAssetAddress) - principalRequestedCache;
+        uint256 originationFees =
+            IMapleLoanFeeManager(_feeManager).payOriginationFees(_fundsAsset, principalRequestedCache, _paymentInterval * _paymentsRemaining);
+
+        // TODO: Add drawableFunds assertions in fundLoan tests in MapleLoan.t.sol
+        _drawableFunds = principalRequestedCache - originationFees;
+
+        uint256 extra = getUnaccountedAmount(fundsAssetAddress);
+
+        if (extra != uint256(0)) {
+            _claimableFunds += extra;
+        }
+
+        // TODO: What happens to fees on refinance?
+
+        IMapleLoanFeeManager(_feeManager).updatePlatformFeeRate();
 
         emit Funded(
             lender_,
-            fundsLent_ = _drawableFunds = _principal = principalRequestedCache,
+            fundsLent_ = _principal = principalRequestedCache,
             _nextPaymentDueDate = block.timestamp + _paymentInterval
         );
-
-        // NOTE: Ensures unaccounted funds (pre-existing or due to over-funding) is claimable by the lender.
-        if (extra > uint256(0)) {
-            _claimableFunds = extra;
-        }
     }
 
     function repossess(address destination_) external override returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
@@ -403,12 +416,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return collateralNeeded > currentCollateral ? collateralNeeded - currentCollateral : uint256(0);
     }
 
-    function getClosingPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_) {
+    function getClosingPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+        ( uint256 platformFee_, uint256 adminFee_ ) =
+            IMapleLoanFeeManager(_feeManager).getPaymentServiceFees(address(this), _principalRequested, _paymentInterval * _paymentsRemaining);
+
+        fees_ = platformFee_ + adminFee_;
+
         // Compute interest and include any uncaptured interest from refinance.
         interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
     }
 
-    function getNextPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_) {
+    function getNextPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         ( principal_, interest_ ) = _getPaymentBreakdown(
             block.timestamp,
             _nextPaymentDueDate,
@@ -423,6 +441,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         // Include any uncaptured interest from refinance.
         interest_ += _refinanceInterest;
+
+        ( uint256 platformFee_, uint256 adminFee_ ) =
+            IMapleLoanFeeManager(_feeManager).getPaymentServiceFees(address(this), _principalRequested, _paymentInterval);
+
+        fees_ = platformFee_ + adminFee_;
     }
 
     function getRefinanceInterest(uint256 timestamp_) public view override returns (uint256 proRataInterest_) {
@@ -490,6 +513,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function factory() external view override returns (address factory_) {
         return _factory();
+    }
+
+    function feeManager() external view override returns (address feeManager_) {
+        return _feeManager;
     }
 
     function fundsAsset() external view override returns (address fundsAsset_) {
