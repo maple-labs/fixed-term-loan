@@ -21,8 +21,8 @@ contract Borrower is LoanUser, ProxyUser {
         return IMapleLoan(loan_).drawdownFunds(amount_, destination_);
     }
 
-    function loan_proposeNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external {
-        IMapleLoan(loan_).proposeNewTerms(refinancer_, deadline_, calls_);
+    function loan_proposeNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_) {
+        return IMapleLoan(loan_).proposeNewTerms(refinancer_, deadline_, calls_);
     }
 
     function loan_removeCollateral(address loan_, uint256 amount_, address destination_) external {

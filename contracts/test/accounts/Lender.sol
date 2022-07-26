@@ -15,8 +15,8 @@ contract Lender is LoanUser {
         IMapleLoan(loan_).acceptLender();
     }
 
-    function loan_acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external {
-        IMapleLoan(loan_).acceptNewTerms(refinancer_, deadline_, calls_, amount_);
+    function loan_acceptNewTerms(address loan_, address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external returns (bytes32 refinanceCommitment_) {
+        return IMapleLoan(loan_).acceptNewTerms(refinancer_, deadline_, calls_, amount_);
     }
 
     function loan_claimFunds(address loan_, uint256 amount_, address destination_) external {

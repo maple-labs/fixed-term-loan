@@ -9,16 +9,16 @@ interface IRefinancer {
     /**************/
 
     /**
+     *  @dev   A new value for closingRate has been set.
+     *  @param closingRate_ The new value for closingRate.
+     */
+    event ClosingRateSet(uint256 closingRate_);
+
+    /**
      *  @dev   A new value for collateralRequired has been set.
      *  @param collateralRequired_ The new value for collateralRequired.
      */
     event CollateralRequiredSet(uint256 collateralRequired_);
-
-    /**
-     *  @dev   A new value for earlyFeeRate has been set.
-     *  @param earlyFeeRate_ The new value for earlyFeeRate.
-     */
-    event EarlyFeeRateSet(uint256 earlyFeeRate_);
 
     /**
      *  @dev   A new value for endingPrincipal has been set.
@@ -79,16 +79,16 @@ interface IRefinancer {
     function increasePrincipal(uint256 amount_) external;
 
     /**
+     *  @dev   Function to set the closingRate during a refinance.
+     *  @param closingRate_ The new value for closingRate.
+     */
+    function setClosingRate(uint256 closingRate_) external;
+
+    /**
      *  @dev   Function to set the collateralRequired during a refinance.
      *  @param collateralRequired_ The new value for collateralRequired.
      */
     function setCollateralRequired(uint256 collateralRequired_) external;
-
-    /**
-     *  @dev   Function to set the earlyFeeRate during a refinance.
-     *  @param earlyFeeRate_ The new value for earlyFeeRate.
-     */
-    function setEarlyFeeRate(uint256 earlyFeeRate_) external;
 
     /**
      *  @dev   Function to set the endingPrincipal during a refinance.
