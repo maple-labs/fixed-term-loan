@@ -398,6 +398,38 @@ contract MapleLoanTests is TestUtils {
         loan.claimFunds(uint256(200_000), address(this));
     }
 
+    function test_removeDefaultWarning_acl() external {
+        address lender = address(1);
+
+        loan.__setLender(lender);
+        loan.__setGlobals(address(new MapleGlobalsMock(address(2))));
+
+        uint256 nextPaymentDueDate = block.timestamp + 300;
+
+        vm.expectRevert("ML:RDW:NOT_LENDER_OR_GOVERNOR");
+        loan.removeDefaultWarning(nextPaymentDueDate);
+
+        vm.prank(lender);
+        loan.removeDefaultWarning(nextPaymentDueDate);
+
+        assertEq(loan.nextPaymentDueDate(), nextPaymentDueDate);
+    }
+
+    function test_removeDefaultWarning_acl_governor() external {
+        address governor = address(1);
+        loan.__setGlobals(address(new MapleGlobalsMock(governor)));
+
+        uint256 nextPaymentDueDate = block.timestamp + 300;
+
+        vm.expectRevert("ML:RDW:NOT_LENDER_OR_GOVERNOR");
+        loan.removeDefaultWarning(nextPaymentDueDate);
+
+        vm.prank(governor);
+        loan.removeDefaultWarning(nextPaymentDueDate);
+
+        assertEq(loan.nextPaymentDueDate(), nextPaymentDueDate);
+    }
+
     function test_repossess_acl() external {
         MockERC20 asset = new MockERC20("Asset", "AST", 18);
 
@@ -654,6 +686,42 @@ contract MapleLoanTests is TestUtils {
         loan.triggerDefaultWarning(block.timestamp - 1);
 
         loan.triggerDefaultWarning(block.timestamp);
+    }
+
+    function test_removeDefaultWarning_earlyDueDate() external {
+        address lender = address(9);
+
+        loan.__setLender(address(lender));
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+
+        vm.prank(lender);
+        vm.expectRevert("ML:RDW:EARLY_DUE_DATE");
+        loan.removeDefaultWarning(block.timestamp);
+    }
+
+    function test_removeDefaultWarning_pastDate() external {
+        address lender = address(9);
+
+        loan.__setLender(address(lender));
+        loan.__setNextPaymentDueDate(block.timestamp - 1);
+
+        vm.prank(lender);
+        vm.expectRevert("ML:RDW:PAST_DATE");
+        loan.removeDefaultWarning(block.timestamp - 1);
+    }
+
+    function test_removeDefaultWarning() external {
+        address lender = address(9);
+
+        loan.__setLender(address(lender));
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+
+        assertEq(loan.nextPaymentDueDate(), block.timestamp + 1);
+
+        vm.prank(lender);
+        loan.removeDefaultWarning(block.timestamp + 2);
+
+        assertEq(loan.nextPaymentDueDate(), block.timestamp + 2);
     }
 
     // TODO: test_acceptNewTerms_pullPatternOverFund (since test_acceptNewTerms_pullPattern already overfunds)

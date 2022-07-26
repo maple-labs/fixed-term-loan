@@ -66,6 +66,16 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function fundsAsset() external view returns (address fundsAsset_);
 
     /**
+     *  @dev The Maple globals address
+     */
+    function globals() external view returns (address globals_);
+
+    /**
+     *  @dev The address of the Maple Governor.
+     */
+    function governor() external view returns (address governor_);
+
+    /**
      *  @dev The amount of time the borrower has, after a payment is due, to make a payment before being in default.
      */
     function gracePeriod() external view returns (uint256 gracePeriod_);
@@ -237,6 +247,12 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @param destination_ The destination to send the removed collateral.
      */
     function removeCollateral(uint256 amount_, address destination_) external;
+
+    /**
+     *  @dev   Remove default warning by postponing the next payment due date.
+     *  @param nextPaymentDueDate_ The date to which the next payment is due.
+     */
+    function removeDefaultWarning(uint256 nextPaymentDueDate_) external;
 
     /**
      *  @dev    Return funds to the loan (opposite of drawing down).

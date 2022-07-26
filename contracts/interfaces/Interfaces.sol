@@ -5,6 +5,8 @@ interface IGlobalsLike {
 
     function adminFeeSplit(address pool_) external view returns (uint256 adminFeeSplit_);
 
+    function governor() external view returns (address governor_);
+
     function isBorrower(address account_) external view returns (bool isBorrower_);
 
     function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_);

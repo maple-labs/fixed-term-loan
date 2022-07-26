@@ -126,6 +126,8 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         _lateFeeRate         = rates_[2];
         _lateInterestPremium = rates_[3];
 
+        _globals = globals_;
+
         // Set fees for the loan.
         IMapleLoanFeeManager(feeManager_).updateFeeTerms(originationFee_, rates_[4]);
     }

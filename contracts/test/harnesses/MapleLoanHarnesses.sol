@@ -70,6 +70,10 @@ contract MapleLoanHarness is MapleLoan {
         _fundsAsset = fundsAsset_;
     }
 
+    function __setGlobals(address globals_) external {
+        _globals = globals_;
+    }
+
     function __setGracePeriod(uint256 gracePeriod_) external {
         _gracePeriod = gracePeriod_;
     }

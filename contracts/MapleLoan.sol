@@ -19,6 +19,7 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 
 import { IMapleLoan }           from "./interfaces/IMapleLoan.sol";
 import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
+import { IGlobalsLike }         from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -282,19 +283,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(ERC20Helper.transfer(_fundsAsset, destination_, amount_), "ML:CF:TRANSFER_FAILED");
     }
 
-    function triggerDefaultWarning(uint256 newPaymentDueDate_) external override {
-        require(msg.sender == _lender,                    "ML:TDW:NOT_LENDER");
-        require(block.timestamp <= newPaymentDueDate_,    "ML:TDW:IN_PAST");
-        require(newPaymentDueDate_ < _nextPaymentDueDate, "ML:TDW:PAST_DUE_DATE");
-
-        emit NextPaymentDueDateFastForwarded(newPaymentDueDate_);
-
-        // Grace period starts now.
-        _nextPaymentDueDate = newPaymentDueDate_;
-
-        // TODO: Should we still charge late interest if this function is called?
-    }
-
     function fundLoan(address lender_, uint256 amount_) external override returns (uint256 fundsLent_) {
         address fundsAssetAddress = _fundsAsset;
 
@@ -332,6 +320,16 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             fundsLent_ = _principal = principalRequestedCache,
             _nextPaymentDueDate = block.timestamp + _paymentInterval
         );
+    }
+
+    function removeDefaultWarning(uint256 nextPaymentDueDate_) external override {
+        require(msg.sender == _lender || msg.sender == governor(), "ML:RDW:NOT_LENDER_OR_GOVERNOR");
+        require(nextPaymentDueDate_ >= _nextPaymentDueDate,        "ML:RDW:EARLY_DUE_DATE");
+        require(nextPaymentDueDate_ >= block.timestamp,            "ML:RDW:PAST_DATE");
+
+        _nextPaymentDueDate = nextPaymentDueDate_;
+
+        emit NextPaymentDueDateDelayed(nextPaymentDueDate_);
     }
 
     function repossess(address destination_) external override returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
@@ -376,6 +374,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(msg.sender == _lender, "ML:SPL:NOT_LENDER");
 
         emit PendingLenderSet(_pendingLender = pendingLender_);
+    }
+
+    // TODO: Should governor be able to set this?
+    function triggerDefaultWarning(uint256 newPaymentDueDate_) external override {
+        require(msg.sender == _lender,                    "ML:TDW:NOT_LENDER");
+        require(block.timestamp <= newPaymentDueDate_,    "ML:TDW:IN_PAST");
+        require(newPaymentDueDate_ < _nextPaymentDueDate, "ML:TDW:PAST_DUE_DATE");
+
+        emit NextPaymentDueDateFastForwarded(newPaymentDueDate_);
+
+        // Grace period starts now.
+        _nextPaymentDueDate = newPaymentDueDate_;
     }
 
     /*******************************/
@@ -521,6 +531,14 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function fundsAsset() external view override returns (address fundsAsset_) {
         return _fundsAsset;
+    }
+
+    function globals() external view override returns (address globals_) {
+        globals_ = _globals;
+    }
+
+    function governor() public view override returns (address governor_) {
+        governor_ = IGlobalsLike(_globals).governor();
     }
 
     function gracePeriod() external view override returns (uint256 gracePeriod_) {

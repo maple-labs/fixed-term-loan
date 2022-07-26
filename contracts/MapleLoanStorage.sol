@@ -47,4 +47,5 @@ abstract contract MapleLoanStorage {
     uint256 internal __deprecated_treasuryFee;  // Deprecated storage slot for `treasuryFee`.
 
     address internal _feeManager;  // Address responsible for calculatating and handling fees
+    address internal _globals;
 }
