@@ -73,8 +73,8 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         loan = MapleLoan(factory.createInstance(arguments, salt));
 
         // Approve and fund Loan
-        lender.erc20_approve(address(fundsAsset), address(loan),   amounts[1]);
-        lender.loan_fundLoan(address(loan),       address(lender), amounts[1]);
+        lender.erc20_transfer(address(fundsAsset), address(loan), amounts[1]);
+        lender.loan_fundLoan(address(loan), address(lender));
 
         // Transfer and post collateral and drawdown
         borrower.erc20_transfer(address(collateralAsset), address(loan), amounts[0]);

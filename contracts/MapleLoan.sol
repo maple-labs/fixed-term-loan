@@ -220,16 +220,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit LenderAccepted(_lender = msg.sender);
     }
 
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external override returns (bytes32 refinanceCommitment_) {
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
         require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
 
         address fundsAssetAddress = _fundsAsset;
-
-        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
-        require(
-            amount_ == uint256(0) || ERC20Helper.transferFrom(fundsAssetAddress, msg.sender, address(this), amount_),
-            "ML:ANT:TRANSFER_FROM_FAILED"
-        );
 
         // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
         require(
@@ -283,11 +277,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(ERC20Helper.transfer(_fundsAsset, destination_, amount_), "ML:CF:TRANSFER_FAILED");
     }
 
-    function fundLoan(address lender_, uint256 amount_) external override returns (uint256 fundsLent_) {
+    function fundLoan(address lender_) external override returns (uint256 fundsLent_) {
         address fundsAssetAddress = _fundsAsset;
-
-        // The amount specified is an optional amount to be transferred from the caller, as a convenience for EOAs.
-        require(amount_ == uint256(0) || ERC20Helper.transferFrom(fundsAssetAddress, msg.sender, address(this), amount_), "ML:FL:TRANSFER_FROM_FAILED");
 
         require((_lender = lender_) != address(0), "ML:FL:INVALID_LENDER");
 

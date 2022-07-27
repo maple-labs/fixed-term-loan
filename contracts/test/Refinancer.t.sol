@@ -61,9 +61,8 @@ contract RefinancerTestBase is  TestUtils {
         // TODO: prank borrower
         loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), 0, assets, termDetails, amounts, rates);
 
-        token.mint(address(this), principalRequested_);
-        token.approve(address(loan), principalRequested_);
-        loan.fundLoan(address(lender), principalRequested_);
+        token.mint(address(loan), principalRequested_);
+        loan.fundLoan(address(lender));
 
         token.mint(address(loan), collateralRequired_);
         loan.postCollateral(0);
@@ -130,13 +129,13 @@ contract RefinancerCollateralRequiredTests is RefinancerTestBase {
         uint256 currentCollateral  = loan.collateral();
 
         if (requiredCollateral > currentCollateral) {
-            assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0));
+            assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data));
 
             token.mint(address(loan), requiredCollateral - currentCollateral);
             loan.postCollateral(0);
         }
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.collateralRequired(), newCollateralRequired_);
 
@@ -174,12 +173,12 @@ contract RefinancerDeadlineTests is RefinancerTestBase {
         vm.warp(deadline_ + 1);
 
         vm.expectRevert(bytes("ML:ANT:EXPIRED_COMMITMENT"));
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         vm.warp(deadline_);
 
         // Success
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
@@ -205,10 +204,10 @@ contract RefinancerDeadlineTests is RefinancerTestBase {
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         vm.expectRevert(bytes("ML:ANT:COMMITMENT_MISMATCH"));
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_ - 1, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_ - 1, data);
 
         // Success
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
@@ -251,7 +250,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", newEndingPrincipal_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
@@ -296,7 +295,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", loan.principal());
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.endingPrincipal(), loan.principal());
 
@@ -335,7 +334,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0));
+        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data));
     }
 
 }
@@ -375,7 +374,7 @@ contract RefinancerFeeTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setClosingRate(uint256)", newClosingRate_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.closingRate(), newClosingRate_);
     }
@@ -413,7 +412,7 @@ contract RefinancerFeeTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setLateFeeRate(uint256)", newLateFeeRate_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.lateFeeRate(), newLateFeeRate_);
     }
@@ -451,7 +450,7 @@ contract RefinancerFeeTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setLateInterestPremium(uint256)", newLateInterestPremium_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.lateInterestPremium(), newLateInterestPremium_);
     }
@@ -492,7 +491,7 @@ contract RefinancerGracePeriodTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setGracePeriod(uint256)", newGracePeriod_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.gracePeriod(), newGracePeriod_);
     }
@@ -533,7 +532,7 @@ contract RefinancerInterestRateTests is RefinancerTestBase {
 
         // The new interest rate will be applied retroactively until the last payment made.
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.interestRate(), newInterestRate_);
     }
@@ -622,7 +621,7 @@ contract RefinancerInterestTests is TestUtils {
         // Assert that there is no refinanceInterest until acceptNewTerms
         assertEq(loan.refinanceInterest(), 0);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), start + 40 days, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), start + 40 days, data);
 
         assertEq(loan.principalRequested(), 2_000_000 * USD);
         assertEq(loan.collateralRequired(), 0);
@@ -658,9 +657,8 @@ contract RefinancerInterestTests is TestUtils {
         // TODO: prank borrower
         loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), 0, assets, termDetails, amounts, rates);
 
-        token.mint(address(this), principalRequested_);
-        token.approve(address(loan), principalRequested_);
-        loan.fundLoan(address(lender), principalRequested_);
+        token.mint(address(loan), principalRequested_);
+        loan.fundLoan(address(lender));
 
         token.mint(address(loan), collateralRequired_);
         loan.postCollateral(0);
@@ -686,7 +684,7 @@ contract RefinancerMiscellaneousTests is RefinancerTestBase {
         // Executing refinance
         loan.proposeNewTerms(address(1), block.timestamp, data);
 
-        lender.loan_acceptNewTerms(address(loan), address(1), block.timestamp, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(1), block.timestamp, data);
     }
 
 }
@@ -757,7 +755,7 @@ contract RefinancerMultipleParameterTests is RefinancerTestBase {
 
         uint256 expectedRefinanceInterest = loan.getRefinanceInterest(block.timestamp);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.collateralRequired(), newCollateralRequired_);
         assertEq(loan.endingPrincipal(),    newEndingPrincipal_);
@@ -780,12 +778,12 @@ contract RefinancerPaymentIntervalTests is RefinancerTestBase {
 
         loan.proposeNewTerms(address(refinancer), deadline, data);
         vm.expectRevert("ML:ANT:FAILED");
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data);
 
         data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", 1);
 
         loan.proposeNewTerms(address(refinancer), deadline, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data);
     }
 
     function test_refinance_paymentInterval(
@@ -820,7 +818,7 @@ contract RefinancerPaymentIntervalTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", newPaymentInterval_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
@@ -837,12 +835,12 @@ contract RefinancerPaymentsRemainingTests is RefinancerTestBase {
 
         loan.proposeNewTerms(address(refinancer), deadline, data);
         vm.expectRevert("ML:ANT:FAILED");
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data);
 
         data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", 1);
 
         loan.proposeNewTerms(address(refinancer), deadline, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data);
     }
 
     function test_refinance_paymentRemaining(
@@ -879,7 +877,7 @@ contract RefinancerPaymentsRemainingTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", newPaymentsRemaining_);
 
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
 
         assertEq(loan.paymentsRemaining(), newPaymentsRemaining_);
     }
@@ -928,7 +926,7 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
         loan.proposeNewTerms(address(refinancer), block.timestamp, data);
 
         // Increasing the amount without sending it first should fail
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data, 0));
+        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data));
 
         {
             // Since the collateral rate has remained the same, we need to also send more collateral
@@ -945,7 +943,7 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
         initialDrawableFunds  = loan.drawableFunds();
         initialClaimableFunds = loan.claimableFunds();
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data);
 
         assertEq(loan.principalRequested(), principalRequested_ + principalIncrease_);
         assertEq(loan.principal(),          initialPrincipal + principalIncrease_);
@@ -988,7 +986,7 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         // Increasing the amount without sending it first should fail
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0));
+        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data));
 
         // Since the collateral rate has remained the same, we need to also send more collateral
         uint256 extraCollateral = collateralRequired_ * principalIncrease_ / principalRequested_;
@@ -999,7 +997,7 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
         // Sending 1 too little, causes revert
         token.mint(address(loan), principalIncrease_ - 1);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data, 0);
+        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
     }
 
 }

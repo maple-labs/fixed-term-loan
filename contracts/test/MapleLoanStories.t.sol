@@ -45,11 +45,10 @@ contract MapleLoanStoryTests is TestUtils {
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), 0, assets, termDetails, amounts, rates);
 
-        // Fund via a 500k approval and a 500k transfer, totaling 1M
-        lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan), 500_000);
+        // Fund via a 1M transfer
+        lender.erc20_transfer(address(token), address(loan), 1_000_000);
 
-        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
+        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender)), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 
@@ -206,11 +205,10 @@ contract MapleLoanStoryTests is TestUtils {
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), 0, assets, termDetails, amounts, rates);
 
-        // Fund via a 500k approval and a 500k transfer, totaling 1M
-        lender.erc20_transfer(address(token), address(loan), 500_000);
-        lender.erc20_approve(address(token), address(loan), 500_000);
+        // Fund via a 1M transfer
+        lender.erc20_transfer(address(token), address(loan), 1_000_000);
 
-        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender), 500_000), "Cannot lend");
+        assertTrue(lender.try_loan_fundLoan(address(loan), address(lender)), "Cannot lend");
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
 

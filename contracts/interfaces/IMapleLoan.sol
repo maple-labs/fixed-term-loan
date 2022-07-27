@@ -164,10 +164,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @param  refinancer_          The address of the refinancer contract.
      *  @param  deadline_            The deadline for accepting the new terms.
      *  @param  calls_               The encoded arguments to be passed to refinancer.
-     *  @param  amount_              An amount to pull from the caller, if any.
      *  @return refinanceCommitment_ The hash of the accepted refinance agreement.
      */
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_, uint256 amount_) external returns (bytes32 refinanceCommitment_);
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
 
     /**
      *  @dev   Claim funds that have been paid (principal, interest, and late fees).
@@ -202,10 +201,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     /**
      *  @dev    Lend funds to the loan/borrower.
      *  @param  lender_    The address to be registered as the lender.
-     *  @param  amount_    An amount to pull from the caller, if any.
      *  @return fundsLent_ The amount funded.
      */
-    function fundLoan(address lender_, uint256 amount_) external returns (uint256 fundsLent_);
+    function fundLoan(address lender_) external returns (uint256 fundsLent_);
 
     /**
      *  @dev    Make a payment to the loan.

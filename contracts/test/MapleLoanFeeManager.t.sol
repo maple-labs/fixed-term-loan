@@ -81,7 +81,7 @@ contract FeeManagerBase is TestUtils {
         fundsAsset.mint(address(loan_), amount_);
 
         vm.prank(lender_);
-        MapleLoan(loan_).fundLoan(lender_, 0);
+        MapleLoan(loan_).fundLoan(lender_);
     }
 
     function _drawdownLoan(address loan_, address borrower_) internal {
@@ -174,7 +174,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
 
         vm.prank(address(loanManager));
         vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
-        loan.fundLoan(address(loanManager), 0);
+        loan.fundLoan(address(loanManager));
     }
 
     function test_payOriginationFees_insufficientFunds_poolDelegate() external {
@@ -182,7 +182,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
 
         vm.prank(address(loanManager));
         vm.expectRevert("MLFM:POF:PD_TRANSFER");
-        loan.fundLoan(address(loanManager), 0);
+        loan.fundLoan(address(loanManager));
     }
 
     function test_payOriginationFees() external {
@@ -193,7 +193,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
         assertEq(fundsAsset.balanceOf(TREASURY),      0);
 
         vm.prank(address(loanManager));
-        loan.fundLoan(address(loanManager), 0);
+        loan.fundLoan(address(loanManager));
 
         assertEq(fundsAsset.balanceOf(address(this)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), 949_250e18);  // Principal - origination fees
