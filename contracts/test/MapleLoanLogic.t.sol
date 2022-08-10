@@ -222,6 +222,132 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
 }
 
+contract MapleLoanLogic_BatchClaimFundsTests is TestUtils {
+
+    address lender;
+
+    address[] destinations;
+
+    uint256[] amounts;
+
+    MapleLoanHarness loan;
+    MockERC20        asset;
+
+    function setUp() external {
+        lender = address(1001);
+
+        loan  = new MapleLoanHarness();
+        asset = new MockERC20("Funds Asset", "FA", 0);
+
+        loan.__setFundsAsset(address(asset));
+        loan.__setLender(lender);
+    }
+
+    function test_batchClaimFunds_notLender() external {
+        vm.expectRevert("ML:BCF:NOT_LENDER");
+        loan.batchClaimFunds(amounts, destinations);
+    }
+
+    function test_batchClaimFunds_noAmounts() external {
+        destinations.push(address(1));
+
+        vm.prank(lender);
+        vm.expectRevert("ML:BCF:INVALID_LENGTH");
+        loan.batchClaimFunds(amounts, destinations);
+    }
+
+    function test_batchClaimFunds_noDestinations() external {
+        amounts.push(1);
+
+        vm.prank(lender);
+        vm.expectRevert("ML:BCF:INVALID_LENGTH");
+        loan.batchClaimFunds(amounts, destinations);
+    }
+
+    function test_batchClaimFunds_singleDestination() external {
+        amounts.push(1);
+
+        destinations.push(address(1));
+
+        vm.prank(lender);
+        vm.expectRevert("ML:BCF:INVALID_LENGTH");
+        loan.batchClaimFunds(amounts, destinations);
+    }
+
+    function test_batchClaimFunds_lengthMismatch() external {
+        amounts.push(1);
+        amounts.push(2);
+        amounts.push(3);
+
+        destinations.push(address(1));
+        destinations.push(address(2));
+
+        vm.prank(lender);
+        vm.expectRevert("ML:BCF:LENGTH_MISMATCH");
+        loan.batchClaimFunds(amounts, destinations);
+    }
+
+    function test_batchClaimFunds_failedTransfer() external {
+        loan.__setClaimableFunds(2);
+
+        asset.mint(address(loan), 1);
+
+        amounts.push(1);
+        amounts.push(1);
+
+        destinations.push(address(1));
+        destinations.push(address(2));
+
+        vm.prank(lender);
+        vm.expectRevert("ML:BCF:TRANSFER_FAILED");
+        loan.batchClaimFunds(amounts, destinations);
+    }
+
+    function test_batchClaimFunds_insufficientClaimableFunds() external {
+        loan.__setClaimableFunds(1);
+
+        asset.mint(address(loan), 2);
+
+        amounts.push(1);
+        amounts.push(1);
+
+        destinations.push(address(1));
+        destinations.push(address(2));
+
+        vm.prank(lender);
+        vm.expectRevert(ARITHMETIC_ERROR);
+        loan.batchClaimFunds(amounts, destinations);
+    }
+
+    function test_batchClaimFunds_success() external {
+        loan.__setClaimableFunds(2);
+
+        asset.mint(address(loan), 2);
+
+        amounts.push(1);
+        amounts.push(1);
+
+        destinations.push(address(1));
+        destinations.push(address(2));
+
+        assertEq(asset.balanceOf(address(loan)), 2);
+        assertEq(asset.balanceOf(address(1)),    0);
+        assertEq(asset.balanceOf(address(2)),    0);
+
+        assertEq(loan.claimableFunds(), 2);
+
+        vm.prank(lender);
+        loan.batchClaimFunds(amounts, destinations);
+
+        assertEq(asset.balanceOf(address(loan)), 0);
+        assertEq(asset.balanceOf(address(1)),    1);
+        assertEq(asset.balanceOf(address(2)),    1);
+
+        assertEq(loan.claimableFunds(), 0);
+    }
+
+}
+
 contract MapleLoanLogic_ClaimFundsTests is TestUtils {
 
     MapleLoanHarness internal _loan;

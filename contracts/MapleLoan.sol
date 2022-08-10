@@ -267,6 +267,26 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         }
     }
 
+    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external override {
+        require(msg.sender == _lender,                           "ML:BCF:NOT_LENDER");
+        require(amounts_.length > 1 && destinations_.length > 1, "ML:BCF:INVALID_LENGTH");
+        require(amounts_.length == destinations_.length,         "ML:BCF:LENGTH_MISMATCH");
+
+        uint256 totalAmount_ = 0;
+
+        for (uint256 i; i < amounts_.length;) {
+            totalAmount_ += amounts_[i];
+
+            require(ERC20Helper.transfer(_fundsAsset, destinations_[i], amounts_[i]), "ML:BCF:TRANSFER_FAILED");
+
+            emit FundsClaimed(amounts_[i], destinations_[i]);
+
+            unchecked { i++; }
+        }
+
+        _claimableFunds -= totalAmount_;
+    }
+
     function claimFunds(uint256 amount_, address destination_) external override {
         require(msg.sender == _lender, "ML:CF:NOT_LENDER");
 

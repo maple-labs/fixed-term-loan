@@ -170,8 +170,15 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev   Claim funds that have been paid (principal, interest, and late fees).
+     *  @param amounts_      The amounts to be claimed.
+     *  @param destinations_ The addresses to send the funds to.
+     */
+    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external;
+
+    /**
+     *  @dev   Claim funds that have been paid (principal, interest, and late fees).
      *  @param amount_      The amount to be claimed.
-     *  @param destination_ The address to send the funds.
+     *  @param destination_ The address to send the funds to.
      */
     function claimFunds(uint256 amount_, address destination_) external;
 
