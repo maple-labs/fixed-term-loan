@@ -16,7 +16,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
     address[2] internal _defaultAssets;
     uint256[3] internal _defaultTermDetails;
     uint256[3] internal _defaultAmounts;
-    uint256[5] internal _defaultRates;
+    uint256[4] internal _defaultRates;
     uint256[2] internal _defaultFees;
 
     uint256 internal _start;
@@ -43,7 +43,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         _defaultAssets      = [address(_collateralAsset), address(_fundsAsset)];
         _defaultTermDetails = [uint256(1), uint256(30 days), uint256(12)];
         _defaultAmounts     = [uint256(0), uint256(1000), uint256(0)];
-        _defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9), uint256(0)];
+        _defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9)];
         _defaultFees        = [uint256(0), uint256(0)];
 
         _globals.setValidBorrower(_defaultBorrower, true);
@@ -1115,7 +1115,7 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
 
         // Set principal and closingRate for _initialize().
         uint256[3] memory amounts = [uint256(5), principal_, uint256(0)];
-        uint256[5] memory rates   = [uint256(0.05 ether), closingRate_, uint256(0.15 ether), uint256(20), uint256(0)];
+        uint256[4] memory rates   = [uint256(0.05 ether), closingRate_, uint256(0.15 ether), uint256(20)];
         uint256[2] memory fees    = [uint256(0), uint256(0)];
 
         _loan = new ConstructableMapleLoan(address(_factory), address(_globals), _defaultBorrower, address(_feeManager), _defaultAssets, _defaultTermDetails, amounts, rates, fees);
@@ -1665,7 +1665,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
     address[2] internal _defaultAssets;
     uint256[3] internal _defaultTermDetails;
     uint256[3] internal _defaultAmounts;
-    uint256[5] internal _defaultRates;
+    uint256[4] internal _defaultRates;
     uint256[2] internal _defaultFees;
 
     MapleGlobalsMock       internal _globals;
@@ -1687,7 +1687,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         _defaultAssets      = [address(_token0), address(_token1)];
         _defaultTermDetails = [uint256(1), uint256(20 days), uint256(3)];
         _defaultAmounts     = [uint256(5), uint256(4_000_000), uint256(0)];
-        _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9), uint256(0)];
+        _defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
         _defaultFees        = [uint256(0), uint256(0)];
 
         _globals.setValidBorrower(_defaultBorrower, true);

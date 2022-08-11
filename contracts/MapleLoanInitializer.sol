@@ -17,7 +17,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
-        uint256[5] memory rates_,
+        uint256[4] memory rates_,
         uint256[2] memory fees_
     ) external pure override returns (bytes memory encodedArguments_) {
         return abi.encode(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
@@ -31,7 +31,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
-            uint256[5] memory rates_,
+            uint256[4] memory rates_,
             uint256[2] memory fees_
         )
     {
@@ -44,7 +44,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             amounts_,
             rates_,
             fees_
-        ) = abi.decode(encodedArguments_, (address, address, address, address[2], uint256[3], uint256[3], uint256[5], uint256[2]));
+        ) = abi.decode(encodedArguments_, (address, address, address, address[2], uint256[3], uint256[3], uint256[4], uint256[2]));
     }
 
     fallback() external {
@@ -55,7 +55,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
-            uint256[5] memory rates_,
+            uint256[4] memory rates_,
             uint256[2] memory fees_
         ) = decodeArguments(msg.data);
 
@@ -96,7 +96,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
-        uint256[5] memory rates_,
+        uint256[4] memory rates_,
         uint256[2] memory fees_
     )
         internal

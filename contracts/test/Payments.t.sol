@@ -58,7 +58,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         address[2] memory assets,
         uint256[3] memory termDetails,
         uint256[3] memory amounts,
-        uint256[5] memory rates,
+        uint256[4] memory rates,
         uint256[2] memory fees
     )
         internal returns (MapleLoan loan)
@@ -188,7 +188,7 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0), uint256(0)];  // 2% flat rate for closing loan
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for closing loan
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -282,7 +282,7 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[5] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0), uint256(0)];  // 2% flat rate for closing loan
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for closing loan
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -376,7 +376,7 @@ contract FullyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[5] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -446,7 +446,7 @@ contract FullyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
 
-        uint256[5] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -517,7 +517,7 @@ contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -585,7 +585,7 @@ contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -658,7 +658,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0), uint256(0)];  // 5% Late fee flat rate on principal
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -763,7 +763,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.1e18), uint256(0), uint256(0.05e18), uint256(0), uint256(0)]; // 5% Late fee flat rate on principal
+        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0.05e18), uint256(0)]; // 5% Late fee flat rate on principal
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -883,7 +883,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal, 5% premium
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0.05e18)];  // 5% Late fee flat rate on principal, 5% premium
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -1041,7 +1041,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18), uint256(0)];  // 2% Late fee rate on principal
+        uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -1136,7 +1136,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18), uint256(0)];  // 2% Late fee rate on principal
+        uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -1190,7 +1190,7 @@ contract PartiallyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 
@@ -1260,7 +1260,7 @@ contract PartiallyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
         uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
 
-        uint256[5] memory rates = [uint256(0.13e18), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0), uint256(0)];
 
         uint256[2] memory fees = [uint256(0), uint256(0)];
 

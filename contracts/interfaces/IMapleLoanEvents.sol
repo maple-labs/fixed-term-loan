@@ -71,8 +71,7 @@ interface IMapleLoanEvents {
      *                       [0]: interestRate,
      *                       [1]: closingFeeRate,
      *                       [2]: lateFeeRate,
-     *                       [3]: lateInterestPremium,
-     *                       [5]: adminFeeRate.
+     *                       [3]: lateInterestPremium
      *  @param fees_        Array of fees:
      *                       [0]: delegateOriginationFee,
      *                       [1]: delegateServiceFee
@@ -84,7 +83,7 @@ interface IMapleLoanEvents {
         address[2] assets_,
         uint256[3] termDetails_,
         uint256[3] amounts_,
-        uint256[5] rates_,
+        uint256[4] rates_,
         uint256[2] fees_
     );
 

@@ -41,7 +41,7 @@ contract MapleLoanStoryTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
-        uint256[5] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
@@ -202,7 +202,7 @@ contract MapleLoanStoryTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
-        uint256[5] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);

@@ -36,7 +36,7 @@ contract MapleLoanFactoryTest is TestUtils {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
-        uint256[5] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), address(feeManager), assets, termDetails, amounts, rates, fees);
@@ -68,7 +68,7 @@ contract MapleLoanFactoryTest is TestUtils {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
-        uint256[5] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), address(2), assets, termDetails, amounts, rates, fees);

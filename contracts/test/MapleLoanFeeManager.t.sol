@@ -32,7 +32,7 @@ contract FeeManagerBase is TestUtils {
     address[2] internal defaultAssets;
     uint256[3] internal defaultTermDetails;
     uint256[3] internal defaultAmounts;
-    uint256[5] internal defaultRates;
+    uint256[4] internal defaultRates;
     uint256[2] internal defaultFees;
 
     function setUp() public virtual {
@@ -56,7 +56,7 @@ contract FeeManagerBase is TestUtils {
         defaultAssets      = [address(collateralAsset), address(fundsAsset)];
         defaultTermDetails = [uint256(10 days), uint256(365 days / 12), uint256(3)];
         defaultAmounts     = [uint256(0), uint256(1_000_000e18), uint256(1_000_000e18)];
-        defaultRates       = [uint256(0.12e18), uint256(0.02e18), uint256(0), uint256(0.02e18), uint256(0.006e18)];
+        defaultRates       = [uint256(0.12e18), uint256(0.02e18), uint256(0), uint256(0.02e18)];
         defaultFees        = [uint256(50_000e18), uint256(500e18)];
     }
 
@@ -67,7 +67,7 @@ contract FeeManagerBase is TestUtils {
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
-        uint256[5] memory rates_,
+        uint256[4] memory rates_,
         uint256[2] memory fees_,
         bytes32 salt_
     )
@@ -214,8 +214,6 @@ contract PayServiceFeesTests is FeeManagerBase {
 
     function setUp() public override {
         super.setUp();
-
-        defaultRates[4] = delegateServiceFeeRate;
 
         loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
 

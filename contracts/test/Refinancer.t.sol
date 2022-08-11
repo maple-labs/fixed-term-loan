@@ -62,7 +62,7 @@ contract RefinancerTestBase is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
-        uint256[5] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         // TODO: prank borrower
@@ -659,7 +659,7 @@ contract RefinancerInterestTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
-        uint256[5] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         // TODO: prank borrower
@@ -1065,7 +1065,7 @@ contract RefinancingFeesTerms is TestUtils {
         address[2] memory assets      = [address(collateralToken), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
-        uint256[5] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
