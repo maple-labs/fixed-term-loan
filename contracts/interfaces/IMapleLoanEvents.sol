@@ -53,37 +53,39 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Loan was initialized.
-     *  @param globals_        The address of the globals contract.
-     *  @param borrower_       The address of the borrower.
-     *  @param feeManager_     The address of the entity responsible for calculating fees
-     *  @param originationFee_ The fee paid by the borrower on loan origination.
-     *  @param assets_         Array of asset addresses.
-     *                          [0]: collateralAsset,
-     *                          [1]: fundsAsset.
-     *  @param termDetails_    Array of loan parameters:
-     *                          [0]: gracePeriod,
-     *                          [1]: paymentInterval,
-     *                          [2]: payments,
-     *  @param amounts_        Requested amounts:
-     *                          [0]: collateralRequired,
-     *                          [1]: principalRequested,
-     *                          [2]: endingPrincipal.
-     *  @param rates_          Fee parameters:
-     *                          [0]: interestRate,
-     *                          [1]: closingFeeRate,
-     *                          [2]: lateFeeRate,
-     *                          [3]: lateInterestPremium,
-     *                          [5]: adminFeeRate.
+     *  @param globals_     The address of the globals contract.
+     *  @param borrower_    The address of the borrower.
+     *  @param feeManager_  The address of the entity responsible for calculating fees
+     *  @param assets_      Array of asset addresses.
+     *                       [0]: collateralAsset,
+     *                       [1]: fundsAsset.
+     *  @param termDetails_ Array of loan parameters:
+     *                       [0]: gracePeriod,
+     *                       [1]: paymentInterval,
+     *                       [2]: payments,
+     *  @param amounts_     Requested amounts:
+     *                       [0]: collateralRequired,
+     *                       [1]: principalRequested,
+     *                       [2]: endingPrincipal.
+     *  @param rates_       Fee parameters:
+     *                       [0]: interestRate,
+     *                       [1]: closingFeeRate,
+     *                       [2]: lateFeeRate,
+     *                       [3]: lateInterestPremium,
+     *                       [5]: adminFeeRate.
+     *  @param fees_        Array of fees:
+     *                       [0]: delegateOriginationFee,
+     *                       [1]: delegateServiceFee
      */
     event Initialized(
         address indexed globals_,
         address indexed borrower_,
         address indexed feeManager_,
-        uint256 originationFee_,
         address[2] assets_,
         uint256[3] termDetails_,
         uint256[3] amounts_,
-        uint256[5] rates_
+        uint256[5] rates_,
+        uint256[2] fees_
     );
 
     /**
@@ -128,7 +130,7 @@ interface IMapleLoanEvents {
     event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
 
     /**
-     *  @dev   The next payment due date was pushed back to later, reverting the action of triggering the grace period. 
+     *  @dev   The next payment due date was pushed back to later, reverting the action of triggering the grace period.
      *  @param nextPaymentDueDate_ The new next payment due date.
      */
     event NextPaymentDueDateDelayed(uint256 nextPaymentDueDate_);

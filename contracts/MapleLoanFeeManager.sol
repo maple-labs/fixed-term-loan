@@ -21,78 +21,59 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
 
     address public override globals;
 
-    mapping(address => RateInfo) public          rateInfo;  // TODO: Override
-    mapping(address => uint256)  public override adminOriginationFee;
-
-    // NOTE: Can pack struct type(uint120).max > 1e24, which is greater than the max percentages used (1e18 for 100%).
-    struct RateInfo {
-        uint120 adminFeeRate;     // Admin fee annualized percentage rate.
-        uint120 platformFeeRate;  // Platform fee annualized percentage rate.
-    }
+    mapping(address => uint256) public override delegateOriginationFee;
+    mapping(address => uint256) public override delegateServiceFee;
+    mapping(address => uint256) public override platformServiceFee;
 
     constructor(address globals_) {
         globals = globals_;
     }
 
-    /**************************/
-    /*** Mutating Functions ***/
-    /**************************/
+    /*************************/
+    /*** Payment Functions ***/
+    /*************************/
 
-    function payOriginationFees(address asset_, uint256 principalRequested_, uint256 loanTerm_) external override returns (uint256 feePaid_) {
-        uint256 adminOriginationFee_ = adminOriginationFee[msg.sender];
-
-        uint256 treasuryOriginationFee_ = _getFeeForInterval({
-            principal_:     principalRequested_,
-            annualFeeRate_: IGlobalsLike(globals).platformOriginationFeeRate(_getPoolManager(msg.sender)),
-            interval_:      loanTerm_
-        });
+    function payOriginationFees(address asset_, uint256 principalRequested_) external override returns (uint256 feePaid_) {
+        uint256 delegateOriginationFee_ = delegateOriginationFee[msg.sender];
+        uint256 platformOriginationFee_ = _getPlatformOriginationFee(msg.sender, principalRequested_);
 
         // Send origination fee to treasury, with remainder to poolDelegate.
-        _transferTo(asset_, _getTreasury(),               treasuryOriginationFee_, "MLFM:POF:TREASURY_TRANSFER");
-        _transferTo(asset_, _getPoolDelegate(msg.sender), adminOriginationFee_,    "MLFM:POF:PD_TRANSFER");
+        _transferTo(asset_, _getPoolDelegate(msg.sender), delegateOriginationFee_, "MLFM:POF:PD_TRANSFER");
+        _transferTo(asset_, _getTreasury(),               platformOriginationFee_, "MLFM:POF:TREASURY_TRANSFER");
 
-        feePaid_ = adminOriginationFee_ + treasuryOriginationFee_;
+        feePaid_ = delegateOriginationFee_ + platformOriginationFee_;
     }
 
-    /// @dev Called during `makePayment`
-    function payServiceFees(address asset_, uint256 principalRequested_, uint256 interval_) external override returns (uint256 feePaid_) {
-        ( uint256 adminFee_, uint256 platformFee_ ) = getPaymentServiceFees(msg.sender, principalRequested_, interval_);
+    function payServiceFees(address asset_, uint256 numberOfPayments_) external override returns (uint256 feePaid_) {
+        uint256 delegateServiceFee_ = delegateServiceFee[msg.sender] * numberOfPayments_;
+        uint256 platformServiceFee_ = platformServiceFee[msg.sender] * numberOfPayments_;
 
-        feePaid_ = adminFee_ + platformFee_;
+        feePaid_ = delegateServiceFee_ + platformServiceFee_;
 
-        _payServiceFees(asset_, adminFee_, platformFee_);
+        _transferTo(asset_, _getPoolDelegate(msg.sender), delegateServiceFee_, "MLFM:PSF:PD_TRANSFER");
+        _transferTo(asset_, _getTreasury(),               platformServiceFee_, "MLFM:PSF:TREASURY_TRANSFER");
+
+        emit ServiceFeesPaid(msg.sender, delegateServiceFee_, platformServiceFee_);
     }
 
-    function updatePlatformFeeRate() external override {
-        rateInfo[msg.sender].platformFeeRate = uint120(IGlobalsLike(globals).platformFeeRate(_getPoolManager(msg.sender)));
+    /****************************/
+    /*** Fee Update Functions ***/
+    /****************************/
+
+    function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external override {
+        delegateOriginationFee[msg.sender] = delegateOriginationFee_;
+        delegateServiceFee[msg.sender]     = delegateServiceFee_;
+
+        emit FeeTermsUpdated(msg.sender, delegateOriginationFee_, delegateServiceFee_);
     }
 
-    /// @dev Used by loan (`msg.sender`) to configure fee structure
-    // TODO: ACL and events
-    function updateFeeTerms(uint256 adminOriginationFee_, uint256 adminFeeRate_) external override {
-        require(adminFeeRate_ <= HUNDRED_PERCENT, "MLFM:UF:ABOVE_MAX_FEE");
+    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external override {
+        uint256 platformServiceFeeRate_ = IGlobalsLike(globals).platformServiceFeeRate(_getPoolManager(msg.sender));
+        uint256 platformServiceFee_     = principalRequested_ * platformServiceFeeRate_ * paymentInterval_ / 365 days / HUNDRED_PERCENT;
 
-        adminOriginationFee[msg.sender] = adminOriginationFee_;
+        platformServiceFee[msg.sender] = platformServiceFee_;
 
-        rateInfo[msg.sender].adminFeeRate = uint120(adminFeeRate_);
-    }
-
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
-
-    // Pass loan params
-    function getPaymentServiceFees(
-        address loan_,
-        uint256 principalRequested_,
-        uint256 interval_
-    )
-        public view override returns (uint256 adminFee_, uint256 platformFee_)
-    {
-        RateInfo memory rateInfo_ = rateInfo[loan_];
-
-        adminFee_    = _getFeeForInterval(principalRequested_, uint256(rateInfo_.adminFeeRate),    interval_);
-        platformFee_ = _getFeeForInterval(principalRequested_, uint256(rateInfo_.platformFeeRate), interval_);
+        emit PlatformServiceFeeUpdated(msg.sender, platformServiceFee_);
     }
 
     /*******************************/
@@ -103,9 +84,11 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         return ILoanLike(loan_).fundsAsset();
     }
 
-    function _getFeeForInterval(uint256 principal_, uint256 annualFeeRate_, uint256 interval_) internal pure returns (uint256 fee_) {
-        // Convert annual fee rate to annualized fee based on principal and interval.
-        fee_ = principal_ * annualFeeRate_ * interval_ / 365 days / HUNDRED_PERCENT;
+    function _getPlatformOriginationFee(address loan_, uint256 principalRequested_) internal view returns (uint256 platformOriginationFee_) {
+        uint256 platformOriginationFeeRate_ = IGlobalsLike(globals).platformOriginationFeeRate(_getPoolManager(loan_));
+        uint256 loanTermLength_             = ILoanLike(loan_).paymentInterval() * ILoanLike(loan_).paymentsRemaining();
+
+        platformOriginationFee_ = platformOriginationFeeRate_ * principalRequested_ * loanTermLength_ / 365 days / HUNDRED_PERCENT;
     }
 
     function _getPoolManager(address loan_) internal view returns (address pool_) {
@@ -123,15 +106,6 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     /*********************************/
     /*** Internal Helper Functions ***/
     /*********************************/
-
-    // NOTE: `msg.sender` is the loan.
-    function _payServiceFees(address asset_, uint256 adminFee_, uint256 platformFee_) internal {
-        uint256 treasuryAdminFee_ = adminFee_ * IGlobalsLike(globals).adminFeeSplit(_getPoolManager(msg.sender)) / HUNDRED_PERCENT;
-
-        // Send platform fee and admin fee split to treasury, remainder of admin fee to pool delegate.
-        _transferTo(asset_, _getTreasury(),               platformFee_ + treasuryAdminFee_, "MLFM:PSF:TREASURY_TRANSFER");
-        _transferTo(asset_, _getPoolDelegate(msg.sender), adminFee_    - treasuryAdminFee_, "MLFM:PSF:PD_TRANSFER");
-    }
 
     // TODO: Investigate removing this function if gas is significantly reduced.
     function _transferTo(address asset_, address destination_, uint256 amount_, string memory errorMessage_) internal {

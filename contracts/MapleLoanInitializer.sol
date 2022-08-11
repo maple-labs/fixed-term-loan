@@ -14,13 +14,13 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         address globals_,
         address borrower_,
         address feeManager_,
-        uint256 originationFee_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
-        uint256[5] memory rates_
+        uint256[5] memory rates_,
+        uint256[2] memory fees_
     ) external pure override returns (bytes memory encodedArguments_) {
-        return abi.encode(globals_, borrower_, feeManager_, originationFee_, assets_, termDetails_, amounts_, rates_);
+        return abi.encode(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
     }
 
     function decodeArguments(bytes calldata encodedArguments_)
@@ -28,23 +28,23 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             address globals_,
             address borrower_,
             address feeManager_,
-            uint256 originationFee_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
-            uint256[5] memory rates_
+            uint256[5] memory rates_,
+            uint256[2] memory fees_
         )
     {
         (
             globals_,
             borrower_,
             feeManager_,
-            originationFee_,
             assets_,
             termDetails_,
             amounts_,
-            rates_
-        ) = abi.decode(encodedArguments_, (address, address, address, uint256, address[2], uint256[3], uint256[3], uint256[5]));
+            rates_,
+            fees_
+        ) = abi.decode(encodedArguments_, (address, address, address, address[2], uint256[3], uint256[3], uint256[5], uint256[2]));
     }
 
     fallback() external {
@@ -52,50 +52,52 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             address globals_,
             address borrower_,
             address feeManager_,
-            uint256 originationFee_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
-            uint256[5] memory rates_
+            uint256[5] memory rates_,
+            uint256[2] memory fees_
         ) = decodeArguments(msg.data);
 
-        _initialize(globals_, borrower_, feeManager_, originationFee_, assets_, termDetails_, amounts_, rates_);
+        _initialize(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
 
-        emit Initialized(globals_, borrower_, feeManager_, originationFee_, assets_, termDetails_, amounts_, rates_);
+        emit Initialized(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
     }
 
     /**
      *  @dev   Initializes the loan.
      *  @param borrower_       The address of the borrower.
      *  @param feeManager_     The address of the entity responsible for calculating fees
-     *  @param originationFee_ The fee paid by the borrower on loan origination.
      *  @param assets_         Array of asset addresses.
      *                          [0]: collateralAsset,
-     *                          [1]: fundsAsset.
+     *                          [1]: fundsAsset
      *  @param termDetails_    Array of loan parameters:
      *                          [0]: gracePeriod,
      *                          [1]: paymentInterval,
-     *                          [2]: payments,
+     *                          [2]: payments
      *  @param amounts_        Requested amounts:
      *                          [0]: collateralRequired,
      *                          [1]: principalRequested,
-     *                          [2]: endingPrincipal.
-     *  @param rates_          Fee parameters:
+     *                          [2]: endingPrincipal
+     *  @param rates_          Rates parameters:
      *                          [0]: interestRate,
      *                          [1]: closingFeeRate,
      *                          [2]: lateFeeRate,
-     *                          [3]: lateInterestPremium.
+     *                          [3]: lateInterestPremium,
      *                          [4]: adminFeeRate
+     *  @param fees_           Array of fees:
+     *                          [0]: delegateOriginationFee,
+     *                          [1]: delegateServiceFee
      */
     function _initialize(
         address globals_,
         address borrower_,
         address feeManager_,
-        uint256 originationFee_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
-        uint256[5] memory rates_
+        uint256[5] memory rates_,
+        uint256[2] memory fees_
     )
         internal
     {
@@ -129,7 +131,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         _globals = globals_;
 
         // Set fees for the loan.
-        IMapleLoanFeeManager(feeManager_).updateFeeTerms(originationFee_, rates_[4]);
+        IMapleLoanFeeManager(feeManager_).updateDelegateFeeTerms(fees_[0], fees_[1]);
     }
 
 }

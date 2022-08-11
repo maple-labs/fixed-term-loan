@@ -88,7 +88,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint256 principalAndInterest = principal_ + interest_;
 
-        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, _principalRequested, _paymentInterval * _paymentsRemaining);
+        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, _paymentsRemaining);
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
@@ -135,7 +135,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint256 principalAndInterest = principal_ + interest_;
 
-        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, _principalRequested, _paymentInterval);  // TODO: Reinvestigate to see if we can implement CEI here.
+        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, 1);  // TODO: Reinvestigate to see if we can implement CEI here.
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
@@ -252,9 +252,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             unchecked { ++i; }
         }
 
+        uint256 paymentInterval_    = _paymentInterval;
+        uint256 principalRequested_ = _principalRequested;
+
         // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
         // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
-        _nextPaymentDueDate = block.timestamp + _paymentInterval;
+        _nextPaymentDueDate = block.timestamp + paymentInterval_;
+
+        // Update Platform Fees and pay originations
+        IMapleLoanFeeManager feeManager_ = IMapleLoanFeeManager(_feeManager);
+
+        feeManager_.updatePlatformServiceFee(principalRequested_, paymentInterval_);
+        feeManager_.payOriginationFees(_fundsAsset, _principalRequested);
 
         // Ensure that collateral is maintained after changes made.
         require(_isCollateralMaintained(), "ML:ANT:INSUFFICIENT_COLLATERAL");
@@ -308,13 +317,16 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // TODO: Investigate using exact approvals
         IERC20(_fundsAsset).approve(_feeManager, type(uint256).max);
 
-        uint256 principalRequestedCache = _principalRequested;
+        uint256 paymentInterval_     = _paymentInterval;
+        uint256 principalRequested_ = _principalRequested;
 
-        uint256 originationFees =
-            IMapleLoanFeeManager(_feeManager).payOriginationFees(_fundsAsset, principalRequestedCache, _paymentInterval * _paymentsRemaining);
+        // Saves the platform service fee rate for future payments.
+        IMapleLoanFeeManager(_feeManager).updatePlatformServiceFee(principalRequested_, paymentInterval_);
+
+        uint256 originationFees = IMapleLoanFeeManager(_feeManager).payOriginationFees(_fundsAsset, principalRequested_);
 
         // TODO: Add drawableFunds assertions in fundLoan tests in MapleLoan.t.sol
-        _drawableFunds = principalRequestedCache - originationFees;
+        _drawableFunds = principalRequested_ - originationFees;
 
         uint256 extra = getUnaccountedAmount(fundsAssetAddress);
 
@@ -322,14 +334,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             _claimableFunds += extra;
         }
 
-        // TODO: What happens to fees on refinance?
-
-        IMapleLoanFeeManager(_feeManager).updatePlatformFeeRate();
-
         emit Funded(
             lender_,
-            fundsLent_ = _principal = principalRequestedCache,
-            _nextPaymentDueDate = block.timestamp + _paymentInterval
+            fundsLent_ = _principal = principalRequested_,
+            _nextPaymentDueDate = block.timestamp + paymentInterval_
         );
     }
 
@@ -438,10 +446,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function getClosingPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        ( uint256 platformFee_, uint256 adminFee_ ) =
-            IMapleLoanFeeManager(_feeManager).getPaymentServiceFees(address(this), _principalRequested, _paymentInterval * _paymentsRemaining);
+        uint256 paymentsRemaining_  = _paymentsRemaining;
+        uint256 delegateServiceFee_ = IMapleLoanFeeManager(_feeManager).delegateServiceFee(address(this)) * paymentsRemaining_;
+        uint256 platformServiceFee_ = IMapleLoanFeeManager(_feeManager).platformServiceFee(address(this)) * paymentsRemaining_;
 
-        fees_ = platformFee_ + adminFee_;
+        fees_ = delegateServiceFee_ + platformServiceFee_;
 
         // Compute interest and include any uncaptured interest from refinance.
         interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
@@ -463,10 +472,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Include any uncaptured interest from refinance.
         interest_ += _refinanceInterest;
 
-        ( uint256 platformFee_, uint256 adminFee_ ) =
-            IMapleLoanFeeManager(_feeManager).getPaymentServiceFees(address(this), _principalRequested, _paymentInterval);
+        uint256 delegateServiceFee_ = IMapleLoanFeeManager(_feeManager).delegateServiceFee(address(this));
+        uint256 platformServiceFee_ = IMapleLoanFeeManager(_feeManager).platformServiceFee(address(this));
 
-        fees_ = platformFee_ + adminFee_;
+        fees_ = delegateServiceFee_ + platformServiceFee_;
     }
 
     function getRefinanceInterest(uint256 timestamp_) public view override returns (uint256 proRataInterest_) {

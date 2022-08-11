@@ -42,8 +42,9 @@ contract MapleLoanStoryTests is TestUtils {
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
         uint256[5] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), 0, assets, termDetails, amounts, rates);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         // Fund via a 1M transfer
         lender.erc20_transfer(address(token), address(loan), 1_000_000);
@@ -202,8 +203,9 @@ contract MapleLoanStoryTests is TestUtils {
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
         uint256[5] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), 0, assets, termDetails, amounts, rates);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         // Fund via a 1M transfer
         lender.erc20_transfer(address(token), address(loan), 1_000_000);

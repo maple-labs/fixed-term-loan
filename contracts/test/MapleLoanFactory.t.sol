@@ -37,8 +37,9 @@ contract MapleLoanFactoryTest is TestUtils {
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[5] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), address(feeManager), 0, assets, termDetails, amounts, rates);
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), address(feeManager), assets, termDetails, amounts, rates, fees);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create a "random" loan creator from some fuzzed salt.
@@ -68,8 +69,9 @@ contract MapleLoanFactoryTest is TestUtils {
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[5] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), address(2), 0, assets, termDetails, amounts, rates);
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(globals), address(1), address(2), assets, termDetails, amounts, rates, fees);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         factory.createInstance(arguments, salt);

@@ -134,4 +134,11 @@ interface IRefinancer {
      */
     function setPaymentsRemaining(uint256 paymentsRemaining_) external;
 
+    /**
+     *  @dev    Updates the fee terms on the FeeManager.
+     *  @param  delegateOriginationFee_ The amount of delegate origination fee to be paid.
+     *  @param  delegateServiceFee_     The amount of delegate service fee to be paid.
+     */
+    function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external;
+
 }

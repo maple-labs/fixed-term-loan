@@ -3,8 +3,6 @@ pragma solidity 0.8.7;
 
 interface IGlobalsLike {
 
-    function adminFeeSplit(address pool_) external view returns (uint256 adminFeeSplit_);
-
     function governor() external view returns (address governor_);
 
     function isBorrower(address account_) external view returns (bool isBorrower_);
@@ -15,7 +13,7 @@ interface IGlobalsLike {
 
     function platformOriginationFeeRate(address pool_) external view returns (uint256 platformOriginationFeeRate_);
 
-    function platformFeeRate(address pool_) external view returns (uint256 platformFeeRate_);
+    function platformServiceFeeRate(address pool_) external view returns (uint256 platformFee_);
 
 }
 

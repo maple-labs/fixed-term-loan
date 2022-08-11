@@ -3,7 +3,8 @@ pragma solidity 0.8.7;
 
 import { IERC20 } from "../modules/erc20/contracts/interfaces/IERC20.sol";
 
-import { IRefinancer } from "./interfaces/IRefinancer.sol";
+import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
+import { IRefinancer }          from "./interfaces/IRefinancer.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -60,6 +61,10 @@ contract Refinancer is IRefinancer, MapleLoanStorage {
         require(paymentsRemaining_ != 0, "R:SPR:ZERO_AMOUNT");
 
         emit PaymentsRemainingSet(_paymentsRemaining = paymentsRemaining_);
+    }
+
+    function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external override {
+        IMapleLoanFeeManager(_feeManager).updateDelegateFeeTerms(delegateOriginationFee_, delegateServiceFee_);
     }
 
     /// @dev Returns the amount of an `asset_` that this contract owns, which is not currently accounted for by its state variables.

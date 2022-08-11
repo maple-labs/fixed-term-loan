@@ -1441,10 +1441,11 @@ contract MapleLoanRoleTests is TestUtils {
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
         uint256[5] memory rates       = [uint256(0.12e18), uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         _globals.setValidBorrower(address(_borrower), true);
 
-        _loan = new ConstructableMapleLoan(address(_factory), address(_globals), address(_borrower), address(_feeManager), 0, assets, termDetails, amounts, rates);
+        _loan = new ConstructableMapleLoan(address(_factory), address(_globals), address(_borrower), address(_feeManager), assets, termDetails, amounts, rates, fees);
     }
 
     function test_transferBorrowerRole() public {

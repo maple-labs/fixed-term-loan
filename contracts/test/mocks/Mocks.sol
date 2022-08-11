@@ -8,18 +8,13 @@ contract MapleGlobalsMock {
     address public governor;
     address public mapleTreasury;
 
-    mapping(address => uint256) public adminFeeSplit;
     mapping(address => uint256) public platformOriginationFeeRate;
-    mapping(address => uint256) public platformFeeRate;
+    mapping(address => uint256) public platformServiceFeeRate;
 
     mapping(address => bool) public isBorrower;
 
     constructor (address governor_) {
         governor = governor_;
-    }
-
-    function setAdminFeeSplit(address pool_, uint256 fee_) external {
-        adminFeeSplit[pool_] = fee_;
     }
 
     function setGovernor(address governor_) external {
@@ -30,12 +25,12 @@ contract MapleGlobalsMock {
         mapleTreasury = mapleTreasury_;
     }
 
-    function setPlatformFeeRate(address pool_, uint256 feeRate_) external {
-        platformFeeRate[pool_] = feeRate_;
+    function setPlatformServiceFeeRate(address poolManager_, uint256 feeRate_) external {
+        platformServiceFeeRate[poolManager_] = feeRate_;
     }
 
-    function setPlatformOriginationFeeRate(address pool_, uint256 feeRate_) external {
-        platformOriginationFeeRate[pool_] = feeRate_;
+    function setPlatformOriginationFeeRate(address poolManager_, uint256 feeRate_) external {
+        platformOriginationFeeRate[poolManager_] = feeRate_;
     }
 
     function setValidBorrower(address borrower_, bool isValid_) external {
@@ -64,27 +59,23 @@ contract MockFactory {
 
 contract MockFeeManager {
 
-    function payOriginationFees(address asset_, uint256 principalRequested_, uint256 loanTerm_) external returns (uint256 feePaid_) { }
+    function payOriginationFees(address asset_, uint256 principalRequested_) external returns (uint256 feePaid_) { }
 
-    function payServiceFees(address asset_, uint256 principalRequested_, uint256 interval_) external returns (uint256 feePaid_) { }
+    function payServiceFees(address asset_, uint256 paymentsRemaining_) external returns (uint256 feePaid_) { }
 
-    function updateFeeTerms(uint256 platformOriginationFeeRate_, uint256 adminFee_) external { }
+    function updateDelegateFeeTerms(uint256 delegateOriginatonFee_, uint256 delegateServiceFee_) external { }
 
-    function updatePlatformFeeRate() external {}
+    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external {}
 
     /**********************/
     /*** View Functions ***/
     /**********************/
 
-    function getPaymentServiceFees(
-        address loan_,
-        uint256 principalRequested_,
-        uint256 interval_
-    ) public pure returns (uint256 adminFee_, uint256 platformFee_) {
-       return (0, 0);
+    function delegateServiceFee(address loan_) public pure returns (uint256 platformServiceFee_) {
+        return 0;
     }
 
-    function platformOriginationFeeRate(address loan_) public pure returns (uint256 platformOriginationFeeRate_) {
+    function platformServiceFee(address loan_) public pure returns (uint256 platformServiceFee_) {
         return 0;
     }
 

@@ -1,19 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { console, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { Refinancer } from "../Refinancer.sol";
+import { MapleLoanFeeManager } from "../MapleLoanFeeManager.sol";
+import { Refinancer }          from "../Refinancer.sol";
 
 import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
 
-import { MapleGlobalsMock, MockFactory, MockFeeManager } from "./mocks/Mocks.sol";
-
+import {
+    MapleGlobalsMock,
+    MockFactory,
+    MockFeeManager,
+    MockLoanManager,
+    MockPoolManager
+} from "./mocks/Mocks.sol";
 import { Lender } from "./accounts/Lender.sol";
 
 // Helper contract with common functionality
-contract RefinancerTestBase is  TestUtils {
+contract RefinancerTestBase is TestUtils {
 
     // Loan Boundaries
     uint256 internal constant MAX_RATE         = 1e18;             // 100 %
@@ -30,7 +36,7 @@ contract RefinancerTestBase is  TestUtils {
     MockFeeManager         feeManager;
     Refinancer             refinancer;
 
-    function setUp() external {
+    function setUp() public virtual {
         globals    = new MapleGlobalsMock(address(this));
         lender     = new Lender();
         refinancer = new Refinancer();
@@ -57,9 +63,10 @@ contract RefinancerTestBase is  TestUtils {
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
         uint256[5] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         // TODO: prank borrower
-        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), 0, assets, termDetails, amounts, rates);
+        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         token.mint(address(loan), principalRequested_);
         loan.fundLoan(address(lender));
@@ -653,9 +660,10 @@ contract RefinancerInterestTests is TestUtils {
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
         uint256[5] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         // TODO: prank borrower
-        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), 0, assets, termDetails, amounts, rates);
+        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         token.mint(address(loan), principalRequested_);
         loan.fundLoan(address(lender));
@@ -998,6 +1006,264 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
         token.mint(address(loan), principalIncrease_ - 1);
 
         lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+    }
+
+}
+
+// Not Using RefinancerTestBase due to the need to use Mocks for the
+contract RefinancingFeesTerms is TestUtils {
+
+    address internal POOL_DELEGATE = address(777);
+    address internal TREASURY      = address(888);
+
+    // Loan Boundaries
+    uint256 internal constant MAX_RATE         = 1e18;             // 100 %
+    uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
+    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+    uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
+    uint256 internal constant MAX_PAYMENTS     = 20;
+
+    MapleGlobalsMock       globals;
+    ConstructableMapleLoan loan;
+    Lender                 lender;
+    MockERC20              token;
+    MockFactory            factory;
+    MapleLoanFeeManager    feeManager;
+    MockLoanManager        loanManager;
+    MockPoolManager        poolManager;
+    Refinancer             refinancer;
+
+    function setUp() public virtual {
+        globals     = new MapleGlobalsMock(address(this));
+        lender      = new Lender();
+        refinancer  = new Refinancer();
+        factory     = new MockFactory();
+        feeManager  = new MapleLoanFeeManager(address(globals));
+        poolManager = new MockPoolManager(address(POOL_DELEGATE));
+        loanManager = new MockLoanManager(address(POOL_DELEGATE), address(poolManager));
+
+        globals.setValidBorrower(address(this), true);
+
+        globals.setMapleTreasury(TREASURY);
+    }
+
+    function setUpOngoingLoan(
+        uint256 principalRequested_,
+        uint256 collateralRequired_,
+        uint256 endingPrincipal_,
+        uint256 gracePeriod_,
+        uint256 interestRate_,
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_
+    )
+        internal
+    {
+        token = new MockERC20("Test", "TST", 0);
+
+        MockERC20 collateralToken = new MockERC20("Collateral", "COL", 0);
+
+        address[2] memory assets      = [address(collateralToken), address(token)];
+        uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
+        uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
+        uint256[5] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+
+        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
+
+        token.mint(address(loan), principalRequested_);
+        loan.fundLoan(address(loanManager));
+
+        collateralToken.mint(address(loan), collateralRequired_);
+        loan.postCollateral(0);
+
+        loan.drawdownFunds(principalRequested_, address(1));
+
+        // Warp to when payment is due
+        vm.warp(loan.nextPaymentDueDate());
+
+        // Check details for upcoming payment #1
+        ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
+
+        // Make payment #1
+        token.mint(address(loan), principalPortion + interestPortion);
+        loan.makePayment(0);
+    }
+
+
+    function testFuzz_refinance_pdOriginationFeeTransferFail(uint256 newDelegateOriginationFee_) external {
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
+
+        uint256 deadline_ = type(uint256).max;
+
+        newDelegateOriginationFee_ = constrictToRange(newDelegateOriginationFee_, 1, MAX_TOKEN_AMOUNT);
+
+        // Initial values are zeroed
+        assertEq(feeManager.delegateOriginationFee(address(loan)), 0);
+        assertEq(feeManager.delegateServiceFee(address(loan)),     0);
+
+        bytes[] memory calls = new bytes[](1);
+
+        calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", newDelegateOriginationFee_, 100e18);
+
+        // Claim funds to remove balance from loan.
+        vm.startPrank(address(loanManager));
+        loan.claimFunds(loan.claimableFunds(), address(0));
+        token.mint(address(loan), newDelegateOriginationFee_ - 1);
+        vm.stopPrank();
+
+        loan.proposeNewTerms(address(refinancer), deadline_, calls);
+        vm.prank(address(loanManager));
+        vm.expectRevert("MLFM:POF:PD_TRANSFER");
+        loan.acceptNewTerms(address(refinancer), deadline_, calls);
+    }
+
+    function testFuzz_refinance_treasuryOriginationFeeTransferFail(uint256 newDelegateOriginationFee_, uint256 newPlatformOriginationFeeRate_) external {
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
+
+        uint256 deadline_ = type(uint256).max;
+
+        newDelegateOriginationFee_     = constrictToRange(newDelegateOriginationFee_,     1, MAX_TOKEN_AMOUNT);
+        newPlatformOriginationFeeRate_ = constrictToRange(newPlatformOriginationFeeRate_, 1, MAX_RATE);
+
+        globals.setPlatformOriginationFeeRate(address(poolManager), newPlatformOriginationFeeRate_);
+
+        // Initial values are zeroed
+        assertEq(feeManager.delegateOriginationFee(address(loan)), 0);
+        assertEq(feeManager.delegateServiceFee(address(loan)),     0);
+
+        bytes[] memory calls = new bytes[](1);
+
+        newDelegateOriginationFee_ = 0;
+
+        calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", newDelegateOriginationFee_, 100e18);
+
+        uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 1e18;  // Annualized over course of remaining loan term (150 days since payment was made)
+
+        // Claim funds to remove balance from loan.
+        vm.startPrank(address(loanManager));
+        loan.claimFunds(loan.claimableFunds(), address(0));
+        token.mint(address(loan), platformOriginationFee_ + newDelegateOriginationFee_ - 1);
+        vm.stopPrank();
+
+        loan.proposeNewTerms(address(refinancer), deadline_, calls);
+        vm.prank(address(loanManager));
+        vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
+        loan.acceptNewTerms(address(refinancer), deadline_, calls);
+    }
+
+    function testFuzz_refinance_payOriginationFees(uint256 newDelegateOriginationFee_, uint256 newPlatformOriginationFeeRate_) external {
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
+
+        uint256 deadline_ = type(uint256).max;
+
+        newDelegateOriginationFee_     = constrictToRange(newDelegateOriginationFee_,     1, MAX_TOKEN_AMOUNT);
+        newPlatformOriginationFeeRate_ = constrictToRange(newPlatformOriginationFeeRate_, 1, MAX_RATE);
+
+        // Initial values are zeroed
+        assertEq(feeManager.delegateOriginationFee(address(loan)), 0);
+        assertEq(feeManager.delegateServiceFee(address(loan)),     0);
+
+        globals.setPlatformOriginationFeeRate(address(poolManager), newPlatformOriginationFeeRate_);
+
+        bytes[] memory calls = new bytes[](1);
+
+        calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", newDelegateOriginationFee_, 100e18);
+
+        uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 1e18;  // Annualized over course of remaining loan term (150 days since payment was made)
+
+        // Claim funds to remove balance from loan.
+        vm.startPrank(address(loanManager));
+        loan.claimFunds(loan.claimableFunds(), address(0));
+        token.mint(address(loan), platformOriginationFee_ + newDelegateOriginationFee_);
+        vm.stopPrank();
+
+        assertEq(token.balanceOf(POOL_DELEGATE), 0);
+        assertEq(token.balanceOf(TREASURY),      0);
+
+        loan.proposeNewTerms(address(refinancer), deadline_, calls);
+        vm.prank(address(loanManager));
+        loan.acceptNewTerms(address(refinancer), deadline_, calls);
+
+        // Fees were paid during loan origination
+        assertEq(token.balanceOf(POOL_DELEGATE), newDelegateOriginationFee_);
+        assertEq(token.balanceOf(TREASURY),      platformOriginationFee_);
+
+        // Fees were updated on FeeManager
+        assertEq(feeManager.delegateOriginationFee(address(loan)), newDelegateOriginationFee_);
+        assertEq(feeManager.delegateServiceFee(address(loan)),     100e18);
+    }
+
+    function testFuzz_refinance_updatesPlatformServiceFees(uint256 newPlatformServiceFeeRate_) external {
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
+
+        newPlatformServiceFeeRate_ = constrictToRange(newPlatformServiceFeeRate_, 1, MAX_RATE);
+
+        globals.setPlatformServiceFeeRate(address(poolManager), newPlatformServiceFeeRate_);
+
+        // Initial values are zeroed
+        assertEq(feeManager.platformServiceFee(address(loan)), 0);
+
+        uint256 deadline_ = type(uint256).max;
+
+        // Using dummy refinance call
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", 0, 0);
+
+        loan.proposeNewTerms(address(refinancer), deadline_, calls);
+        vm.prank(address(loanManager));
+        loan.acceptNewTerms(address(refinancer), deadline_, calls);
+
+        assertEq(feeManager.platformServiceFee(address(loan)), 1_000_000e18 * newPlatformServiceFeeRate_ * 30 days / 365 days / 1e18);
+    }
+
+    function testFuzz_refinance_updateFeeTerms(
+        uint256 principalRequested_,
+        uint256 collateralRequired_,
+        uint256 endingPrincipal_,
+        uint256 gracePeriod_,
+        uint256 interestRate_,
+        uint256 lateFeeRate_,
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 newOriginationFee_,
+        uint256 newDelegateServiceFee_,
+        uint256 deadline_
+    )
+        external
+    {
+        principalRequested_ = constrictToRange(principalRequested_, MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
+        collateralRequired_ = constrictToRange(collateralRequired_, 0,                MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,                principalRequested_);
+        gracePeriod_        = constrictToRange(gracePeriod_,        100,              MAX_TIME);
+        interestRate_       = constrictToRange(interestRate_,       0,                MAX_RATE);
+        lateFeeRate_        = constrictToRange(lateFeeRate_,        0,                MAX_RATE);
+        paymentInterval_    = constrictToRange(paymentInterval_,    1 days,           MAX_TIME / 2);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  3,                MAX_PAYMENTS);
+
+        setUpOngoingLoan(principalRequested_, collateralRequired_, endingPrincipal_, gracePeriod_, interestRate_, paymentInterval_, paymentsRemaining_);
+
+        deadline_ = constrictToRange(deadline_, block.timestamp, type(uint256).max);
+
+        newOriginationFee_     = constrictToRange(newOriginationFee_,     1, MAX_TOKEN_AMOUNT);
+        newDelegateServiceFee_ = constrictToRange(newDelegateServiceFee_, 1, MAX_TOKEN_AMOUNT);
+
+        // Initial values are zeroed
+        assertEq(feeManager.delegateOriginationFee(address(loan)), 0);
+        assertEq(feeManager.delegateServiceFee(address(loan)),     0);
+
+        bytes[] memory calls = new bytes[](1);
+
+        calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", newOriginationFee_, newDelegateServiceFee_);
+
+        // Minting origination fee because the fees are paid after the refinance calls, so the new fees are in effect.
+        token.mint(address(loan), newOriginationFee_);
+
+        loan.proposeNewTerms(address(refinancer), deadline_, calls);
+        vm.prank(address(loanManager));
+        loan.acceptNewTerms(address(refinancer), deadline_, calls);
+
+        assertEq(feeManager.delegateOriginationFee(address(loan)), newOriginationFee_);
+        assertEq(feeManager.delegateServiceFee(address(loan)),     newDelegateServiceFee_);
     }
 
 }

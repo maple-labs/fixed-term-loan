@@ -33,6 +33,7 @@ contract FeeManagerBase is TestUtils {
     uint256[3] internal defaultTermDetails;
     uint256[3] internal defaultAmounts;
     uint256[5] internal defaultRates;
+    uint256[2] internal defaultFees;
 
     function setUp() public virtual {
         implementation = address(new MapleLoan());
@@ -56,23 +57,24 @@ contract FeeManagerBase is TestUtils {
         defaultTermDetails = [uint256(10 days), uint256(365 days / 12), uint256(3)];
         defaultAmounts     = [uint256(0), uint256(1_000_000e18), uint256(1_000_000e18)];
         defaultRates       = [uint256(0.12e18), uint256(0.02e18), uint256(0), uint256(0.02e18), uint256(0.006e18)];
+        defaultFees        = [uint256(50_000e18), uint256(500e18)];
     }
 
     function _createLoan(
         address globals_,
         address borrower_,
         address feeManager_,
-        uint256 originationFee_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
         uint256[5] memory rates_,
+        uint256[2] memory fees_,
         bytes32 salt_
     )
         internal returns (address loan_)
     {
         loan_ = factory.createInstance({
-            arguments_: MapleLoanInitializer(initializer).encodeArguments(globals_, borrower_, feeManager_, originationFee_, assets_, termDetails_, amounts_, rates_),
+            arguments_: MapleLoanInitializer(initializer).encodeArguments(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_),
             salt_:      keccak256(abi.encodePacked(salt_))
         });
     }
@@ -99,37 +101,34 @@ contract PayClosingFeesTests is FeeManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), 0, defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, "salt"));
+        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
 
-        globals.setPlatformFeeRate(address(poolManager), 0.003e18);  // 0.3%
-        globals.setAdminFeeSplit(address(poolManager),   0.100e18);  // 10%
+        globals.setPlatformServiceFeeRate(address(poolManager), 0.003e18);  // 0.3%
 
         _fundLoan(address(loan), address(loanManager), loan.principalRequested());
+
         _drawdownLoan(address(loan), BORROWER);
     }
 
-    function test_payClosingServiceFees_insufficientFunds_treasury() external {
-        uint256 adminFee    = 1500e18;  // 1m * 0.6% / 12 * 3 = 1500
-        uint256 platformFee = 750e18;   // 1m * 0.3% / 12 * 3 = 750
-
-        uint256 treasuryFee = (adminFee / 10) + platformFee;  // 10% of pool delegate fee goes to treasury
-
-        fundsAsset.mint(address(this),    treasuryFee - 1);
-        fundsAsset.approve(address(loan), treasuryFee - 1);
-
-        vm.expectRevert("MLFM:PSF:TREASURY_TRANSFER");
-        loan.closeLoan(treasuryFee - 1);
-    }
-
     function test_payClosingServiceFees_insufficientFunds_poolDelegate() external {
-        uint256 adminFee    = 1500e18;  // 1m * 0.6% / 12 * 3 = 1500
-        uint256 platformFee = 750e18;   // 1m * 0.3% / 12 * 3 = 750
+        uint256 delegateServiceFee = 1500e18;  // 500 * 3 = 1500
 
-        fundsAsset.mint(address(this),    platformFee + adminFee - 1);
-        fundsAsset.approve(address(loan), platformFee + adminFee - 1);
+        fundsAsset.mint(address(this),    delegateServiceFee - 1);
+        fundsAsset.approve(address(loan), delegateServiceFee - 1);
 
         vm.expectRevert("MLFM:PSF:PD_TRANSFER");
-        loan.closeLoan(platformFee + adminFee - 1);
+        loan.closeLoan(delegateServiceFee - 1);
+    }
+
+    function test_payClosingServiceFees_insufficientFunds_treasury() external {
+        uint256 delegateServiceFee = 1500e18;  // 500 * 3 = 1500
+        uint256 platformServiceFee = 750e18;   // 1m * 0.3% / 12 * 3 = 750
+
+        fundsAsset.mint(address(this),    delegateServiceFee + platformServiceFee - 1);
+        fundsAsset.approve(address(loan), delegateServiceFee + platformServiceFee - 1);
+
+        vm.expectRevert("MLFM:PSF:TREASURY_TRANSFER");
+        loan.closeLoan(delegateServiceFee + platformServiceFee - 1);
     }
 
     function test_payClosingServiceFees() external {
@@ -144,15 +143,15 @@ contract PayClosingFeesTests is FeeManagerBase {
 
         assertEq(fundsAsset.balanceOf(address(this)), 1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
         assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(fundsAsset.balanceOf(PD),            0);
+        assertEq(fundsAsset.balanceOf(PD),            50_000e18);  // Origination fees
         assertEq(fundsAsset.balanceOf(TREASURY),      0);
 
         loan.closeLoan(1_022_250e18);
 
         assertEq(fundsAsset.balanceOf(address(this)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), 1_020_000e18);  // Principal + interest
-        assertEq(fundsAsset.balanceOf(PD),            1_350e18);      // 90% admin fee
-        assertEq(fundsAsset.balanceOf(TREASURY),      900e18);        // Platform fee + 10% admin fee
+        assertEq(fundsAsset.balanceOf(PD),            50_000e18 + 1_500e18);
+        assertEq(fundsAsset.balanceOf(TREASURY),      750e18);
     }
 
 }
@@ -161,32 +160,35 @@ contract PayOriginationFeesTests is FeeManagerBase {
 
     MapleLoan loan;
 
+    uint256 originationFee = 50_000e18;
+
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), 50_000e18, defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, "salt"));
+        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
 
         globals.setPlatformOriginationFeeRate(address(poolManager), 0.003e18);  // 0.3%
     }
 
-    function test_payOriginationFees_insufficientFunds_treasury() external {
-        fundsAsset.mint(address(loan), 750e18 - 1);  // 1m * 0.3% / 12 * 3 = 750
-
-        vm.prank(address(loanManager));
-        vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
-        loan.fundLoan(address(loanManager));
-    }
-
     function test_payOriginationFees_insufficientFunds_poolDelegate() external {
-        fundsAsset.mint(address(loan), 50_750e18 - 1);  // 50k + (1m * 0.3% / 12 * 3) = 50_750
+        fundsAsset.mint(address(loan), 50_00e18 - 1);
 
         vm.prank(address(loanManager));
         vm.expectRevert("MLFM:POF:PD_TRANSFER");
         loan.fundLoan(address(loanManager));
     }
 
+
+    function test_payOriginationFees_insufficientFunds_treasury() external {
+        fundsAsset.mint(address(loan), 50_750e18 - 1);  // 50k + (1m * 0.3% / 12 * 3) = 50_750
+
+        vm.prank(address(loanManager));
+        vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
+        loan.fundLoan(address(loanManager));
+    }
+
     function test_payOriginationFees() external {
-        fundsAsset.mint(address(loan), 1_000_000e18);  // 1m + 50k + (1m * 0.3% / 12 * 3) = 1_050_750
+        fundsAsset.mint(address(loan), 1_000_000e18);  // 1m + 50k + (1m * 0.3% = 3_000) = 1_053_000
 
         assertEq(fundsAsset.balanceOf(address(loan)), 1_000_000e18);
         assertEq(fundsAsset.balanceOf(PD),            0);
@@ -196,7 +198,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
         loan.fundLoan(address(loanManager));
 
         assertEq(fundsAsset.balanceOf(address(this)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)), 949_250e18);  // Principal - origination fees
+        assertEq(fundsAsset.balanceOf(address(loan)), 949_250e18);  // Principal - both origination fees
         assertEq(fundsAsset.balanceOf(PD),            50_000e18);   // 50k origination fee to PD
         assertEq(fundsAsset.balanceOf(TREASURY),      750e18);      // (1m * 0.3% / 12 * 3) = 750 to treasury
     }
@@ -207,40 +209,42 @@ contract PayServiceFeesTests is FeeManagerBase {
 
     MapleLoan loan;
 
+    uint256 delegateServiceFeeRate = 0.006e18;  // 0.06%
+    uint256 platformServiceFeeRate = 0.003e18;  // 0.03%
+
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), 0, defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, "salt"));
+        defaultRates[4] = delegateServiceFeeRate;
 
-        globals.setPlatformFeeRate(address(poolManager), 0.003e18);  // 0.3%
-        globals.setAdminFeeSplit(address(poolManager),   0.100e18);  // 10%
+        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
+
+        globals.setPlatformServiceFeeRate(address(poolManager), platformServiceFeeRate);
 
         _fundLoan(address(loan), address(loanManager), loan.principalRequested());
         _drawdownLoan(address(loan), BORROWER);
     }
 
-    function test_payServiceFees_insufficientFunds_treasury() external {
-        uint256 platformFee = 250e18;  // 1m * 0.3% / 12 = 250
-        uint256 adminFee    = 500e18;  // 1m * 0.6% / 12 = 500
-
-        uint256 treasuryFee = platformFee + adminFee / 10;  // 10% of pool delegate fee goes to treasury
-
-        fundsAsset.mint(address(this),    treasuryFee - 1);
-        fundsAsset.approve(address(loan), treasuryFee - 1);
-
-        vm.expectRevert("MLFM:PSF:TREASURY_TRANSFER");
-        loan.makePayment(treasuryFee - 1);
-    }
-
     function test_payServiceFees_insufficientFunds_poolDelegate() external {
-        uint256 platformFee = 250e18;  // 1m * 0.3% / 12 = 250
-        uint256 adminFee    = 500e18;  // 1m * 0.6% / 12 = 500
+        uint256 platformServiceFee = 250e18;  // 1m * 0.3% / 12 = 250
 
-        fundsAsset.mint(address(this),    platformFee + adminFee - 1);
-        fundsAsset.approve(address(loan), platformFee + adminFee - 1);
+        fundsAsset.mint(address(this),    platformServiceFee - 1);
+        fundsAsset.approve(address(loan), platformServiceFee - 1);
 
         vm.expectRevert("MLFM:PSF:PD_TRANSFER");
-        loan.makePayment(platformFee + adminFee - 1);
+        loan.makePayment(platformServiceFee - 1);
+    }
+
+
+    function test_payServiceFees_insufficientFunds_treasury() external {
+        uint256 platformServiceFee = 250e18;  // 1m * 0.3% / 12 = 250
+        uint256 delegateServiceFee = 500e18;  // 500 = 500
+
+        fundsAsset.mint(address(this),    delegateServiceFee + platformServiceFee - 1);
+        fundsAsset.approve(address(loan), delegateServiceFee + platformServiceFee - 1);
+
+        vm.expectRevert("MLFM:PSF:TREASURY_TRANSFER");
+        loan.makePayment(delegateServiceFee + platformServiceFee - 1);
     }
 
     function test_payServiceFees() external {
@@ -255,101 +259,61 @@ contract PayServiceFeesTests is FeeManagerBase {
 
         assertEq(fundsAsset.balanceOf(address(this)), 10_750e18);
         assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(fundsAsset.balanceOf(PD),            0);
+        assertEq(fundsAsset.balanceOf(PD),            50_000e18);  // Origination fees
         assertEq(fundsAsset.balanceOf(TREASURY),      0);
 
         loan.makePayment(10_750e18);
 
         assertEq(fundsAsset.balanceOf(address(this)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), 10_000e18);  // Interest
-        assertEq(fundsAsset.balanceOf(PD),            450e18);     // 90% admin fee
-        assertEq(fundsAsset.balanceOf(TREASURY),      300e18);     // Platform fee + 10% admin fee
+        assertEq(fundsAsset.balanceOf(PD),            50_000e18 + 500e18);
+        assertEq(fundsAsset.balanceOf(TREASURY),      250e18);
     }
 
 }
 
-contract UpdatePlatformFeeRateTests is FeeManagerBase {
+contract UpdatePlatformServiceFeeTests is FeeManagerBase {
 
-    function test_updatePlaformFeeRate() external {
-        address loan1 = _createLoan(address(globals), BORROWER, address(feeManager), 0, defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, "salt1");
-        address loan2 = _createLoan(address(globals), BORROWER, address(feeManager), 0, defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, "salt2");
+    function test_updatePlaformServiceFee() external {
+        address loan1 = _createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
+        address loan2 = _createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt2");
 
         _fundLoan(loan1, address(loanManager), 1_000_000e18);
         _fundLoan(loan2, address(loanManager), 1_000_000e18);
 
-        ( , uint256 platformFeeRate1 ) = feeManager.rateInfo(loan1);
-        ( , uint256 platformFeeRate2 ) = feeManager.rateInfo(loan2);
+        assertEq(feeManager.platformServiceFee(loan1), 0);
+        assertEq(feeManager.platformServiceFee(loan2), 0);
 
-        assertEq(platformFeeRate1, 0);
-        assertEq(platformFeeRate2, 0);
-
-        globals.setPlatformFeeRate(address(poolManager), 0.003e18);  // 0.3%
+        globals.setPlatformServiceFeeRate(address(poolManager), 0.003e18);  // 0.3%
 
         vm.prank(loan1);
-        feeManager.updatePlatformFeeRate();
+        feeManager.updatePlatformServiceFee(1_000_000e18, 365 days / 12);
 
-        ( , platformFeeRate1 ) = feeManager.rateInfo(loan1);
-        ( , platformFeeRate2 ) = feeManager.rateInfo(loan2);
+        assertEq(feeManager.platformServiceFee(loan1), 250e18);  // Updated from globals (1m * 0.3% / 12)
+        assertEq(feeManager.platformServiceFee(loan2), 0);       // Unchanged from globals
 
-        assertEq(platformFeeRate1, 0.003e18);  // Updated from globals
-        assertEq(platformFeeRate2, 0);         // Unchanged from globals
-
-        globals.setPlatformFeeRate(address(poolManager), 0.006e18);  // 0.6%
+        globals.setPlatformServiceFeeRate(address(poolManager), 0.006e18);  // 0.6%
 
         vm.prank(loan2);
-        feeManager.updatePlatformFeeRate();
+        feeManager.updatePlatformServiceFee(1_000_000e18, 365 days / 12);
 
-        ( , platformFeeRate1 ) = feeManager.rateInfo(loan1);
-        ( , platformFeeRate2 ) = feeManager.rateInfo(loan2);
-
-        assertEq(platformFeeRate1, 0.003e18);  // Unchanged from globals
-        assertEq(platformFeeRate2, 0.006e18);  // Updated from globals
+        assertEq(feeManager.platformServiceFee(loan1), 250e18);  // Unchanged from globals
+        assertEq(feeManager.platformServiceFee(loan2), 500e18);  // Updated from globals (1m * 0.6% / 12)
     }
 
 }
 
 contract UpdateFeeTerms_SetterTests is FeeManagerBase {
 
-    function test_updateFeeTerms_gtHundredPercent() external {
-        vm.expectRevert("MLFM:UF:ABOVE_MAX_FEE");
-        feeManager.updateFeeTerms(50_000e18, 1e18 + 1);
-    }
+    function test_updateDelegateFeeTerms() external {
 
-    function test_updateFeeTerms() external {
+        assertEq(feeManager.delegateOriginationFee(address(this)), 0);
+        assertEq(feeManager.delegateServiceFee(address(this)),     0);
 
-        ( uint256 adminFeeRate, ) = feeManager.rateInfo(address(this));
+        feeManager.updateDelegateFeeTerms(50_000e18, 1000e18);
 
-        assertEq(feeManager.adminOriginationFee(address(this)), 0);
-        assertEq(adminFeeRate,                                  0);
-
-        feeManager.updateFeeTerms(50_000e18, 1e18);
-
-        ( adminFeeRate, ) = feeManager.rateInfo(address(this));
-
-        assertEq(feeManager.adminOriginationFee(address(this)), 50_000e18);
-        assertEq(adminFeeRate,                                  1e18);
-    }
-
-}
-
-/*****************************/
-/*** Getter Function Tests ***/
-/*****************************/
-
-contract GetPaymentServiceFeesTests is FeeManagerBase {
-
-    function test_getPaymentServiceFees() external {
-        MapleLoan loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), 0, defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, "salt"));
-
-        globals.setPlatformFeeRate(address(poolManager), 0.003e18);  // 0.3%
-
-        _fundLoan(address(loan), address(loanManager), 1_000_000e18);
-        _drawdownLoan(address(loan), BORROWER);
-
-        ( uint256 adminFee_, uint256 platformFee_ ) = feeManager.getPaymentServiceFees(address(loan), 1_000_000e18, 365 days / 12);
-
-        assertEq(adminFee_,    500e18);  // 1m * 0.6% / 12 = 500
-        assertEq(platformFee_, 250e18);  // 1m * 0.3% / 12 = 250
+        assertEq(feeManager.delegateOriginationFee(address(this)), 50_000e18);
+        assertEq(feeManager.delegateServiceFee(address(this)),     1000e18);
     }
 
 }
