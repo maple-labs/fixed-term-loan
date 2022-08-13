@@ -96,7 +96,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     }
 
     function _getPoolDelegate(address loan_) internal view returns (address poolDelegate_) {
-        return IPoolManagerLike(_getPoolManager(loan_)).admin();
+        return IPoolManagerLike(_getPoolManager(loan_)).poolDelegate();
     }
 
     function _getTreasury() internal view returns (address mapleTreasury_) {

@@ -105,10 +105,10 @@ contract MockLoan {
 
 contract MockPoolManager {
 
-    address public admin;
+    address public poolDelegate;
 
-    constructor(address admin_) {
-        admin = admin_;
+    constructor(address poolDelegate_) {
+        poolDelegate = poolDelegate_;
     }
 
 }

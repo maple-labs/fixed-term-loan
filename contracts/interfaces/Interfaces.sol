@@ -45,6 +45,6 @@ interface ILoanManagerLike {
 
 interface IPoolManagerLike {
 
-    function admin() external view returns (address admin_);
+    function poolDelegate() external view returns (address poolDelegate_);
 
 }
