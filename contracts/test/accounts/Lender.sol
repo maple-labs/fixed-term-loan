@@ -19,10 +19,6 @@ contract Lender is LoanUser {
         return IMapleLoan(loan_).acceptNewTerms(refinancer_, deadline_, calls_);
     }
 
-    function loan_claimFunds(address loan_, uint256 amount_, address destination_) external {
-        IMapleLoan(loan_).claimFunds(amount_, destination_);
-    }
-
     function loan_repossess(address loan_, address destination_) external returns ( uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         return IMapleLoan(loan_).repossess(destination_);
     }
@@ -39,10 +35,6 @@ contract Lender is LoanUser {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptNewTerms.selector, refinancer_, deadline_, calls_));
     }
 
-    function try_loan_claimFunds(address loan_, uint256 amount_, address destination_) external returns (bool ok_) {
-        ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.claimFunds.selector, amount_, destination_));
-    }
-
     function try_loan_repossess(address loan_, address destination_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.repossess.selector, destination_));
     }
@@ -54,5 +46,13 @@ contract Lender is LoanUser {
     function try_loan_acceptLender(address loan_) external returns (bool ok_) {
         ( ok_, ) = loan_.call(abi.encodeWithSelector(IMapleLoan.acceptLender.selector));
     }
+
+    /**********************************/
+    /*** Mock LoanManager Functions ***/
+    /**********************************/
+
+    // TODO: Remove all of these files and move to pranks
+
+    function claim(uint256 principal_, uint256 interest_, uint256 nextPaymentDueDate_) external { }
 
 }

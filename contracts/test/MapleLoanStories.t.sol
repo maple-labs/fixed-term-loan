@@ -145,9 +145,6 @@ contract MapleLoanStoryTests is TestUtils {
 
         assertEq(loan.collateral(), 58_985, "Different collateral");
 
-        // Claim loan proceeds thus far
-        assertTrue(lender.try_loan_claimFunds(address(loan), 714_101, address(lender)), "Cannot claim funds");
-
         // Check details for upcoming payment #5
         ( principalPortion, interestPortion, ) = loan.getNextPaymentBreakdown();
 
@@ -190,9 +187,6 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue( borrower.try_loan_removeCollateral(address(loan), 58_985, address(borrower)), "Cannot remove collateral");
 
         assertEq(loan.collateral(), 0, "Different collateral");
-
-        // Claim remaining loan proceeds
-        assertTrue(lender.try_loan_claimFunds(address(loan), 357_049, address(lender)), "Cannot remove collateral");
     }
 
     function test_story_interestOnly() external {
@@ -299,9 +293,6 @@ contract MapleLoanStoryTests is TestUtils {
 
         assertEq(loan.collateral(), 150_000, "Different collateral");
 
-        // Claim loan proceeds thus far
-        assertTrue(lender.try_loan_claimFunds(address(loan), 80000, address(lender)), "Cannot claim funds");
-
         // Check details for upcoming payment #5
         ( principalPortion, interestPortion, ) = loan.getNextPaymentBreakdown();
 
@@ -343,9 +334,6 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(borrower.try_loan_removeCollateral(address(loan), 150_000, address(borrower)), "Cannot remove collateral");
 
         assertEq(loan.collateral(), 0, "Different collateral");
-
-        // Claim remaining loan proceeds
-        assertTrue(lender.try_loan_claimFunds(address(loan), 1_040_000, address(lender)), "Cannot remove collateral");
     }
 
 }

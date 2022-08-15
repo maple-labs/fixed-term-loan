@@ -6,11 +6,13 @@ import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.so
 
 import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
 
-import { MapleGlobalsMock, MockFactory, RevertingERC20, MockFeeManager } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager, RevertingERC20 } from "./mocks/Mocks.sol";
 
 import { Refinancer } from "../Refinancer.sol";
 
 contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
+
+    address internal _lender;
 
     address    internal _defaultBorrower;
     address[2] internal _defaultAssets;
@@ -51,6 +53,8 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         _loan = new ConstructableMapleLoan(address(_factory), address(_globals), _defaultBorrower, address(_feeManager), _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates, _defaultFees);
 
         vm.warp(_start = 1_500_000_000);
+
+        _lender = address(new MockLoanManager(address(0), address(0)));
 
         // TODO: prank both
         _loan.__setBorrower(address(this));
@@ -189,6 +193,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
     function test_acceptNewTerms_insufficientCollateral() external {
         // Setup state variables for necessary prerequisite state.
         _loan.__setDrawableFunds(uint256(0));
+        _fundsAsset.burn(address(_loan), _fundsAsset.balanceOf(address(_loan)));
 
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
@@ -224,186 +229,9 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
 }
 
-contract MapleLoanLogic_BatchClaimFundsTests is TestUtils {
-
-    address lender;
-
-    address[] destinations;
-
-    uint256[] amounts;
-
-    MapleLoanHarness loan;
-    MockERC20        asset;
-
-    function setUp() external {
-        lender = address(1001);
-
-        loan  = new MapleLoanHarness();
-        asset = new MockERC20("Funds Asset", "FA", 0);
-
-        loan.__setFundsAsset(address(asset));
-        loan.__setLender(lender);
-    }
-
-    function test_batchClaimFunds_notLender() external {
-        vm.expectRevert("ML:BCF:NOT_LENDER");
-        loan.batchClaimFunds(amounts, destinations);
-    }
-
-    function test_batchClaimFunds_noAmounts() external {
-        destinations.push(address(1));
-
-        vm.prank(lender);
-        vm.expectRevert("ML:BCF:INVALID_LENGTH");
-        loan.batchClaimFunds(amounts, destinations);
-    }
-
-    function test_batchClaimFunds_noDestinations() external {
-        amounts.push(1);
-
-        vm.prank(lender);
-        vm.expectRevert("ML:BCF:INVALID_LENGTH");
-        loan.batchClaimFunds(amounts, destinations);
-    }
-
-    function test_batchClaimFunds_singleDestination() external {
-        amounts.push(1);
-
-        destinations.push(address(1));
-
-        vm.prank(lender);
-        vm.expectRevert("ML:BCF:INVALID_LENGTH");
-        loan.batchClaimFunds(amounts, destinations);
-    }
-
-    function test_batchClaimFunds_lengthMismatch() external {
-        amounts.push(1);
-        amounts.push(2);
-        amounts.push(3);
-
-        destinations.push(address(1));
-        destinations.push(address(2));
-
-        vm.prank(lender);
-        vm.expectRevert("ML:BCF:LENGTH_MISMATCH");
-        loan.batchClaimFunds(amounts, destinations);
-    }
-
-    function test_batchClaimFunds_failedTransfer() external {
-        loan.__setClaimableFunds(2);
-
-        asset.mint(address(loan), 1);
-
-        amounts.push(1);
-        amounts.push(1);
-
-        destinations.push(address(1));
-        destinations.push(address(2));
-
-        vm.prank(lender);
-        vm.expectRevert("ML:BCF:TRANSFER_FAILED");
-        loan.batchClaimFunds(amounts, destinations);
-    }
-
-    function test_batchClaimFunds_insufficientClaimableFunds() external {
-        loan.__setClaimableFunds(1);
-
-        asset.mint(address(loan), 2);
-
-        amounts.push(1);
-        amounts.push(1);
-
-        destinations.push(address(1));
-        destinations.push(address(2));
-
-        vm.prank(lender);
-        vm.expectRevert(ARITHMETIC_ERROR);
-        loan.batchClaimFunds(amounts, destinations);
-    }
-
-    function test_batchClaimFunds_success() external {
-        loan.__setClaimableFunds(2);
-
-        asset.mint(address(loan), 2);
-
-        amounts.push(1);
-        amounts.push(1);
-
-        destinations.push(address(1));
-        destinations.push(address(2));
-
-        assertEq(asset.balanceOf(address(loan)), 2);
-        assertEq(asset.balanceOf(address(1)),    0);
-        assertEq(asset.balanceOf(address(2)),    0);
-
-        assertEq(loan.claimableFunds(), 2);
-
-        vm.prank(lender);
-        loan.batchClaimFunds(amounts, destinations);
-
-        assertEq(asset.balanceOf(address(loan)), 0);
-        assertEq(asset.balanceOf(address(1)),    1);
-        assertEq(asset.balanceOf(address(2)),    1);
-
-        assertEq(loan.claimableFunds(), 0);
-    }
-
-}
-
-contract MapleLoanLogic_ClaimFundsTests is TestUtils {
-
-    MapleLoanHarness internal _loan;
-    MockERC20        internal _fundsAsset;
-
-    function setUp() external {
-        _fundsAsset = new MockERC20("Funds Asset", "FA", 0);
-        _loan       = new MapleLoanHarness();
-
-        _loan.__setFundsAsset(address(_fundsAsset));
-
-        // TODO: prank
-        _loan.__setLender(address(this));
-    }
-
-    function test_claimFunds(uint256 claimable_, uint256 amountToClaim_) external {
-        claimable_     = constrictToRange(claimable_,     1, type(uint256).max);
-        amountToClaim_ = constrictToRange(amountToClaim_, 1, claimable_);
-
-        _fundsAsset.mint(address(_loan), claimable_);
-
-        _loan.__setClaimableFunds(claimable_);
-
-        _loan.claimFunds(amountToClaim_, address(this));
-
-        assertEq(_loan.claimableFunds(),                claimable_ - amountToClaim_);
-        assertEq(_fundsAsset.balanceOf(address(_loan)), claimable_ - amountToClaim_);
-        assertEq(_fundsAsset.balanceOf(address(this)),  amountToClaim_);
-    }
-
-    function testFail_claimFunds_insufficientClaimableFunds(uint256 claimable_, uint256 amountToClaim_) external {
-        claimable_     = constrictToRange(claimable_,     1,              type(uint256).max / 2);
-        amountToClaim_ = constrictToRange(amountToClaim_, claimable_ + 1, type(uint256).max);
-
-        _fundsAsset.mint(address(_loan), claimable_);
-
-        _loan.__setClaimableFunds(claimable_);
-
-        _loan.claimFunds(amountToClaim_, address(this));
-    }
-
-    function test_claimFunds_transferFail() external {
-        // ClaimableFunds is set, but the loan doesn't actually have any tokens, which causes the transfer to fail.
-        _loan.__setClaimableFunds(1);
-
-        vm.expectRevert("ML:CF:TRANSFER_FAILED");
-        _loan.claimFunds(1, address(this));
-    }
-
-}
-
 contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
-    address internal constant LENDER = address(1111);
+    address internal _lender;
 
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
     uint256 internal constant UNDERFLOW_ERROR_CODE = 17;
@@ -423,9 +251,11 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         _loan.__setFeeManager(address(_feeManager));
         _loan.__setFundsAsset(address(_fundsAsset));
 
+        _lender = address(new MockLoanManager(address(0), address(0)));
+
         // TODO: prank both
         _loan.__setBorrower(address(this));
-        _loan.__setLender(LENDER);
+        _loan.__setLender(_lender);
     }
 
     function setupLoan(
@@ -467,7 +297,6 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, closingRate_, endingPrincipal_);
 
         assertEq(_loan.drawableFunds(),      principalRequested_);
-        assertEq(_loan.claimableFunds(),     0);
         assertEq(_loan.principal(),          principalRequested_);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
@@ -488,7 +317,6 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
         assertEq(totalPaid,                  expectedPayment);
         assertEq(_loan.drawableFunds(),      principalRequested_ + additionalAmount - totalPaid);
-        assertEq(_loan.claimableFunds(),     principal + interest);
         assertEq(_loan.principal(),          0);
         assertEq(_loan.nextPaymentDueDate(), 0);
         assertEq(_loan.paymentsRemaining(),  0);
@@ -512,7 +340,6 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, closingRate_, endingPrincipal_);
 
         assertEq(_loan.drawableFunds(),      principalRequested_);
-        assertEq(_loan.claimableFunds(),     0);
         assertEq(_loan.principal(),          principalRequested_);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
@@ -531,7 +358,6 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
         assertEq(totalPaid,                  expectedPayment);
         assertEq(_loan.drawableFunds(),      principalRequested_ + fundsForPayments - totalPaid);
-        assertEq(_loan.claimableFunds(),     principal + interest);
         assertEq(_loan.principal(),          0);
         assertEq(_loan.nextPaymentDueDate(), 0);
         assertEq(_loan.paymentsRemaining(),  0);
@@ -632,7 +458,6 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         _fundsAsset.mint(address(_loan), fundsForPayments);
 
         assertEq(_loan.drawableFunds(),      principalRequested_);
-        assertEq(_loan.claimableFunds(),     0);
         assertEq(_loan.principal(),          principalRequested_);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
@@ -643,7 +468,6 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
 
         assertEq(totalPaid,                  expectedPayment);
         assertEq(_loan.drawableFunds(),      principalRequested_ + fundsForPayments - totalPaid);
-        assertEq(_loan.claimableFunds(),     principal + interest);
         assertEq(_loan.principal(),          0);
         assertEq(_loan.nextPaymentDueDate(), 0);
         assertEq(_loan.paymentsRemaining(),  0);
@@ -882,10 +706,10 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
 
 contract MapleLoanLogic_FundLoanTests is TestUtils {
 
-    address internal constant LENDER = address(1111);
-
     uint256 internal constant MAX_PRINCIPAL = 1_000_000_000 * 1e18;
     uint256 internal constant MIN_PRINCIPAL = 1;
+
+    address internal _lender;
 
     MapleLoanHarness internal _loan;
     MockERC20        internal _fundsAsset;
@@ -897,6 +721,8 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         _feeManager = new MockFeeManager();
         _fundsAsset = new MockERC20("FundsAsset", "FA", 0);
         _loan       = new MapleLoanHarness();
+
+        _lender = address(new MockLoanManager(address(0), address(0)));
 
         _loan.__setFactory(address(_factory));
         _loan.__setFeeManager(address(_feeManager));
@@ -910,7 +736,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         _loan.__setFundsAsset(address(_fundsAsset));
         _loan.__setPaymentsRemaining(1);
         _loan.__setPrincipalRequested(1);
-        _loan.fundLoan(LENDER);
+        _loan.fundLoan(_lender);
     }
 
     function test_fundLoan_fullFunding(uint256 principalRequested_) external {
@@ -923,31 +749,11 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        assertEq(_loan.fundLoan(LENDER),                           principalRequested_);
-        assertEq(_loan.lender(),                                   LENDER);
+        assertEq(_loan.fundLoan(_lender),                           principalRequested_);
+        assertEq(_loan.lender(),                                   _lender);
         assertEq(_loan.nextPaymentDueDate(),                       block.timestamp + _loan.paymentInterval());
         assertEq(_loan.principal(),                                principalRequested_);
         assertEq(_loan.drawableFunds(),                            principalRequested_);
-        assertEq(_loan.claimableFunds(),                           0);
-        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), 0);
-    }
-
-    function test_fundLoan_overFunding(uint256 principalRequested_, uint256 extraAmount_) external {
-        principalRequested_ = constrictToRange(principalRequested_, MIN_PRINCIPAL, MAX_PRINCIPAL);
-        extraAmount_        = constrictToRange(extraAmount_,        MIN_PRINCIPAL, MAX_PRINCIPAL);
-
-        _loan.__setFundsAsset(address(_fundsAsset));
-        _loan.__setPaymentsRemaining(1);
-        _loan.__setPrincipalRequested(principalRequested_);
-
-        _fundsAsset.mint(address(_loan), principalRequested_ + extraAmount_);
-
-        assertEq(_loan.fundLoan(LENDER),                           principalRequested_);
-        assertEq(_loan.lender(),                                   LENDER);
-        assertEq(_loan.nextPaymentDueDate(),                       block.timestamp + _loan.paymentInterval());
-        assertEq(_loan.principal(),                                principalRequested_);
-        assertEq(_loan.drawableFunds(),                            principalRequested_);
-        assertEq(_loan.claimableFunds(),                           extraAmount_);
         assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), 0);
     }
 
@@ -960,7 +766,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_ - 1);
 
-        _loan.fundLoan(LENDER);
+        _loan.fundLoan(_lender);
     }
 
     function testFail_fundLoan_doubleFund(uint256 principalRequested_) external {
@@ -972,26 +778,11 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), principalRequested_);
 
-        _loan.fundLoan(LENDER);
+        _loan.fundLoan(_lender);
 
         _fundsAsset.mint(address(_loan), 1);
 
-        _loan.fundLoan(LENDER);
-    }
-
-    function testFail_fundLoan_claimImmediatelyAfterFullFunding(uint256 principalRequested_, uint256 claim_) external {
-        principalRequested_ = constrictToRange(principalRequested_, MIN_PRINCIPAL, MAX_PRINCIPAL);
-        claim_              = constrictToRange(claim_,              1,             principalRequested_);
-
-        _loan.__setFundsAsset(address(_fundsAsset));
-        _loan.__setPaymentsRemaining(1);
-        _loan.__setPrincipalRequested(principalRequested_);
-
-        _fundsAsset.mint(address(_loan), principalRequested_);
-
-        _loan.fundLoan(LENDER);
-
-        _loan.claimFunds(claim_, address(this));
+        _loan.fundLoan(_lender);
     }
 
     function testFail_fundLoan_invalidFundsAsset() external {
@@ -1001,7 +792,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), 1);
 
-        _loan.fundLoan(LENDER);
+        _loan.fundLoan(_lender);
     }
 
     function test_fundLoan_withUnaccountedCollateralAsset() external {
@@ -1015,7 +806,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         collateralAsset.mint(address(_loan), 1);
         _fundsAsset.mint(address(_loan), 1);
 
-        _loan.fundLoan(LENDER);
+        _loan.fundLoan(_lender);
 
         assertEq(_loan.getUnaccountedAmount(address(collateralAsset)), 1);
     }
@@ -1028,7 +819,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
 
         _fundsAsset.mint(address(_loan), 1);
 
-        try _loan.fundLoan(LENDER) {
+        try _loan.fundLoan(_lender) {
             assertTrue(false, "Next payment due date must not be set.");
         } catch Error(string memory reason) {
             assertEq(reason, "ML:FL:LOAN_ACTIVE");
@@ -1040,7 +831,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         _loan.__setPaymentsRemaining(0);
         _loan.__setPrincipalRequested(1);
 
-        try _loan.fundLoan(LENDER) {
+        try _loan.fundLoan(_lender) {
             assertTrue(false, "Number of remaining payments must be greater than zero.");
         } catch Error(string memory reason) {
             assertEq(reason, "ML:FL:LOAN_ACTIVE");
@@ -1413,7 +1204,6 @@ contract MapleLoanLogic_GetUnaccountedAmountTests is TestUtils {
         assertEq(_loan.getUnaccountedAmount(address(_token)), 100);  // No change
 
         _loan.__setDrawableFunds(0);
-        _loan.__setClaimableFunds(10);
 
         assertEq(_loan.getUnaccountedAmount(address(_token)), 100);  // No change
 
@@ -1437,16 +1227,6 @@ contract MapleLoanLogic_GetUnaccountedAmountTests is TestUtils {
         assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), balance_ - drawableFunds_);
     }
 
-    function test_getUnaccountedAmount_withClaimableFunds(uint256 balance_, uint256 claimableFunds_) external {
-        claimableFunds_ = constrictToRange(claimableFunds_, 0, balance_);
-
-        _fundsAsset.mint(address(_loan), balance_);
-
-        _loan.__setClaimableFunds(claimableFunds_);
-
-        assertEq(_loan.getUnaccountedAmount(address(_fundsAsset)), balance_ - claimableFunds_);
-    }
-
     function test_getUnaccountedAmount_withCollateral(uint256 balance_, uint256 collateral_) external {
         collateral_ = constrictToRange(collateral_, 0, balance_);
 
@@ -1457,24 +1237,22 @@ contract MapleLoanLogic_GetUnaccountedAmountTests is TestUtils {
         assertEq(_loan.getUnaccountedAmount(address(_collateralAsset)), balance_ - collateral_);
     }
 
-    function test_getUnaccountedAmount_complex(uint256 balance_, uint256 claimableFunds_, uint256 collateral_, uint256 drawableFunds_) external {
+    function test_getUnaccountedAmount_complex(uint256 balance_, uint256 collateral_, uint256 drawableFunds_) external {
         MockERC20 token = new MockERC20("Token", "T", 0);
 
         _loan.__setFundsAsset(address(token));
         _loan.__setCollateralAsset(address(token));
 
         balance_        = constrictToRange(balance_,        128, type(uint256).max);
-        claimableFunds_ = constrictToRange(claimableFunds_, 0, balance_ >> 2);
         collateral_     = constrictToRange(collateral_,     0, balance_ >> 2);
         drawableFunds_  = constrictToRange(drawableFunds_,  0, balance_ >> 2);
 
         token.mint(address(_loan), balance_);
 
-        _loan.__setClaimableFunds(claimableFunds_);
         _loan.__setDrawableFunds(drawableFunds_);
         _loan.__setCollateral(collateral_);
 
-        assertEq(_loan.getUnaccountedAmount(address(token)), balance_ - claimableFunds_ - collateral_ - drawableFunds_);
+        assertEq(_loan.getUnaccountedAmount(address(token)), balance_ - collateral_ - drawableFunds_);
     }
 
     function test_getUnaccountedAmount_collateralAsset() external {
@@ -1515,20 +1293,6 @@ contract MapleLoanLogic_GetUnaccountedAmountTests is TestUtils {
         _loan.getUnaccountedAmount(address(_fundsAsset));
     }
 
-    function test_getUnaccountedAmount_newFundsLtClaimableFunds(uint256 claimableFunds) external {
-        claimableFunds = constrictToRange(claimableFunds, 1, type(uint256).max);
-
-        _loan.__setClaimableFunds(claimableFunds);
-
-        _fundsAsset.mint(address(_loan), claimableFunds - 1);
-
-        try _loan.getUnaccountedAmount(address(_fundsAsset)) { assertTrue(false, "Did not underflow"); } catch {}
-
-        _fundsAsset.mint(address(_loan), 1);  // Mint just enough to not underflow
-
-        _loan.getUnaccountedAmount(address(_fundsAsset));
-    }
-
     function test_getUnaccountedAmount_newFundsLtCollateral(uint256 collateral) external {
         collateral = constrictToRange(collateral, 1, type(uint256).max);
 
@@ -1556,19 +1320,6 @@ contract MapleLoanLogic_GetUnaccountedAmountTests is TestUtils {
         assertEq(unaccountedAmount, newFunds - drawableFunds);
     }
 
-    function test_getUnaccountedAmount_claimableFunds(uint256 claimableFunds, uint256 newFunds) external {
-        claimableFunds = constrictToRange(claimableFunds, 1,              type(uint256).max / 2);
-        newFunds       = constrictToRange(newFunds,       claimableFunds, type(uint256).max - claimableFunds);
-
-        _loan.__setClaimableFunds(claimableFunds);
-
-        _fundsAsset.mint(address(_loan), newFunds);
-
-        uint256 unaccountedAmount = _loan.getUnaccountedAmount(address(_fundsAsset));
-
-        assertEq(unaccountedAmount, newFunds - claimableFunds);
-    }
-
     function test_getUnaccountedAmount_collateral(uint256 collateral, uint256 newCollateral) external {
         collateral    = constrictToRange(collateral,    1,          type(uint256).max / 2);
         newCollateral = constrictToRange(newCollateral, collateral, type(uint256).max - collateral);
@@ -1582,38 +1333,20 @@ contract MapleLoanLogic_GetUnaccountedAmountTests is TestUtils {
         assertEq(unaccountedAmount, newCollateral - collateral);
     }
 
-    function test_getUnaccountedAmount_drawableFundsAndClaimableFunds(uint256 drawableFunds, uint256 claimableFunds, uint256 newFunds) external {
-        drawableFunds  = constrictToRange(drawableFunds,  1,                              type(uint256).max / 4);
-        claimableFunds = constrictToRange(claimableFunds, 1,                              type(uint256).max / 4);
-        newFunds       = constrictToRange(newFunds,       drawableFunds + claimableFunds, type(uint256).max - (drawableFunds + claimableFunds));
-
-        _loan.__setDrawableFunds(drawableFunds);
-        _loan.__setClaimableFunds(claimableFunds);
-
-        _fundsAsset.mint(address(_loan), newFunds);
-
-        uint256 unaccountedAmount = _loan.getUnaccountedAmount(address(_fundsAsset));
-
-        assertEq(unaccountedAmount, newFunds - drawableFunds - claimableFunds);
-    }
-
-    function test_getUnaccountedAmount_drawableFundsAndClaimableFundsAndCollateral(
+    function test_getUnaccountedAmount_drawableFundsAndAndCollateral(
         uint256 drawableFunds,
-        uint256 claimableFunds,
         uint256 collateral,
         uint256 newFunds,
         uint256 newCollateral
     )
         external
     {
-        drawableFunds  = constrictToRange(drawableFunds,  1,                              type(uint256).max / 4);
-        claimableFunds = constrictToRange(claimableFunds, 1,                              type(uint256).max / 4);
-        collateral     = constrictToRange(collateral,     1,                              type(uint256).max / 2);
-        newFunds       = constrictToRange(newFunds,       drawableFunds + claimableFunds, type(uint256).max - (drawableFunds + claimableFunds));
-        newCollateral  = constrictToRange(newCollateral,  collateral,                     type(uint256).max - collateral);
+        drawableFunds  = constrictToRange(drawableFunds,  1,             type(uint256).max / 4);
+        collateral     = constrictToRange(collateral,     1,             type(uint256).max / 2);
+        newFunds       = constrictToRange(newFunds,       drawableFunds, type(uint256).max - drawableFunds);
+        newCollateral  = constrictToRange(newCollateral,  collateral,    type(uint256).max - collateral);
 
         _loan.__setDrawableFunds(drawableFunds);
-        _loan.__setClaimableFunds(claimableFunds);
         _loan.__setCollateral(collateral);
 
         _fundsAsset.mint(address(_loan), newFunds);
@@ -1622,13 +1355,12 @@ contract MapleLoanLogic_GetUnaccountedAmountTests is TestUtils {
         uint256 unaccountedAmount_fundsAsset      = _loan.getUnaccountedAmount(address(_fundsAsset));
         uint256 unaccountedAmount_collateralAsset = _loan.getUnaccountedAmount(address(_collateralAsset));
 
-        assertEq(unaccountedAmount_fundsAsset,      newFunds - drawableFunds - claimableFunds);
+        assertEq(unaccountedAmount_fundsAsset,      newFunds - drawableFunds);
         assertEq(unaccountedAmount_collateralAsset, newCollateral - collateral);
     }
 
-    function test_getUnaccountedAmount_drawableFundsAndClaimableFundsAndCollateral_fundsAssetEqCollateralAsset(
+    function test_getUnaccountedAmount_drawableFundsAndAndCollateral_fundsAssetEqCollateralAsset(
         uint256 drawableFunds,
-        uint256 claimableFunds,
         uint256 collateral,
         uint256 newFunds
     )
@@ -1637,24 +1369,22 @@ contract MapleLoanLogic_GetUnaccountedAmountTests is TestUtils {
         _loan.__setCollateralAsset(address(_fundsAsset));
 
         drawableFunds  = constrictToRange(drawableFunds,  1, type(uint256).max / 6);  // Sum of maxes must be less than half of type(uint256).max
-        claimableFunds = constrictToRange(claimableFunds, 1, type(uint256).max / 6);
         collateral     = constrictToRange(collateral,     1, type(uint256).max / 6);
 
         newFunds = constrictToRange(
             newFunds,
-            drawableFunds + claimableFunds + collateral,
-            type(uint256).max - (drawableFunds + claimableFunds + collateral)
+            drawableFunds + collateral,
+            type(uint256).max - (drawableFunds + collateral)
         );
 
         _loan.__setDrawableFunds(drawableFunds);
-        _loan.__setClaimableFunds(claimableFunds);
         _loan.__setCollateral(collateral);
 
         _fundsAsset.mint(address(_loan), newFunds);
 
         uint256 unaccountedAmount = _loan.getUnaccountedAmount(address(_fundsAsset));
 
-        assertEq(unaccountedAmount, newFunds - drawableFunds - claimableFunds - collateral);
+        assertEq(unaccountedAmount, newFunds - drawableFunds - collateral);
     }
 
 }
@@ -1676,7 +1406,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
     MockFeeManager         internal _feeManager;
 
     function setUp() external {
-        _globals = new MapleGlobalsMock(address(this));
+        _globals    = new MapleGlobalsMock(address(this));
         _factory    = new MockFactory();
         _feeManager = new MockFeeManager();
         _token0     = new MockERC20("Token0", "T0", 0);
@@ -1770,10 +1500,10 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
 
 contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
-    address internal constant LENDER = address(1111);
-
-    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+    uint256 internal constant MAX_TOKEN_AMOUNT     = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
     uint256 internal constant UNDERFLOW_ERROR_CODE = 17;
+
+    address internal _lender;
 
     MapleLoanHarness internal _loan;
     MockERC20        internal _fundsAsset;
@@ -1786,13 +1516,15 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         _fundsAsset = new MockERC20("FundsAsset", "FA", 0);
         _loan       = new MapleLoanHarness();
 
+        _lender = address(new MockLoanManager(address(0), address(0)));
+
         _loan.__setFactory(address(_factory));
         _loan.__setFeeManager(address(_feeManager));
         _loan.__setFundsAsset(address(_fundsAsset));
 
         // TODO: prank
         _loan.__setBorrower(address(this));
-        _loan.__setLender(LENDER);
+        _loan.__setLender(_lender);
     }
 
     function setupLoan(
@@ -1834,7 +1566,6 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
 
         assertEq(_loan.drawableFunds(),      principalRequested_);
-        assertEq(_loan.claimableFunds(),     0);
         assertEq(_loan.principal(),          principalRequested_);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
@@ -1855,7 +1586,6 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
         assertEq(totalPaid,                  expectedPayment);
         assertEq(_loan.drawableFunds(),      principalRequested_ + additionalAmount - totalPaid);
-        assertEq(_loan.claimableFunds(),     principal + interest);
         assertEq(_loan.principal(),          principalRequested_ - principal);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + (2 * paymentInterval_));
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
@@ -1879,7 +1609,6 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
 
         assertEq(_loan.drawableFunds(),      principalRequested_);
-        assertEq(_loan.claimableFunds(),     0);
         assertEq(_loan.principal(),          principalRequested_);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
@@ -1898,7 +1627,6 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
         assertEq(totalPaid,                  expectedPayment);
         assertEq(_loan.drawableFunds(),      principalRequested_ + fundsForPayments - totalPaid);
-        assertEq(_loan.claimableFunds(),     principal + interest);
         assertEq(_loan.principal(),          principalRequested_ - principal);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + (2 * paymentInterval_));
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
@@ -1980,7 +1708,6 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(principal,               principalRequested_);
         assertEq(actualInstallmentAmount, installmentToPay);
         assertEq(_loan.drawableFunds(),   0);
-        assertEq(_loan.claimableFunds(),  principal + interest);
 
         // Make sure loan accounting is cleared from _clearLoanAccounting().
         assertEq(_loan.gracePeriod(),         0);
@@ -2023,7 +1750,6 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         _fundsAsset.mint(address(_loan), fundsForPayments);
 
         assertEq(_loan.drawableFunds(),      principalRequested_);
-        assertEq(_loan.claimableFunds(),     0);
         assertEq(_loan.principal(),          principalRequested_);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
@@ -2035,7 +1761,6 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
         assertEq(totalPaid,                  expectedPayment);
         assertEq(_loan.drawableFunds(),      principalRequested_ + fundsForPayments - totalPaid);
-        assertEq(_loan.claimableFunds(),     principal + interest);
         assertEq(_loan.principal(),          principalRequested_ - principal);
         assertEq(_loan.nextPaymentDueDate(), block.timestamp + (2 * paymentInterval_));
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
@@ -2291,24 +2016,18 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
         _loan.__setFundsAsset(address(_collateralAsset));
 
-        _collateralAsset.mint(address(_loan), 1);
-
-        _loan.__setClaimableFunds(1);
-
         _collateralAsset.mint(address(_loan), collateral_);
 
         _loan.postCollateral(0);
 
         assertEq(_loan.collateral(),                         collateral_);
-        assertEq(_loan.claimableFunds(),                     1);
-        assertEq(_collateralAsset.balanceOf(address(_loan)), collateral_ + 1);
+        assertEq(_collateralAsset.balanceOf(address(_loan)), collateral_);
         assertEq(_collateralAsset.balanceOf(address(this)),  0);
 
         _loan.removeCollateral(collateral_, address(this));
 
         assertEq(_loan.collateral(),                         0);
-        assertEq(_loan.claimableFunds(),                     1);
-        assertEq(_collateralAsset.balanceOf(address(_loan)), 1);
+        assertEq(_collateralAsset.balanceOf(address(_loan)), 0);
         assertEq(_collateralAsset.balanceOf(address(this)),  collateral_);
     }
 
@@ -2452,6 +2171,8 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
 contract MapleLoanLogic_RepossessTests is TestUtils {
 
+    address internal _lender;
+
     MapleLoanHarness internal _loan;
     MockERC20        internal _collateralAsset;
     MockERC20        internal _fundsAsset;
@@ -2465,11 +2186,12 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
         _loan.__setFundsAsset(address(_fundsAsset));
 
         _loan.__setDrawableFunds(1);
-        _loan.__setClaimableFunds(1);
         _loan.__setCollateral(1);
 
+        _lender = address(new MockLoanManager(address(0), address(0)));
+
         // TODO: prank
-        _loan.__setLender(address(this));
+        _loan.__setLender(_lender);
         _loan.__setPaymentsRemaining(1);
         _loan.__setPrincipal(1);
         _loan.__setGracePeriod(10);
@@ -2481,36 +2203,36 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
     function test_repossess() external {
         _loan.__setNextPaymentDueDate(block.timestamp - 11);
 
-        _loan.repossess(address(this));
+        vm.prank(_lender);
+        _loan.repossess(_lender);
 
         assertEq(_loan.drawableFunds(),                     0);
-        assertEq(_loan.claimableFunds(),                    0);
         assertEq(_loan.collateral(),                        0);
         assertEq(_loan.nextPaymentDueDate(),                0);
         assertEq(_loan.paymentsRemaining(),                 0);
         assertEq(_loan.principal(),                         0);
-        assertEq(_collateralAsset.balanceOf(address(this)), 1);
-        assertEq(_fundsAsset.balanceOf(address(this)),      2);
+        assertEq(_collateralAsset.balanceOf(_lender), 1);
+        assertEq(_fundsAsset.balanceOf(_lender),      2);
     }
 
     function testFail_repossess_beforePaymentDue() external {
         _loan.__setNextPaymentDueDate(block.timestamp + 1);
-        _loan.repossess(address(this));
+        _loan.repossess(_lender);
     }
 
     function testFail_repossess_onPaymentDue() external {
         _loan.__setNextPaymentDueDate(block.timestamp);
-        _loan.repossess(address(this));
+        _loan.repossess(_lender);
     }
 
     function testFail_repossess_withinGracePeriod() external {
         _loan.__setNextPaymentDueDate(block.timestamp - 5);
-        _loan.repossess(address(this));
+        _loan.repossess(_lender);
     }
 
     function testFail_repossess_onGracePeriod() external {
         _loan.__setNextPaymentDueDate(block.timestamp - 10);
-        _loan.repossess(address(this));
+        _loan.repossess(_lender);
     }
 
     function test_repossess_fundsTransferFailed() external {
@@ -2521,7 +2243,8 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
         token.mint(address(_loan), 1);
 
-        try _loan.repossess(address(this)) {
+        vm.prank(_lender);
+        try _loan.repossess(_lender) {
             assertTrue(false, "Able to repossess");
         } catch Error(string memory reason) {
             assertEq(reason, "ML:R:F_TRANSFER_FAILED");
@@ -2536,7 +2259,8 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
         token.mint(address(_loan), 1);
 
-        try _loan.repossess(address(this)) {
+        vm.prank(_lender);
+        try _loan.repossess(_lender) {
             assertTrue(false, "Able to repossess");
         } catch Error(string memory reason) {
             assertEq(reason, "ML:R:C_TRANSFER_FAILED");

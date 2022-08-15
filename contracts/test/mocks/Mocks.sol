@@ -91,6 +91,8 @@ contract MockLoanManager {
         poolManager = poolManager_;
     }
 
+    function claim(uint256 principal_, uint256 interest_, uint256 nextPaymentDueDate_) external { }
+
 }
 
 contract MockLoan {

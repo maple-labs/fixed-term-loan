@@ -141,17 +141,17 @@ contract PayClosingFeesTests is FeeManagerBase {
         fundsAsset.mint(address(this),    1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
         fundsAsset.approve(address(loan), 1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
 
-        assertEq(fundsAsset.balanceOf(address(this)), 1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(fundsAsset.balanceOf(PD),            50_000e18);  // Origination fees
-        assertEq(fundsAsset.balanceOf(TREASURY),      0);
+        assertEq(fundsAsset.balanceOf(address(this)),        1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
+        assertEq(fundsAsset.balanceOf(address(loanManager)), 0);
+        assertEq(fundsAsset.balanceOf(PD),                   50_000e18);  // Origination fees
+        assertEq(fundsAsset.balanceOf(TREASURY),             0);
 
         loan.closeLoan(1_022_250e18);
 
-        assertEq(fundsAsset.balanceOf(address(this)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)), 1_020_000e18);  // Principal + interest
-        assertEq(fundsAsset.balanceOf(PD),            50_000e18 + 1_500e18);
-        assertEq(fundsAsset.balanceOf(TREASURY),      750e18);
+        assertEq(fundsAsset.balanceOf(address(this)),        0);
+        assertEq(fundsAsset.balanceOf(address(loanManager)), 1_020_000e18);  // Principal + interest
+        assertEq(fundsAsset.balanceOf(PD),                   50_000e18 + 1_500e18);
+        assertEq(fundsAsset.balanceOf(TREASURY),             750e18);
     }
 
 }
@@ -255,17 +255,17 @@ contract PayServiceFeesTests is FeeManagerBase {
         fundsAsset.mint(address(this),    10_750e18);
         fundsAsset.approve(address(loan), 10_750e18);
 
-        assertEq(fundsAsset.balanceOf(address(this)), 10_750e18);
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(fundsAsset.balanceOf(PD),            50_000e18);  // Origination fees
-        assertEq(fundsAsset.balanceOf(TREASURY),      0);
+        assertEq(fundsAsset.balanceOf(address(this)),        10_750e18);
+        assertEq(fundsAsset.balanceOf(address(loanManager)), 0);
+        assertEq(fundsAsset.balanceOf(PD),                   50_000e18);  // Origination fees
+        assertEq(fundsAsset.balanceOf(TREASURY),             0);
 
         loan.makePayment(10_750e18);
 
-        assertEq(fundsAsset.balanceOf(address(this)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)), 10_000e18);  // Interest
-        assertEq(fundsAsset.balanceOf(PD),            50_000e18 + 500e18);
-        assertEq(fundsAsset.balanceOf(TREASURY),      250e18);
+        assertEq(fundsAsset.balanceOf(address(this)),        0);
+        assertEq(fundsAsset.balanceOf(address(loanManager)), 10_000e18);  // Interest
+        assertEq(fundsAsset.balanceOf(PD),                   50_000e18 + 500e18);
+        assertEq(fundsAsset.balanceOf(TREASURY),             250e18);
     }
 
 }

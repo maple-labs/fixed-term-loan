@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { IERC20 }                              from "../../modules/erc20/contracts/interfaces/IERC20.sol";
-import { MockERC20 }                           from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { MapleProxyFactory }                   from "../../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
+import { TestUtils }         from "../../modules/contract-test-utils/contracts/test.sol";
+import { IERC20 }            from "../../modules/erc20/contracts/interfaces/IERC20.sol";
+import { MockERC20 }         from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { MapleProxyFactory } from "../../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
 import { MapleLoan }            from "../MapleLoan.sol";
 import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
@@ -134,9 +134,8 @@ contract MapleLoanPaymentsTestBase is TestUtils {
     )
         internal
     {
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
 
-        assertEq(loan.claimableFunds(),     0);
         assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval());
         assertEq(loan.principal(),          amounts[1]);
         assertEq(loan.paymentsRemaining(),  6);  // Using six payments for all tests since array lengths are fixed
@@ -153,8 +152,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
                 i + 1
             );
 
-            assertEq(fundsAsset.balanceOf(address(loan)), grandTotalPaid);  // Balance increasing by amount paid exactly
-            assertEq(loan.claimableFunds(),               grandTotalPaid);  // Claimable funds increasing by amount paid exactly
+            assertEq(fundsAsset.balanceOf(address(lender)), grandTotalPaid);  // Balance increasing by amount paid exactly
         }
 
         assertEq(loan.principal(), 0);

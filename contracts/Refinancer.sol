@@ -70,8 +70,8 @@ contract Refinancer is IRefinancer, MapleLoanStorage {
     /// @dev Returns the amount of an `asset_` that this contract owns, which is not currently accounted for by its state variables.
     function _getUnaccountedAmount(address asset_) internal view returns (uint256 unaccountedAmount_) {
         return IERC20(asset_).balanceOf(address(this))
-            - (asset_ == _collateralAsset ? _collateral : uint256(0))                   // `_collateral` is `_collateralAsset` accounted for.
-            - (asset_ == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));  // `_claimableFunds` and `_drawableFunds` are `_fundsAsset` accounted for.
+            - (asset_ == _collateralAsset ? _collateral    : uint256(0))   // `_collateral` is `_collateralAsset` accounted for.
+            - (asset_ == _fundsAsset      ? _drawableFunds : uint256(0));  // `_drawableFunds` are `_fundsAsset` accounted for.
     }
 
 }

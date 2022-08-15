@@ -1,25 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-// TODO: custom error messages (later maybe)
-// TODO: closeLoan only by borrower and instantly returns funds and collateral to borrower (later maybe)
-// TODO: drawdownFunds calls destination_ with data_ before postCollateral and endsWithCollateralMaintained() check (later maybe)
-// TODO: last payment is a loan close (later maybe)
-// TODO: removeCollateral calls destination_ with data_ before endsWithCollateralMaintained() check (later maybe)
-// TODO: only push pattern (no more transferFrom) (later maybe)
-// TODO: only 2 rates (interestRate and closingRate) (later maybe)
-// TODO: permits (later maybe)
-// TODO: back and forth proposing new terms (later maybe)
-// TODO: spawn new loan on partial funds (later maybe)
-
 import { IERC20 }                from "../modules/erc20/contracts/interfaces/IERC20.sol";
 import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.sol";
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { IMapleLoan }           from "./interfaces/IMapleLoan.sol";
-import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
-import { IGlobalsLike }         from "./interfaces/Interfaces.sol";
+import { IMapleLoan }                from "./interfaces/IMapleLoan.sol";
+import { IMapleLoanFeeManager }      from "./interfaces/IMapleLoanFeeManager.sol";
+import { IGlobalsLike, ILenderLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -94,11 +83,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
         _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
 
-        _claimableFunds += principalAndInterest;
-
         _clearLoanAccounting();
 
         emit LoanClosed(principal_, interest_, fees_);
+
+        require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
+
+        ILenderLike(_lender).claim(principal_, interest_, 0);
+
+        emit FundsClaimed(principalAndInterest, _lender);
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override returns (uint256 collateralPosted_) {
@@ -141,8 +134,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
         _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
 
-        _claimableFunds += principalAndInterest;
-
         uint256 paymentsRemainingCache = _paymentsRemaining;
 
         if (paymentsRemainingCache == uint256(1)) {
@@ -154,6 +145,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         }
 
         emit PaymentMade(principal_, interest_, fees_);
+
+        require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
+
+        ILenderLike(_lender).claim(principal_, interest_, _nextPaymentDueDate);
+
+        emit FundsClaimed(principalAndInterest, _lender);
     }
 
     function postCollateral(uint256 amount_) public override returns (uint256 collateralPosted_) {
@@ -266,45 +263,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         feeManager_.payOriginationFees(_fundsAsset, _principalRequested);
 
         // Ensure that collateral is maintained after changes made.
-        require(_isCollateralMaintained(), "ML:ANT:INSUFFICIENT_COLLATERAL");
-
-        uint256 extra = getUnaccountedAmount(fundsAssetAddress);
-
-        if (extra != uint256(0)) {
-            // NOTE: Ensures unaccounted funds (pre-existing or due to over-funding) is claimable by the lender.
-            _claimableFunds += extra;
-        }
+        require(_isCollateralMaintained(),                             "ML:ANT:INSUFFICIENT_COLLATERAL");
+        require(getUnaccountedAmount(fundsAssetAddress) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
     }
 
-    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external override {
-        require(msg.sender == _lender,                           "ML:BCF:NOT_LENDER");
-        require(amounts_.length > 1 && destinations_.length > 1, "ML:BCF:INVALID_LENGTH");
-        require(amounts_.length == destinations_.length,         "ML:BCF:LENGTH_MISMATCH");
-
-        uint256 totalAmount_ = 0;
-
-        for (uint256 i; i < amounts_.length;) {
-            totalAmount_ += amounts_[i];
-
-            require(ERC20Helper.transfer(_fundsAsset, destinations_[i], amounts_[i]), "ML:BCF:TRANSFER_FAILED");
-
-            emit FundsClaimed(amounts_[i], destinations_[i]);
-
-            unchecked { i++; }
-        }
-
-        _claimableFunds -= totalAmount_;
-    }
-
-    function claimFunds(uint256 amount_, address destination_) external override {
-        require(msg.sender == _lender, "ML:CF:NOT_LENDER");
-
-        emit FundsClaimed(amount_, destination_);
-
-        _claimableFunds -= amount_;
-
-        require(ERC20Helper.transfer(_fundsAsset, destination_, amount_), "ML:CF:TRANSFER_FAILED");
-    }
+    // TODO: Revert on over fund
 
     function fundLoan(address lender_) external override returns (uint256 fundsLent_) {
         address fundsAssetAddress = _fundsAsset;
@@ -328,11 +291,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // TODO: Add drawableFunds assertions in fundLoan tests in MapleLoan.t.sol
         _drawableFunds = principalRequested_ - originationFees;
 
-        uint256 extra = getUnaccountedAmount(fundsAssetAddress);
-
-        if (extra != uint256(0)) {
-            _claimableFunds += extra;
-        }
+        require(getUnaccountedAmount(fundsAssetAddress) == uint256(0), "ML:FL:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
 
         emit Funded(
             lender_,
@@ -365,7 +324,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         // Uniquely in `_repossess`, stop accounting for all funds so that they can be swept.
         _collateral     = uint256(0);
-        _claimableFunds = uint256(0);
         _drawableFunds  = uint256(0);
 
         address collateralAssetCache = _collateralAsset;
@@ -494,8 +452,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function getUnaccountedAmount(address asset_) public view override returns (uint256 unaccountedAmount_) {
         return IERC20(asset_).balanceOf(address(this))
-            - (asset_ == _collateralAsset ? _collateral : uint256(0))                   // `_collateral` is `_collateralAsset` accounted for.
-            - (asset_ == _fundsAsset ? _claimableFunds + _drawableFunds : uint256(0));  // `_claimableFunds` and `_drawableFunds` are `_fundsAsset` accounted for.
+            - (asset_ == _collateralAsset ? _collateral    : uint256(0))   // `_collateral` is `_collateralAsset` accounted for.
+            - (asset_ == _fundsAsset      ? _drawableFunds : uint256(0));  // `_drawableFunds` is `_fundsAsset` accounted for.
     }
 
     /****************************/
@@ -504,10 +462,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function borrower() external view override returns (address borrower_) {
         return _borrower;
-    }
-
-    function claimableFunds() external view override returns (uint256 claimableFunds_) {
-        return _claimableFunds;
     }
 
     function closingRate() external view override returns (uint256 closingRate_) {

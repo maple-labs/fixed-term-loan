@@ -31,6 +31,7 @@ interface IMapleLoanEvents {
      */
     event Funded(address indexed lender_, uint256 amount_, uint256 nextPaymentDueDate_);
 
+    // TODO: Revisit this event.
     /**
      *  @dev   Funds were claimed.
      *  @param amount_      The amount of funds claimed.

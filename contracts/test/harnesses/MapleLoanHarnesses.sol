@@ -30,10 +30,6 @@ contract MapleLoanHarness is MapleLoan {
         _borrower = borrower_;
     }
 
-    function __setClaimableFunds(uint256 claimableFunds_) external {
-        _claimableFunds = claimableFunds_;
-    }
-
     function __setClosingRate(uint256 closingRate_) external {
         _closingRate = closingRate_;
     }

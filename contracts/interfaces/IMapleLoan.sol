@@ -18,11 +18,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function borrower() external view returns (address borrower_);
 
     /**
-     *  @dev The amount of funds that have yet to be claimed by the lender.
-     */
-    function claimableFunds() external view returns (uint256 claimableFunds_);
-
-    /**
      *  @dev The fee rate (applied to principal) to close the loan.
      *       This value should be configured so that it is less expensive to close a loan with more than one payment remaining, but
      *       more expensive to close it if on the last payment.
@@ -167,20 +162,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @return refinanceCommitment_ The hash of the accepted refinance agreement.
      */
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
-
-    /**
-     *  @dev   Claim funds that have been paid (principal, interest, and late fees).
-     *  @param amounts_      The amounts to be claimed.
-     *  @param destinations_ The addresses to send the funds to.
-     */
-    function batchClaimFunds(uint256[] memory amounts_, address[] memory destinations_) external;
-
-    /**
-     *  @dev   Claim funds that have been paid (principal, interest, and late fees).
-     *  @param amount_      The amount to be claimed.
-     *  @param destination_ The address to send the funds to.
-     */
-    function claimFunds(uint256 amount_, address destination_) external;
 
     /**
      *  @dev    Repay all principal and interest and close a loan.

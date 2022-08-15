@@ -9,7 +9,7 @@ import { IMapleLoan } from "../interfaces/IMapleLoan.sol";
 
 import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
 
-import { EmptyContract, MapleGlobalsMock, MockFactory, MockFeeManager } from "./mocks/Mocks.sol";
+import { EmptyContract, MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager } from "./mocks/Mocks.sol";
 
 import { Borrower } from "./accounts/Borrower.sol";
 import { Governor } from "./accounts/Governor.sol";
@@ -20,6 +20,8 @@ contract MapleLoanTests is TestUtils {
 
     MapleLoanHarness loan;
 
+    address lender;
+
     bool locked;  // Helper state variable to avoid infinite loops when using the modifier.
 
     function setUp() external {
@@ -28,8 +30,11 @@ contract MapleLoanTests is TestUtils {
 
         loan = new MapleLoanHarness();
 
+        lender = address(new MockLoanManager(address(0), address(0)));
+
         loan.__setFactory(address(factoryMock));
         loan.__setFeeManager(address(feeManager));
+        loan.__setLender(lender);
     }
 
     /***********************************/
@@ -212,6 +217,7 @@ contract MapleLoanTests is TestUtils {
     function test_migrate_acl() external {
         address mockMigrator = address(new EmptyContract());
 
+        // vm.expectRevert
         try loan.migrate(mockMigrator, new bytes(0)) { assertTrue(false, "Non-factory was able to migrate"); } catch { }
 
         // TODO: prank
@@ -257,7 +263,7 @@ contract MapleLoanTests is TestUtils {
 
         bytes32 refinanceCommitment = loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
-        assertEq(refinanceCommitment, bytes32(0x1981fade01c173d23aff6ce8ca84f8d60963a68b6a89e040daeb2059098ebd87));
+        assertEq(refinanceCommitment, bytes32(0x531b8f287c42167c396767c361140eb79064e52f21123c9cb6b4b7fb536755df));
     }
 
     function test_proposeNewTerms_acl() external {
@@ -312,9 +318,7 @@ contract MapleLoanTests is TestUtils {
         vm.expectRevert(bytes("L:RNT:NO_AUTH"));
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
 
-        // TODO: prank
-        loan.__setLender(address(this));
-
+        vm.prank(lender);
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
     }
 
@@ -376,32 +380,11 @@ contract MapleLoanTests is TestUtils {
         vm.expectRevert("ML:ANT:NOT_LENDER");
         loan.acceptNewTerms(mockRefinancer, deadline, calls);
 
-        // TODO: prank
-        loan.__setLender(address(this));
-
+        vm.prank(lender);
         loan.acceptNewTerms(mockRefinancer, deadline, calls);
     }
 
-    function test_claimFunds_acl() external {
-        MockERC20 fundsAsset = new MockERC20("Funds Asset", "FA", 18);
-
-        fundsAsset.mint(address(loan), 200_000);
-
-        loan.__setFundsAsset(address(fundsAsset));
-        loan.__setClaimableFunds(uint256(200_000));
-
-        try loan.claimFunds(uint256(200_000), address(this)) { assertTrue(false, "Non-lender was able to claim funds"); } catch { }
-
-        // TODO: prank
-        loan.__setLender(address(this));
-
-        loan.claimFunds(uint256(200_000), address(this));
-    }
-
     function test_removeDefaultWarning_acl() external {
-        address lender = address(1);
-
-        loan.__setLender(lender);
         loan.__setGlobals(address(new MapleGlobalsMock(address(2))));
 
         uint256 nextPaymentDueDate = block.timestamp + 300;
@@ -441,15 +424,11 @@ contract MapleLoanTests is TestUtils {
 
         try loan.repossess(address(this)) {  assertTrue(false, "Non-lender was able to repossess"); } catch { }
 
-        // TODO: prank
-        loan.__setLender(address(this));
-
+        vm.prank(lender);
         loan.repossess(address(this));
     }
 
     function test_triggerDefaultWarning_acl() external {
-        loan.__setLender(address(1));
-
         uint256 start = 1 days;  // Non-zero start time.
 
         vm.warp(start);
@@ -465,16 +444,14 @@ contract MapleLoanTests is TestUtils {
         vm.expectRevert("ML:TDW:NOT_LENDER");
         loan.triggerDefaultWarning(block.timestamp);
 
-        loan.__setLender(address(this));
+        vm.prank(lender);
         loan.triggerDefaultWarning(block.timestamp);
     }
 
     function test_setLender_acl() external {
         try loan.setPendingLender(address(this)) {  assertTrue(false, "Non-lender was able to set lender"); } catch { }
 
-        // TODO: prank
-        loan.__setLender(address(this));
-
+        vm.prank(lender);
         loan.setPendingLender(address(this));
     }
 
@@ -483,9 +460,7 @@ contract MapleLoanTests is TestUtils {
 
         try loan.acceptLender() { assertTrue(false, "Non-pendingLender was able to set borrower"); } catch { }
 
-        // TODO: prank
-        loan.__setPendingLender(address(this));
-
+        vm.prank(address(1));
         loan.acceptLender();
     }
 
@@ -496,18 +471,14 @@ contract MapleLoanTests is TestUtils {
 
         try loan.skim(address(otherAsset), address(this)) { assertTrue(false, "Non-lender or borrower was able to set lender"); } catch { }
 
-        // TODO: prank
-        loan.__setLender(address(this));
-
         assertEq(otherAsset.balanceOf(address(loan)), 1);
         assertEq(otherAsset.balanceOf(address(1)),    0);
 
+        vm.prank(lender);
         loan.skim(address(otherAsset), address(1));
 
         assertEq(otherAsset.balanceOf(address(loan)), 0);
         assertEq(otherAsset.balanceOf(address(1)),    1);
-
-        loan.__setLender(address(2));
 
         // TODO: prank
         loan.__setBorrower(address(this));
@@ -517,6 +488,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(otherAsset.balanceOf(address(loan)), 1);
         assertEq(otherAsset.balanceOf(address(2)),    0);
 
+        vm.prank(lender);
         loan.skim(address(otherAsset), address(2));
 
         assertEq(otherAsset.balanceOf(address(loan)), 0);
@@ -544,55 +516,11 @@ contract MapleLoanTests is TestUtils {
     /*** Loan Transfer-Related Tests ***/
     /***********************************/
 
-    // function test_acceptNewTerms_pullPattern() external {
-    //     MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
-
-    //     loan.__setPrincipalRequested(1);
-    //     loan.__setFundsAsset(address(fundsAsset));
-
-    //     // TODO: prank
-    //     loan.__setLender(address(this));
-
-    //     loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
-    //     loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for establishment fee checks (TODO update)
-    //     loan.__setPaymentsRemaining(3);                           // Needed for establishment fee checks (TODO update)
-
-    //     address refinancer = address(new EmptyContract());
-    //     uint256 deadline = block.timestamp + 10 days;
-    //     bytes[] memory calls = new bytes[](1);
-    //     calls[0] = new bytes(0);
-
-    //     loan.__setRefinanceCommitment(keccak256(abi.encode(refinancer, deadline, calls)));
-
-    //     fundsAsset.mint(address(this), 1);
-
-    //     assertEq(fundsAsset.balanceOf(address(this)), 1);
-    //     assertEq(fundsAsset.balanceOf(address(loan)), 0);
-    //     assertEq(loan.claimableFunds(),               0);
-    //     assertEq(loan.drawableFunds(),                0);
-
-    //     vm.expectRevert("ML:ANT:TRANSFER_FROM_FAILED");
-    //     loan.acceptNewTerms(refinancer, deadline, calls, 1);
-
-    //     fundsAsset.approve(address(loan), 1);
-
-    //     loan.acceptNewTerms(refinancer, deadline, calls, 1);
-
-    //     // All unaccounted amount is claimable lender at the end of acceptNewTerms
-    //     assertEq(fundsAsset.balanceOf(address(this)), 0);
-    //     assertEq(fundsAsset.balanceOf(address(loan)), 1);
-    //     assertEq(loan.claimableFunds(),               1);
-    //     assertEq(loan.drawableFunds(),                0);
-    // }
-
     function test_acceptNewTerms_pushPattern() external {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         loan.__setPrincipalRequested(1);
         loan.__setFundsAsset(address(fundsAsset));
-
-        // TODO: prank
-        loan.__setLender(address(this));
 
         loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
         loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for establishment fee checks (TODO update)
@@ -601,7 +529,7 @@ contract MapleLoanTests is TestUtils {
         address refinancer = address(new EmptyContract());
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
-        calls[0] = new bytes(0);
+        calls[0] = abi.encodeWithSignature("increasePrincipal(uint256)", 1);
 
         loan.__setRefinanceCommitment(keccak256(abi.encode(refinancer, deadline, calls)));
 
@@ -609,23 +537,20 @@ contract MapleLoanTests is TestUtils {
 
         assertEq(fundsAsset.balanceOf(address(this)), 1);
         assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(loan.claimableFunds(),               0);
         assertEq(loan.drawableFunds(),                0);
 
         fundsAsset.transfer(address(loan), 1);
+        loan.__setDrawableFunds(1);  // Mock refinancer increasing principal and drawable funds.
 
+        vm.prank(lender);
         loan.acceptNewTerms(refinancer, deadline, calls);
 
-        // All unaccounted amount is claimable lender at the end of acceptNewTerms
         assertEq(fundsAsset.balanceOf(address(this)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), 1);
-        assertEq(loan.claimableFunds(),               1);
-        assertEq(loan.drawableFunds(),                0);
+        assertEq(loan.drawableFunds(),                1);
     }
 
     function test_triggerDefaultWarning() external {
-        loan.__setLender(address(this));
-
         uint256 start = 1 days;  // Non-zero start time.
 
         vm.warp(start);
@@ -639,14 +564,13 @@ contract MapleLoanTests is TestUtils {
 
         vm.warp(timeToFastForwardTo);
 
+        vm.prank(lender);
         loan.triggerDefaultWarning(timeToFastForwardTo);
 
         assertEq(loan.nextPaymentDueDate(), timeToFastForwardTo);
     }
 
     function test_triggerDefaultWarning_pastDueDate() external {
-        loan.__setLender(address(this));
-
         uint256 start = 1 days;  // Non-zero start time.
 
         vm.warp(start);
@@ -660,6 +584,7 @@ contract MapleLoanTests is TestUtils {
 
         vm.warp(timeToFastForwardTo);
 
+        vm.startPrank(lender);
         vm.expectRevert("ML:TDW:PAST_DUE_DATE");
         loan.triggerDefaultWarning(block.timestamp);
 
@@ -668,8 +593,6 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_triggerDefaultWarning_inPast() external {
-        loan.__setLender(address(this));
-
         uint256 start = 1 days;  // Non-zero start time.
 
         vm.warp(start);
@@ -682,6 +605,7 @@ contract MapleLoanTests is TestUtils {
 
         vm.warp(timeToFastForwardTo);
 
+        vm.startPrank(lender);
         vm.expectRevert("ML:TDW:IN_PAST");
         loan.triggerDefaultWarning(block.timestamp - 1);
 
@@ -689,9 +613,6 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_removeDefaultWarning_earlyDueDate() external {
-        address lender = address(9);
-
-        loan.__setLender(address(lender));
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
         vm.prank(lender);
@@ -700,9 +621,6 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_removeDefaultWarning_pastDate() external {
-        address lender = address(9);
-
-        loan.__setLender(address(lender));
         loan.__setNextPaymentDueDate(block.timestamp - 1);
 
         vm.prank(lender);
@@ -711,9 +629,6 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_removeDefaultWarning() external {
-        address lender = address(9);
-
-        loan.__setLender(address(lender));
         loan.__setNextPaymentDueDate(block.timestamp + 1);
 
         assertEq(loan.nextPaymentDueDate(), block.timestamp + 1);
@@ -724,42 +639,10 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.nextPaymentDueDate(), block.timestamp + 2);
     }
 
-    // TODO: test_acceptNewTerms_pullPatternOverFund (since test_acceptNewTerms_pullPattern already overfunds)
-
-    // TODO: test_acceptNewTerms_pushPatternOverFund (since test_acceptNewTerms_pushPattern already overfunds)
-
-    // function test_fundLoan_pullPattern() external {
-    //     MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
-
-    //     uint256 amount = 1_000_000;
-    //     address lender = address(1111);
-
-    //     loan.__setFundsAsset(address(fundsAsset));
-    //     loan.__setPrincipalRequested(amount);
-    //     loan.__setPaymentsRemaining(1);
-
-    //     fundsAsset.mint(address(this), amount);
-
-    //     try loan.fundLoan(lender, amount) { assertTrue(false, "Able to fund"); } catch { }
-
-    //     fundsAsset.approve(address(loan), amount);
-
-    //     assertEq(fundsAsset.balanceOf(address(this)), amount);
-    //     assertEq(fundsAsset.balanceOf(address(loan)), 0);
-    //     assertEq(loan.principal(),                    0);
-
-    //     loan.fundLoan(lender, amount);
-
-    //     assertEq(fundsAsset.balanceOf(address(this)), 0);
-    //     assertEq(fundsAsset.balanceOf(address(loan)), amount);
-    //     assertEq(loan.principal(),                    amount);
-    // }
-
     function test_fundLoan_pushPattern() external {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         uint256 amount = 1_000_000;
-        address lender = address(1111);
 
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setPrincipalRequested(amount);
@@ -779,64 +662,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.principal(),                    amount);
     }
 
-    // function test_fundLoan_pullPatternOverFund() external {
-    //     MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
-
-    //     uint256 principalRequested = 1_000_000;
-    //     uint256 fundAmount         = 2_000_000;
-    //     address lender             = address(1111);
-
-    //     loan.__setFundsAsset(address(fundsAsset));
-    //     loan.__setPrincipalRequested(principalRequested);
-    //     loan.__setPaymentsRemaining(1);
-
-    //     fundsAsset.mint(address(this), fundAmount);
-
-    //     try loan.fundLoan(lender, fundAmount) { assertTrue(false, "Able to fund"); } catch { }
-
-    //     fundsAsset.approve(address(loan), fundAmount);
-
-    //     assertEq(fundsAsset.balanceOf(address(this)), fundAmount);
-    //     assertEq(fundsAsset.balanceOf(lender),        0);
-    //     assertEq(fundsAsset.balanceOf(address(loan)), 0);
-    //     assertEq(loan.principal(),                    0);
-
-    //     loan.fundLoan(lender, fundAmount);
-
-    //     assertEq(fundsAsset.balanceOf(address(this)), 0);
-    //     assertEq(fundsAsset.balanceOf(lender),        0);
-    //     assertEq(fundsAsset.balanceOf(address(loan)), fundAmount);
-    //     assertEq(loan.principal(),                    principalRequested);
-    //     assertEq(loan.claimableFunds(),               fundAmount - principalRequested);
-    // }
-
-    function test_fundLoan_pushPatternOverFund() external {
-        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
-
-        uint256 principalRequested = 1_000_000;
-        uint256 fundAmount         = 2_000_000;
-        address lender             = address(1111);
-
-        loan.__setFundsAsset(address(fundsAsset));
-        loan.__setPrincipalRequested(principalRequested);
-        loan.__setPaymentsRemaining(1);
-
-        // Fails without pushing funds
-        try loan.fundLoan(lender) { assertTrue(false, "Able to fund"); } catch { }
-
-        fundsAsset.mint(address(loan), fundAmount);
-
-        assertEq(fundsAsset.balanceOf(lender),        0);
-        assertEq(fundsAsset.balanceOf(address(loan)), fundAmount);
-        assertEq(loan.principal(),                    0);
-
-        loan.fundLoan(lender);
-
-        assertEq(fundsAsset.balanceOf(lender),        0);
-        assertEq(fundsAsset.balanceOf(address(loan)), fundAmount);
-        assertEq(loan.principal(),                    principalRequested);
-        assertEq(loan.claimableFunds(),               fundAmount - principalRequested);
-    }
+    // TODO: Add overfund and overfund ANT test failure cases.
 
     function test_drawdownFunds_withoutAdditionalCollateralRequired() external {
         MockERC20 fundsAsset      = new MockERC20("FA", "FA", 18);
@@ -968,7 +794,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(borrower), amount);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), amount);
-        assertEq(fundsAsset.balanceOf(address(loan)),     0);
+        assertEq(fundsAsset.balanceOf(address(lender)),   0);
         assertEq(loan.principal(),                        amount);
 
         assertTrue(!borrower.try_loan_closeLoan(address(loan), amount));
@@ -978,7 +804,7 @@ contract MapleLoanTests is TestUtils {
         assertTrue(borrower.try_loan_closeLoan(address(loan), amount));
 
         assertEq(fundsAsset.balanceOf(address(borrower)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)),     amount);
+        assertEq(fundsAsset.balanceOf(address(lender)),   amount);
         assertEq(loan.paymentsRemaining(),                0);
         assertEq(loan.principal(),                        0);
     }
@@ -998,7 +824,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(borrower), amount);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), amount);
-        assertEq(fundsAsset.balanceOf(address(loan)),     0);
+        assertEq(fundsAsset.balanceOf(address(lender)),   0);
         assertEq(loan.principal(),                        amount);
 
         assertTrue(!borrower.try_loan_closeLoan(address(loan), 0));
@@ -1008,7 +834,7 @@ contract MapleLoanTests is TestUtils {
         assertTrue(borrower.try_loan_closeLoan(address(loan), 0));
 
         assertEq(fundsAsset.balanceOf(address(borrower)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)),     amount);
+        assertEq(fundsAsset.balanceOf(address(lender)),   amount);
         assertEq(loan.paymentsRemaining(),                0);
         assertEq(loan.principal(),                        0);
     }
@@ -1026,9 +852,9 @@ contract MapleLoanTests is TestUtils {
 
         fundsAsset.mint(address(user), amount);
 
-        assertEq(fundsAsset.balanceOf(address(user)), amount);
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(loan.principal(),                    amount);
+        assertEq(fundsAsset.balanceOf(address(user)),   amount);
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(loan.principal(),                      amount);
 
         assertTrue(!user.try_loan_closeLoan(address(loan), amount));
 
@@ -1036,10 +862,10 @@ contract MapleLoanTests is TestUtils {
 
         assertTrue(user.try_loan_closeLoan(address(loan), amount));
 
-        assertEq(fundsAsset.balanceOf(address(user)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)), amount);
-        assertEq(loan.paymentsRemaining(),            0);
-        assertEq(loan.principal(),                    0);
+        assertEq(fundsAsset.balanceOf(address(user)),   0);
+        assertEq(fundsAsset.balanceOf(address(lender)), amount);
+        assertEq(loan.paymentsRemaining(),              0);
+        assertEq(loan.principal(),                      0);
     }
 
     function test_closeLoan_pushPatternAsNonBorrower() external {
@@ -1055,9 +881,9 @@ contract MapleLoanTests is TestUtils {
 
         fundsAsset.mint(address(user), amount);
 
-        assertEq(fundsAsset.balanceOf(address(user)), amount);
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(loan.principal(),                    amount);
+        assertEq(fundsAsset.balanceOf(address(user)),   amount);
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(loan.principal(),                      amount);
 
         assertTrue(!user.try_loan_closeLoan(address(loan), 0));
 
@@ -1065,10 +891,10 @@ contract MapleLoanTests is TestUtils {
 
         assertTrue(user.try_loan_closeLoan(address(loan), 0));
 
-        assertEq(fundsAsset.balanceOf(address(user)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)), amount);
-        assertEq(loan.paymentsRemaining(),            0);
-        assertEq(loan.principal(),                    0);
+        assertEq(fundsAsset.balanceOf(address(user)),   0);
+        assertEq(fundsAsset.balanceOf(address(lender)), amount);
+        assertEq(loan.paymentsRemaining(),              0);
+        assertEq(loan.principal(),                      0);
     }
 
     function test_closeLoan_pullPatternUsingDrawable() external {
@@ -1151,7 +977,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(borrower), totalPayment);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), totalPayment);
-        assertEq(fundsAsset.balanceOf(address(loan)),     0);
+        assertEq(fundsAsset.balanceOf(address(lender)),   0);
         assertEq(loan.paymentsRemaining(),                3);
         assertEq(loan.principal(),                        startingPrincipal);
 
@@ -1162,7 +988,7 @@ contract MapleLoanTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), totalPayment));
 
         assertEq(fundsAsset.balanceOf(address(borrower)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)),     totalPayment);
+        assertEq(fundsAsset.balanceOf(address(lender)),   totalPayment);
         assertEq(loan.paymentsRemaining(),                2);
         assertEq(loan.principal(),                        startingPrincipal - principal);
     }
@@ -1186,7 +1012,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(borrower), totalPayment);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), totalPayment);
-        assertEq(fundsAsset.balanceOf(address(loan)),     0);
+        assertEq(fundsAsset.balanceOf(address(lender)),   0);
         assertEq(loan.paymentsRemaining(),                3);
         assertEq(loan.principal(),                        startingPrincipal);
 
@@ -1197,7 +1023,7 @@ contract MapleLoanTests is TestUtils {
         assertTrue(borrower.try_loan_makePayment(address(loan), 0));
 
         assertEq(fundsAsset.balanceOf(address(borrower)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)),     totalPayment);
+        assertEq(fundsAsset.balanceOf(address(lender)),   totalPayment);
         assertEq(loan.paymentsRemaining(),                2);
         assertEq(loan.principal(),                        startingPrincipal - principal);
     }
@@ -1219,10 +1045,10 @@ contract MapleLoanTests is TestUtils {
 
         fundsAsset.mint(address(user), totalPayment);
 
-        assertEq(fundsAsset.balanceOf(address(user)), totalPayment);
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(loan.paymentsRemaining(),            3);
-        assertEq(loan.principal(),                    startingPrincipal);
+        assertEq(fundsAsset.balanceOf(address(user)),   totalPayment);
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(loan.paymentsRemaining(),              3);
+        assertEq(loan.principal(),                      startingPrincipal);
 
         assertTrue(!user.try_loan_makePayment(address(loan), totalPayment));
 
@@ -1230,10 +1056,10 @@ contract MapleLoanTests is TestUtils {
 
         assertTrue(user.try_loan_makePayment(address(loan), totalPayment));
 
-        assertEq(fundsAsset.balanceOf(address(user)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)), totalPayment);
-        assertEq(loan.paymentsRemaining(),            2);
-        assertEq(loan.principal(),                    startingPrincipal - principal);
+        assertEq(fundsAsset.balanceOf(address(user)),   0);
+        assertEq(fundsAsset.balanceOf(address(lender)), totalPayment);
+        assertEq(loan.paymentsRemaining(),              2);
+        assertEq(loan.principal(),                      startingPrincipal - principal);
     }
 
     function test_makePayment_pushPatternAsNonBorrower() external {
@@ -1253,10 +1079,10 @@ contract MapleLoanTests is TestUtils {
 
         fundsAsset.mint(address(user), totalPayment);
 
-        assertEq(fundsAsset.balanceOf(address(user)), totalPayment);
-        assertEq(fundsAsset.balanceOf(address(loan)), 0);
-        assertEq(loan.paymentsRemaining(),            3);
-        assertEq(loan.principal(),                    startingPrincipal);
+        assertEq(fundsAsset.balanceOf(address(user)),   totalPayment);
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(loan.paymentsRemaining(),              3);
+        assertEq(loan.principal(),                      startingPrincipal);
 
         assertTrue(!user.try_loan_makePayment(address(loan), 0));
 
@@ -1264,10 +1090,10 @@ contract MapleLoanTests is TestUtils {
 
         assertTrue(user.try_loan_makePayment(address(loan), 0));
 
-        assertEq(fundsAsset.balanceOf(address(user)), 0);
-        assertEq(fundsAsset.balanceOf(address(loan)), totalPayment);
-        assertEq(loan.paymentsRemaining(),            2);
-        assertEq(loan.principal(),                    startingPrincipal - principal);
+        assertEq(fundsAsset.balanceOf(address(user)),   0);
+        assertEq(fundsAsset.balanceOf(address(lender)), totalPayment);
+        assertEq(loan.paymentsRemaining(),              2);
+        assertEq(loan.principal(),                      startingPrincipal - principal);
     }
 
     function test_makePayment_pullPatternUsingDrawable() external {

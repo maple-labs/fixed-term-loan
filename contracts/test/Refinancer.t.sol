@@ -603,7 +603,7 @@ contract RefinancerInterestTests is TestUtils {
         // Check details for upcoming payment #1
         ( , uint256 interestPortion,  ) = loan.getNextPaymentBreakdown();
 
-        assertEq(token.balanceOf(address(loan)), 0);
+        assertEq(token.balanceOf(address(lender)), 0);
 
         // Make payment #1
         token.mint(address(loan), interestPortion);  // Interest only payment
@@ -611,7 +611,7 @@ contract RefinancerInterestTests is TestUtils {
 
         assertEq(interestPortion, 8_219_178_082);
 
-        assertEq(token.balanceOf(address(loan)), interestPortion);
+        assertEq(token.balanceOf(address(lender)), interestPortion);
 
         bytes[] memory data = new bytes[](4);
         data[0] = abi.encodeWithSignature("setInterestRate(uint256)",      0.12e18);
@@ -895,7 +895,6 @@ contract RefinancerPaymentsRemainingTests is RefinancerTestBase {
 contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
 
     // Saving as storage variables to avoid stack too deep
-    uint256 initialClaimableFunds;
     uint256 initialDrawableFunds;
     uint256 initialPrincipal;
 
@@ -944,19 +943,16 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
             loan.postCollateral(0);
         }
 
-        // Sending additional funds (plus 1 too much)
-        token.mint(address(loan), principalIncrease_ + 1);
+        token.mint(address(loan), principalIncrease_);
 
         initialPrincipal      = loan.principal();
         initialDrawableFunds  = loan.drawableFunds();
-        initialClaimableFunds = loan.claimableFunds();
 
         lender.loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data);
 
-        assertEq(loan.principalRequested(), principalRequested_ + principalIncrease_);
-        assertEq(loan.principal(),          initialPrincipal + principalIncrease_);
+        assertEq(loan.principalRequested(), principalRequested_  + principalIncrease_);
+        assertEq(loan.principal(),          initialPrincipal     + principalIncrease_);
         assertEq(loan.drawableFunds(),      initialDrawableFunds + principalIncrease_);
-        assertEq(loan.claimableFunds(),     initialClaimableFunds + 1);
     }
 
     function testFail_refinance_increasePrincipalRequested(
@@ -1105,11 +1101,7 @@ contract RefinancingFeesTerms is TestUtils {
 
         calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", newDelegateOriginationFee_, 100e18);
 
-        // Claim funds to remove balance from loan.
-        vm.startPrank(address(loanManager));
-        loan.claimFunds(loan.claimableFunds(), address(0));
         token.mint(address(loan), newDelegateOriginationFee_ - 1);
-        vm.stopPrank();
 
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
         vm.prank(address(loanManager));
@@ -1139,11 +1131,7 @@ contract RefinancingFeesTerms is TestUtils {
 
         uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 1e18;  // Annualized over course of remaining loan term (150 days since payment was made)
 
-        // Claim funds to remove balance from loan.
-        vm.startPrank(address(loanManager));
-        loan.claimFunds(loan.claimableFunds(), address(0));
         token.mint(address(loan), platformOriginationFee_ + newDelegateOriginationFee_ - 1);
-        vm.stopPrank();
 
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
         vm.prank(address(loanManager));
@@ -1171,11 +1159,7 @@ contract RefinancingFeesTerms is TestUtils {
 
         uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 1e18;  // Annualized over course of remaining loan term (150 days since payment was made)
 
-        // Claim funds to remove balance from loan.
-        vm.startPrank(address(loanManager));
-        loan.claimFunds(loan.claimableFunds(), address(0));
         token.mint(address(loan), platformOriginationFee_ + newDelegateOriginationFee_);
-        vm.stopPrank();
 
         assertEq(token.balanceOf(POOL_DELEGATE), 0);
         assertEq(token.balanceOf(TREASURY),      0);

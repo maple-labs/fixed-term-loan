@@ -17,6 +17,12 @@ interface IGlobalsLike {
 
 }
 
+interface ILenderLike {
+
+    function claim(uint256 principal_, uint256 interest_, uint256 nextPaymentDueDate_) external;
+
+}
+
 interface ILoanLike {
 
     function factory() external view returns (address factory_);
