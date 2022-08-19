@@ -19,13 +19,16 @@ import { LoanUser } from "./accounts/LoanUser.sol";
 contract MapleLoanTests is TestUtils {
 
     MapleLoanHarness loan;
+    MapleGlobalsMock globals;
 
     address lender;
 
     bool locked;  // Helper state variable to avoid infinite loops when using the modifier.
 
     function setUp() external {
-        MockFactory    factoryMock = new MockFactory();
+        globals = new MapleGlobalsMock(address(this));
+
+        MockFactory    factoryMock = new MockFactory(address(globals));
         MockFeeManager feeManager  = new MockFeeManager();
 
         loan = new MapleLoanHarness();
@@ -263,7 +266,7 @@ contract MapleLoanTests is TestUtils {
 
         bytes32 refinanceCommitment = loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
-        assertEq(refinanceCommitment, bytes32(0x531b8f287c42167c396767c361140eb79064e52f21123c9cb6b4b7fb536755df));
+        assertEq(refinanceCommitment, bytes32(0xeb5a903c45a6ed9c95358735dacee474db25be576b10d32c592c064a1e5fd67e));
     }
 
     function test_proposeNewTerms_acl() external {
@@ -385,7 +388,6 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_removeDefaultWarning_acl() external {
-        loan.__setGlobals(address(new MapleGlobalsMock(address(2))));
         loan.__setOriginalNextPaymentDueDate(block.timestamp + 300);
 
         vm.expectRevert("ML:RDW:NOT_LENDER");
@@ -476,7 +478,7 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_upgrade_acl() external {
-        MockFactory factory = new MockFactory();
+        MockFactory factory = new MockFactory(address(globals));
 
         loan.__setFactory(address(factory));
 
@@ -1228,7 +1230,7 @@ contract MapleLoanRoleTests is TestUtils {
         _lender     = new Lender();
         _globals    = new MapleGlobalsMock(address(this));
         _token      = new MockERC20("Token", "T", 0);
-        _factory    = new MockFactory();
+        _factory    = new MockFactory(address(_globals));
         _feeManager = new MockFeeManager();
 
         address[2] memory assets      = [address(_token), address(_token)];
@@ -1239,7 +1241,9 @@ contract MapleLoanRoleTests is TestUtils {
 
         _globals.setValidBorrower(address(_borrower), true);
 
-        _loan = new ConstructableMapleLoan(address(_factory), address(_globals), address(_borrower), address(_feeManager), assets, termDetails, amounts, rates, fees);
+        vm.startPrank(address(_factory));
+        _loan = new ConstructableMapleLoan(address(_factory), address(_borrower), address(_feeManager), assets, termDetails, amounts, rates, fees);
+        vm.stopPrank();
     }
 
     function test_transferBorrowerRole() public {

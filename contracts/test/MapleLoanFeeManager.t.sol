@@ -61,7 +61,6 @@ contract FeeManagerBase is TestUtils {
     }
 
     function _createLoan(
-        address globals_,
         address borrower_,
         address feeManager_,
         address[2] memory assets_,
@@ -74,7 +73,7 @@ contract FeeManagerBase is TestUtils {
         internal returns (address loan_)
     {
         loan_ = factory.createInstance({
-            arguments_: MapleLoanInitializer(initializer).encodeArguments(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_),
+            arguments_: MapleLoanInitializer(initializer).encodeArguments(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_),
             salt_:      keccak256(abi.encodePacked(salt_))
         });
     }
@@ -101,7 +100,7 @@ contract PayClosingFeesTests is FeeManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
+        loan = MapleLoan(_createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
 
         globals.setPlatformServiceFeeRate(address(poolManager), 0.003e18);  // 0.3%
 
@@ -165,7 +164,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
+        loan = MapleLoan(_createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
 
         globals.setPlatformOriginationFeeRate(address(poolManager), 0.003e18);  // 0.3%
     }
@@ -215,7 +214,7 @@ contract PayServiceFeesTests is FeeManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
+        loan = MapleLoan(_createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
 
         globals.setPlatformServiceFeeRate(address(poolManager), platformServiceFeeRate);
 
@@ -273,8 +272,8 @@ contract PayServiceFeesTests is FeeManagerBase {
 contract UpdatePlatformServiceFeeTests is FeeManagerBase {
 
     function test_updatePlaformServiceFee() external {
-        address loan1 = _createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
-        address loan2 = _createLoan(address(globals), BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt2");
+        address loan1 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
+        address loan2 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt2");
 
         _fundLoan(loan1, address(loanManager), 1_000_000e18);
         _fundLoan(loan2, address(loanManager), 1_000_000e18);

@@ -54,7 +54,6 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Loan was initialized.
-     *  @param globals_     The address of the globals contract.
      *  @param borrower_    The address of the borrower.
      *  @param feeManager_  The address of the entity responsible for calculating fees
      *  @param assets_      Array of asset addresses.
@@ -78,7 +77,6 @@ interface IMapleLoanEvents {
      *                       [1]: delegateServiceFee
      */
     event Initialized(
-        address indexed globals_,
         address indexed borrower_,
         address indexed feeManager_,
         address[2] assets_,

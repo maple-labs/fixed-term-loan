@@ -66,10 +66,6 @@ contract MapleLoanHarness is MapleLoan {
         _fundsAsset = fundsAsset_;
     }
 
-    function __setGlobals(address globals_) external {
-        _globals = globals_;
-    }
-
     function __setGracePeriod(uint256 gracePeriod_) external {
         _gracePeriod = gracePeriod_;
     }
@@ -209,7 +205,6 @@ contract ConstructableMapleLoan is MapleLoanHarness {
 
     constructor(
         address factory_,
-        address globals_,
         address borrower_,
         address feeManager_,
         address[2] memory assets_,
@@ -222,7 +217,7 @@ contract ConstructableMapleLoan is MapleLoanHarness {
 
         MapleLoanInitializer initializer = new MapleLoanInitializer();
 
-        _delegateCall(address(initializer), initializer.encodeArguments(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_));
+        _delegateCall(address(initializer), initializer.encodeArguments(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_));
     }
 
     function _delegateCall(address account_, bytes memory data_) internal {

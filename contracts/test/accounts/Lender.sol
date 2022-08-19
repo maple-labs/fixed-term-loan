@@ -53,6 +53,6 @@ contract Lender is LoanUser {
 
     // TODO: Remove all of these files and move to pranks
 
-    function claim(uint256 principal_, uint256 interest_, uint256 nextPaymentDueDate_) external { }
+    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external { }
 
 }

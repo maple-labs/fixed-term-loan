@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { IMapleLoanInitializer } from "./interfaces/IMapleLoanInitializer.sol";
-import { IMapleLoanFeeManager }  from "./interfaces/IMapleLoanFeeManager.sol";
-import { IGlobalsLike }          from "./interfaces/Interfaces.sol";
+import { IMapleLoanInitializer }                from "./interfaces/IMapleLoanInitializer.sol";
+import { IMapleLoanFeeManager }                 from "./interfaces/IMapleLoanFeeManager.sol";
+import { IGlobalsLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -11,7 +11,6 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     // TODO: Ask offchain if structs are worth using.
     function encodeArguments(
-        address globals_,
         address borrower_,
         address feeManager_,
         address[2] memory assets_,
@@ -20,12 +19,11 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         uint256[4] memory rates_,
         uint256[2] memory fees_
     ) external pure override returns (bytes memory encodedArguments_) {
-        return abi.encode(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
+        return abi.encode(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
     }
 
     function decodeArguments(bytes calldata encodedArguments_)
         public pure override returns (
-            address globals_,
             address borrower_,
             address feeManager_,
             address[2] memory assets_,
@@ -36,7 +34,6 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         )
     {
         (
-            globals_,
             borrower_,
             feeManager_,
             assets_,
@@ -44,12 +41,11 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             amounts_,
             rates_,
             fees_
-        ) = abi.decode(encodedArguments_, (address, address, address, address[2], uint256[3], uint256[3], uint256[4], uint256[2]));
+        ) = abi.decode(encodedArguments_, (address, address, address[2], uint256[3], uint256[3], uint256[4], uint256[2]));
     }
 
     fallback() external {
         (
-            address globals_,
             address borrower_,
             address feeManager_,
             address[2] memory assets_,
@@ -59,9 +55,9 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             uint256[2] memory fees_
         ) = decodeArguments(msg.data);
 
-        _initialize(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
+        _initialize(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
 
-        emit Initialized(globals_, borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
+        emit Initialized(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
     }
 
     /**
@@ -90,7 +86,6 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
      *                          [1]: delegateServiceFee
      */
     function _initialize(
-        address globals_,
         address borrower_,
         address feeManager_,
         address[2] memory assets_,
@@ -107,8 +102,10 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         // Ending principal needs to be less than or equal to principal requested.
         require(amounts_[2] <= amounts_[1], "MLI:I:INVALID_ENDING_PRINCIPAL");
 
+        address globals_ = IMapleProxyFactoryLike(msg.sender).mapleGlobals();
+
         require((_borrower = borrower_) != address(0),        "MLI:I:ZERO_BORROWER");
-        require(IGlobalsLike(globals_).isBorrower(borrower_), "MLI:I:INVALID_BORROWER");
+        require(IGlobalsLike(globals_).isBorrower(borrower_), "MLI:I:INVALID_BORROWER");   // TODO: Pull from factory
 
         require((_feeManager = feeManager_) != address(0), "MLI:I:INVALID_MANAGER");
 
@@ -127,8 +124,6 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         _closingRate         = rates_[1];
         _lateFeeRate         = rates_[2];
         _lateInterestPremium = rates_[3];
-
-        _globals = globals_;
 
         // Set fees for the loan.
         IMapleLoanFeeManager(feeManager_).updateDelegateFeeTerms(fees_[0], fees_[1]);

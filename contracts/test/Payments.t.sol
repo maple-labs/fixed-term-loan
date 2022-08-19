@@ -67,7 +67,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         fundsAsset.mint(address(lender),        amounts[1]);
         fundsAsset.mint(address(borrower),      amounts[1]);  // Mint more than enough for borrower to make payments
 
-        bytes memory arguments = initializer.encodeArguments(address(globals), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
+        bytes memory arguments = initializer.encodeArguments(address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create Loan

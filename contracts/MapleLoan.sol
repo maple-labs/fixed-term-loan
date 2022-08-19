@@ -6,9 +6,9 @@ import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.s
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { IMapleLoan }                from "./interfaces/IMapleLoan.sol";
-import { IMapleLoanFeeManager }      from "./interfaces/IMapleLoanFeeManager.sol";
-import { IGlobalsLike, ILenderLike } from "./interfaces/Interfaces.sol";
+import { IMapleLoan }                                        from "./interfaces/IMapleLoan.sol";
+import { IMapleLoanFeeManager }                              from "./interfaces/IMapleLoanFeeManager.sol";
+import { IGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -69,7 +69,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
 
-        require(block.timestamp <= _nextPaymentDueDate, "ML:CL:PAYMENT_IS_LATE");
+        uint256 paymentDueDate_ = _nextPaymentDueDate;
+
+        require(block.timestamp <= paymentDueDate_, "ML:CL:PAYMENT_IS_LATE");
 
         ( principal_, interest_, fees_ ) = getClosingPaymentBreakdown();
 
@@ -89,7 +91,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
 
-        ILenderLike(_lender).claim(principal_, interest_, 0);
+        ILenderLike(_lender).claim(principal_, interest_, paymentDueDate_, 0);
 
         emit FundsClaimed(principalAndInterest, _lender);
     }
@@ -134,21 +136,23 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
         _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
 
-        uint256 paymentsRemainingCache = _paymentsRemaining;
+        uint256 paymentsRemaining_      = _paymentsRemaining;
+        uint256 previousPaymentDueDate_ = _nextPaymentDueDate;
+        uint256 nextPaymentDueDate_;
 
-        if (paymentsRemainingCache == uint256(1)) {
+        if (paymentsRemaining_ == uint256(1)) {
             _clearLoanAccounting();  // Assumes `getNextPaymentBreakdown` returns a `principal_` that is `_principal`.
         } else {
-            _nextPaymentDueDate += _paymentInterval;
+            _nextPaymentDueDate  = nextPaymentDueDate_ = previousPaymentDueDate_ + _paymentInterval;
             _principal          -= principal_;
-            _paymentsRemaining   = paymentsRemainingCache - uint256(1);
+            _paymentsRemaining   = paymentsRemaining_ - uint256(1);
         }
 
         emit PaymentMade(principal_, interest_, fees_);
 
         require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
 
-        ILenderLike(_lender).claim(principal_, interest_, _nextPaymentDueDate);
+        ILenderLike(_lender).claim(principal_, interest_, previousPaymentDueDate_, _nextPaymentDueDate);
 
         emit FundsClaimed(principalAndInterest, _lender);
     }
@@ -509,12 +513,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _fundsAsset;
     }
 
-    function globals() external view override returns (address globals_) {
-        globals_ = _globals;
+    function globals() public view override returns (address globals_) {
+        globals_ = IMapleProxyFactoryLike(_factory()).mapleGlobals();
     }
 
     function governor() public view override returns (address governor_) {
-        governor_ = IGlobalsLike(_globals).governor();
+        governor_ = IGlobalsLike(globals()).governor();
     }
 
     function gracePeriod() external view override returns (uint256 gracePeriod_) {
@@ -575,6 +579,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function refinanceInterest() external view override returns (uint256 refinanceInterest_) {
         return _refinanceInterest;
+    }
+
+    // TODO: Add actual function.
+    function isInDefaultWarning() external view returns (bool isInDefaultWarning) {
+        return false;
     }
 
     /**********************************/

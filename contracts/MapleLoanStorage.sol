@@ -30,12 +30,12 @@ abstract contract MapleLoanStorage {
     uint256 internal _endingPrincipal;     // The principal to remain at end of loan.
 
     // State
-    uint256 internal _drawableFunds;              // The amount of funds that can be drawn down.
-    uint256 internal _claimableFunds_deprecated;  // Kept to maintain storage layout.
-    uint256 internal _collateral;                 // The amount of collateral, in collateral asset, that is currently posted.
-    uint256 internal _nextPaymentDueDate;         // The timestamp of due date of next payment.
-    uint256 internal _paymentsRemaining;          // The number of payments remaining.
-    uint256 internal _principal;                  // The amount of principal yet to be paid down.
+    uint256 internal _drawableFunds;               // The amount of funds that can be drawn down.
+    uint256 internal __deprecated_claimableFunds;  // Deprecated storage slot for `claimableFunds`.
+    uint256 internal _collateral;                  // The amount of collateral, in collateral asset, that is currently posted.
+    uint256 internal _nextPaymentDueDate;          // The timestamp of due date of next payment.
+    uint256 internal _paymentsRemaining;           // The number of payments remaining.
+    uint256 internal _principal;                   // The amount of principal yet to be paid down.
 
     // Refinance
     bytes32 internal _refinanceCommitment;  // Keccak-256 hash of the parameters of proposed terms of a refinance: `refinancer_`, `deadline_`, and `calls_`.
@@ -47,8 +47,7 @@ abstract contract MapleLoanStorage {
     uint256 internal __deprecated_treasuryFee;  // Deprecated storage slot for `treasuryFee`.
 
     // Pool V2 dependencies
-    address internal _feeManager;  // Address responsible for calculatating and handling fees
-    address internal _globals;
+    address internal _feeManager;  // Address responsible for calculating and handling fees
 
     // Triggered defaults
     uint256 internal _originalNextPaymentDueDate;  // Stores the original `nextPaymentDueDate` in order to allow triggered defaults to be reverted.

@@ -19,7 +19,7 @@ interface IGlobalsLike {
 
 interface ILenderLike {
 
-    function claim(uint256 principal_, uint256 interest_, uint256 nextPaymentDueDate_) external;
+    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external;
 
 }
 
@@ -46,6 +46,20 @@ interface ILoanManagerLike {
     function owner() external view returns (address owner_);
 
     function poolManager() external view returns (address poolManager_);
+
+}
+
+interface IMapleFeeManagerLike {
+
+    function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external;
+
+    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external;
+
+}
+
+interface IMapleProxyFactoryLike {
+
+    function mapleGlobals() external view returns (address mapleGlobals_);
 
 }
 

@@ -43,6 +43,10 @@ contract MockFactory {
 
     address public mapleGlobals;
 
+    constructor(address mapleGlobals_) {
+        mapleGlobals = mapleGlobals_;
+    }
+
     function setGlobals(address globals_) external {
         mapleGlobals = globals_;
     }
@@ -91,7 +95,7 @@ contract MockLoanManager {
         poolManager = poolManager_;
     }
 
-    function claim(uint256 principal_, uint256 interest_, uint256 nextPaymentDueDate_) external { }
+    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external { }
 
 }
 

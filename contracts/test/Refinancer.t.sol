@@ -40,7 +40,7 @@ contract RefinancerTestBase is TestUtils {
         globals    = new MapleGlobalsMock(address(this));
         lender     = new Lender();
         refinancer = new Refinancer();
-        factory    = new MockFactory();
+        factory    = new MockFactory(address(globals));
         feeManager = new MockFeeManager();
 
         globals.setValidBorrower(address(this), true);
@@ -66,7 +66,9 @@ contract RefinancerTestBase is TestUtils {
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         // TODO: prank borrower
-        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.startPrank(address(factory));
+        loan = new ConstructableMapleLoan(address(factory), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.stopPrank();
 
         token.mint(address(loan), principalRequested_);
         loan.fundLoan(address(lender));
@@ -567,7 +569,7 @@ contract RefinancerInterestTests is TestUtils {
 
     function setUp() external {
         globals    = new MapleGlobalsMock(address(this));
-        factory    = new MockFactory();
+        factory    = new MockFactory(address(globals));
         feeManager = new MockFeeManager();
         lender     = new Lender();
         refinancer = new Refinancer();
@@ -663,7 +665,9 @@ contract RefinancerInterestTests is TestUtils {
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         // TODO: prank borrower
-        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.startPrank(address(factory));
+        loan = new ConstructableMapleLoan(address(factory), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.stopPrank();
 
         token.mint(address(loan), principalRequested_);
         loan.fundLoan(address(lender));
@@ -1033,7 +1037,7 @@ contract RefinancingFeesTerms is TestUtils {
         globals     = new MapleGlobalsMock(address(this));
         lender      = new Lender();
         refinancer  = new Refinancer();
-        factory     = new MockFactory();
+        factory     = new MockFactory(address(globals));
         feeManager  = new MapleLoanFeeManager(address(globals));
         poolManager = new MockPoolManager(address(POOL_DELEGATE));
         loanManager = new MockLoanManager(address(POOL_DELEGATE), address(poolManager));
@@ -1064,7 +1068,9 @@ contract RefinancingFeesTerms is TestUtils {
         uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        loan = new ConstructableMapleLoan(address(factory), address(globals), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.startPrank(address(factory));
+        loan = new ConstructableMapleLoan(address(factory), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.stopPrank();
 
         token.mint(address(loan), principalRequested_);
         loan.fundLoan(address(loanManager));

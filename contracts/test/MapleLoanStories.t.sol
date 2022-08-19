@@ -15,19 +15,19 @@ import { Lender }   from "./accounts/Lender.sol";
 // TODO: Add fees
 contract MapleLoanStoryTests is TestUtils {
 
-    Borrower       borrower;
-    Lender         lender;
+    Borrower         borrower;
+    Lender           lender;
     MapleGlobalsMock globals;
-    MockERC20      token;
-    MockFactory    factory;
-    MockFeeManager feeManager;
+    MockERC20        token;
+    MockFactory      factory;
+    MockFeeManager   feeManager;
 
     function setUp() external {
-        globals  = new MapleGlobalsMock(address(this));
+        globals    = new MapleGlobalsMock(address(this));
         borrower   = new Borrower();
         lender     = new Lender();
         token      = new MockERC20("Test", "TST", 0);
-        factory    = new MockFactory();
+        factory    = new MockFactory(address(globals));
         feeManager = new MockFeeManager();
 
         globals.setValidBorrower(address(borrower), true);
@@ -44,7 +44,9 @@ contract MapleLoanStoryTests is TestUtils {
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.startPrank(address(factory));
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.stopPrank();
 
         // Fund via a 1M transfer
         lender.erc20_transfer(address(token), address(loan), 1_000_000);
@@ -199,7 +201,9 @@ contract MapleLoanStoryTests is TestUtils {
         uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(globals), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.startPrank(address(factory));
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
+        vm.stopPrank();
 
         // Fund via a 1M transfer
         lender.erc20_transfer(address(token), address(loan), 1_000_000);

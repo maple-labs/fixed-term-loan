@@ -8,7 +8,6 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
     // TODO: Add natspec
 
     function encodeArguments(
-        address globals_,
         address borrower_,
         address feeManager_,
         address[2] memory assets_,
@@ -20,7 +19,6 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
 
     function decodeArguments(bytes calldata encodedArguments_) external pure
         returns (
-            address globals_,
             address borrower_,
             address feeManager_,
             address[2] memory assets_,
