@@ -181,12 +181,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function drawdownFunds(uint256 amount_, address destination_) external returns (uint256 collateralPosted_);
 
     /**
-     *  @dev    Fast forward `_nextPaymentDueDate` to `newPaymentDueDate_`. This is in the case that the Pool Delegate wants to force a payment (or default).
-     *  @param  newPaymentDueDate_ The new payment due date.
-     */
-    function triggerDefaultWarning(uint256 newPaymentDueDate_) external;
-
-    /**
      *  @dev    Lend funds to the loan/borrower.
      *  @param  lender_    The address to be registered as the lender.
      *  @return fundsLent_ The amount funded.
@@ -235,10 +229,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function removeCollateral(uint256 amount_, address destination_) external;
 
     /**
-     *  @dev   Remove default warning by postponing the next payment due date.
-     *  @param nextPaymentDueDate_ The date to which the next payment is due.
+     *  @dev Remove the default warning by restoring the original payment due date.
      */
-    function removeDefaultWarning(uint256 nextPaymentDueDate_) external;
+    function removeDefaultWarning() external;
 
     /**
      *  @dev    Return funds to the loan (opposite of drawing down).
@@ -274,6 +267,13 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @return skimmed_     The amount of token removed from the loan.
      */
     function skim(address token_, address destination_) external returns (uint256 skimmed_);
+
+    /**
+     *  @dev   Fast forward the next payment due date to the current time.
+     *         This enables the pool delegate to force a payment (or default).
+     *  @param nextPaymentDueDate_ The new payment due date.
+     */
+    function triggerDefaultWarning(uint256 nextPaymentDueDate_) external;
 
     /**********************/
     /*** View Functions ***/

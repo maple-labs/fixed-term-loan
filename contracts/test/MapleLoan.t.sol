@@ -386,31 +386,15 @@ contract MapleLoanTests is TestUtils {
 
     function test_removeDefaultWarning_acl() external {
         loan.__setGlobals(address(new MapleGlobalsMock(address(2))));
+        loan.__setOriginalNextPaymentDueDate(block.timestamp + 300);
 
-        uint256 nextPaymentDueDate = block.timestamp + 300;
-
-        vm.expectRevert("ML:RDW:NOT_LENDER_OR_GOVERNOR");
-        loan.removeDefaultWarning(nextPaymentDueDate);
+        vm.expectRevert("ML:RDW:NOT_LENDER");
+        loan.removeDefaultWarning();
 
         vm.prank(lender);
-        loan.removeDefaultWarning(nextPaymentDueDate);
+        loan.removeDefaultWarning();
 
-        assertEq(loan.nextPaymentDueDate(), nextPaymentDueDate);
-    }
-
-    function test_removeDefaultWarning_acl_governor() external {
-        address governor = address(1);
-        loan.__setGlobals(address(new MapleGlobalsMock(governor)));
-
-        uint256 nextPaymentDueDate = block.timestamp + 300;
-
-        vm.expectRevert("ML:RDW:NOT_LENDER_OR_GOVERNOR");
-        loan.removeDefaultWarning(nextPaymentDueDate);
-
-        vm.prank(governor);
-        loan.removeDefaultWarning(nextPaymentDueDate);
-
-        assertEq(loan.nextPaymentDueDate(), nextPaymentDueDate);
+        assertEq(loan.nextPaymentDueDate(), block.timestamp + 300);
     }
 
     function test_repossess_acl() external {
@@ -436,10 +420,6 @@ contract MapleLoanTests is TestUtils {
         uint256 originalNextPaymentDate = start + 10 days;
 
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
-
-        uint256 timeToFastForwardTo = start + 5 days;
-
-        vm.warp(timeToFastForwardTo);
 
         vm.expectRevert("ML:TDW:NOT_LENDER");
         loan.triggerDefaultWarning(block.timestamp);
@@ -559,15 +539,26 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
-        // Pool delegate wants to force the loan into the grace period 5 days early.
-        uint256 timeToFastForwardTo = start + 5 days;
-
-        vm.warp(timeToFastForwardTo);
-
         vm.prank(lender);
-        loan.triggerDefaultWarning(timeToFastForwardTo);
+        loan.triggerDefaultWarning(block.timestamp);
 
-        assertEq(loan.nextPaymentDueDate(), timeToFastForwardTo);
+        assertEq(loan.nextPaymentDueDate(), block.timestamp);
+    }
+
+     function test_triggerDefaultWarning_inPast() external {
+        uint256 start = 1 days;  // Non-zero start time.
+
+        vm.warp(start);
+
+        uint256 originalNextPaymentDate = start + 10 days;
+
+        loan.__setNextPaymentDueDate(originalNextPaymentDate);
+
+        vm.startPrank(lender);
+        vm.expectRevert("ML:TDW:IN_PAST");
+        loan.triggerDefaultWarning(block.timestamp - 1);
+
+        loan.triggerDefaultWarning(block.timestamp);
     }
 
     function test_triggerDefaultWarning_pastDueDate() external {
@@ -579,64 +570,41 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
-        // At due date, should not be able to fast forward.
-        uint256 timeToFastForwardTo = start + 10 days;
-
-        vm.warp(timeToFastForwardTo);
-
         vm.startPrank(lender);
         vm.expectRevert("ML:TDW:PAST_DUE_DATE");
-        loan.triggerDefaultWarning(block.timestamp);
+        loan.triggerDefaultWarning(originalNextPaymentDate);
 
-        vm.warp(timeToFastForwardTo - 1);
-        loan.triggerDefaultWarning(block.timestamp);
+        loan.triggerDefaultWarning(originalNextPaymentDate - 1);
     }
 
-    function test_triggerDefaultWarning_inPast() external {
-        uint256 start = 1 days;  // Non-zero start time.
-
-        vm.warp(start);
-
-        uint256 originalNextPaymentDate = start + 10 days;
-
-        loan.__setNextPaymentDueDate(originalNextPaymentDate);
-
-        uint256 timeToFastForwardTo = start + 5 days;
-
-        vm.warp(timeToFastForwardTo);
-
-        vm.startPrank(lender);
-        vm.expectRevert("ML:TDW:IN_PAST");
-        loan.triggerDefaultWarning(block.timestamp - 1);
-
-        loan.triggerDefaultWarning(block.timestamp);
-    }
-
-    function test_removeDefaultWarning_earlyDueDate() external {
-        loan.__setNextPaymentDueDate(block.timestamp + 1);
-
+    function test_removeDefaultWarning_noWarning() external {
         vm.prank(lender);
-        vm.expectRevert("ML:RDW:EARLY_DUE_DATE");
-        loan.removeDefaultWarning(block.timestamp);
+        vm.expectRevert("ML:RDW:NO_WARNING");
+        loan.removeDefaultWarning();
     }
 
     function test_removeDefaultWarning_pastDate() external {
-        loan.__setNextPaymentDueDate(block.timestamp - 1);
+        vm.warp(1 days);
+
+        loan.__setOriginalNextPaymentDueDate(block.timestamp - 1);
 
         vm.prank(lender);
         vm.expectRevert("ML:RDW:PAST_DATE");
-        loan.removeDefaultWarning(block.timestamp - 1);
+        loan.removeDefaultWarning();
     }
 
-    function test_removeDefaultWarning() external {
-        loan.__setNextPaymentDueDate(block.timestamp + 1);
+    function test_removeDefaultWarning_success() external {
+        vm.warp(1 days);
 
-        assertEq(loan.nextPaymentDueDate(), block.timestamp + 1);
+        loan.__setNextPaymentDueDate(block.timestamp);
+        loan.__setOriginalNextPaymentDueDate(block.timestamp + 1);
+
+        assertEq(loan.nextPaymentDueDate(), block.timestamp);
 
         vm.prank(lender);
-        loan.removeDefaultWarning(block.timestamp + 2);
+        loan.removeDefaultWarning();
 
-        assertEq(loan.nextPaymentDueDate(), block.timestamp + 2);
+        assertEq(loan.nextPaymentDueDate(), block.timestamp + 1);
     }
 
     function test_fundLoan_pushPattern() external {

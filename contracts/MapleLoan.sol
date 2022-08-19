@@ -220,8 +220,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
         require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
 
-        address fundsAssetAddress = _fundsAsset;
-
         // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
         require(
             _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
@@ -249,6 +247,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             unchecked { ++i; }
         }
 
+        address fundsAsset_         = _fundsAsset;
         uint256 paymentInterval_    = _paymentInterval;
         uint256 principalRequested_ = _principalRequested;
 
@@ -260,38 +259,36 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         IMapleLoanFeeManager feeManager_ = IMapleLoanFeeManager(_feeManager);
 
         feeManager_.updatePlatformServiceFee(principalRequested_, paymentInterval_);
-        feeManager_.payOriginationFees(_fundsAsset, _principalRequested);
+        feeManager_.payOriginationFees(fundsAsset_, principalRequested_);
 
         // Ensure that collateral is maintained after changes made.
-        require(_isCollateralMaintained(),                             "ML:ANT:INSUFFICIENT_COLLATERAL");
-        require(getUnaccountedAmount(fundsAssetAddress) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
+        require(_isCollateralMaintained(),                       "ML:ANT:INSUFFICIENT_COLLATERAL");
+        require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
     }
 
     // TODO: Revert on over fund
-
     function fundLoan(address lender_) external override returns (uint256 fundsLent_) {
-        address fundsAssetAddress = _fundsAsset;
-
         require((_lender = lender_) != address(0), "ML:FL:INVALID_LENDER");
 
         // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
         require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
 
-        // TODO: Investigate using exact approvals
-        IERC20(_fundsAsset).approve(_feeManager, type(uint256).max);
-
-        uint256 paymentInterval_     = _paymentInterval;
+        address fundsAsset_         = _fundsAsset;
+        uint256 paymentInterval_    = _paymentInterval;
         uint256 principalRequested_ = _principalRequested;
+
+        // TODO: Investigate using exact approvals
+        IERC20(fundsAsset_).approve(_feeManager, type(uint256).max);
 
         // Saves the platform service fee rate for future payments.
         IMapleLoanFeeManager(_feeManager).updatePlatformServiceFee(principalRequested_, paymentInterval_);
 
-        uint256 originationFees = IMapleLoanFeeManager(_feeManager).payOriginationFees(_fundsAsset, principalRequested_);
+        uint256 originationFees_ = IMapleLoanFeeManager(_feeManager).payOriginationFees(fundsAsset_, principalRequested_);
 
         // TODO: Add drawableFunds assertions in fundLoan tests in MapleLoan.t.sol
-        _drawableFunds = principalRequested_ - originationFees;
+        _drawableFunds = principalRequested_ - originationFees_;
 
-        require(getUnaccountedAmount(fundsAssetAddress) == uint256(0), "ML:FL:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
+        require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:FL:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
 
         emit Funded(
             lender_,
@@ -300,14 +297,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeDefaultWarning(uint256 nextPaymentDueDate_) external override {
-        require(msg.sender == _lender || msg.sender == governor(), "ML:RDW:NOT_LENDER_OR_GOVERNOR");
-        require(nextPaymentDueDate_ >= _nextPaymentDueDate,        "ML:RDW:EARLY_DUE_DATE");
-        require(nextPaymentDueDate_ >= block.timestamp,            "ML:RDW:PAST_DATE");
+    function removeDefaultWarning() external override {
+        uint256 originalNextPaymentDueDate_ = _originalNextPaymentDueDate;
 
-        _nextPaymentDueDate = nextPaymentDueDate_;
+        require(msg.sender == _lender,                          "ML:RDW:NOT_LENDER");
+        require(originalNextPaymentDueDate_ != 0,               "ML:RDW:NO_WARNING");
+        require(block.timestamp <= originalNextPaymentDueDate_, "ML:RDW:PAST_DATE");  // TODO: Should we remove this? Will it mess up LM accounting?
 
-        emit NextPaymentDueDateDelayed(nextPaymentDueDate_);
+        _nextPaymentDueDate = originalNextPaymentDueDate_;
+        delete _originalNextPaymentDueDate;
+
+        emit NextPaymentDueDateRestored(originalNextPaymentDueDate_);
     }
 
     function repossess(address destination_) external override returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
@@ -354,15 +354,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     // TODO: Should governor be able to set this?
-    function triggerDefaultWarning(uint256 newPaymentDueDate_) external override {
-        require(msg.sender == _lender,                    "ML:TDW:NOT_LENDER");
-        require(block.timestamp <= newPaymentDueDate_,    "ML:TDW:IN_PAST");
-        require(newPaymentDueDate_ < _nextPaymentDueDate, "ML:TDW:PAST_DUE_DATE");
+    function triggerDefaultWarning(uint256 nextPaymentDueDate_) external override {
+        uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
 
-        emit NextPaymentDueDateFastForwarded(newPaymentDueDate_);
+        require(msg.sender == _lender,                             "ML:TDW:NOT_LENDER");
+        require(nextPaymentDueDate_ >= block.timestamp,            "ML:TDW:IN_PAST");
+        require(nextPaymentDueDate_ < originalNextPaymentDueDate_, "ML:TDW:PAST_DUE_DATE");
 
-        // Grace period starts now.
-        _nextPaymentDueDate = newPaymentDueDate_;
+        emit NextPaymentDueDateFastForwarded(block.timestamp);
+
+        _nextPaymentDueDate         = nextPaymentDueDate_;
+        _originalNextPaymentDueDate = originalNextPaymentDueDate_;  // Store the existing payment due date to enable reversion.
     }
 
     /*******************************/
@@ -594,6 +596,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _nextPaymentDueDate = uint256(0);
         _paymentsRemaining  = uint256(0);
         _principal          = uint256(0);
+
+        _originalNextPaymentDueDate = uint256(0);
     }
 
     /*******************************/

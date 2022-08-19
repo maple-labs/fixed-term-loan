@@ -46,6 +46,10 @@ abstract contract MapleLoanStorage {
     uint256 internal __deprecated_delegateFee;  // Deprecated storage slot for `delegateFee`.
     uint256 internal __deprecated_treasuryFee;  // Deprecated storage slot for `treasuryFee`.
 
+    // Pool V2 dependencies
     address internal _feeManager;  // Address responsible for calculatating and handling fees
     address internal _globals;
+
+    // Triggered defaults
+    uint256 internal _originalNextPaymentDueDate;  // Stores the original `nextPaymentDueDate` in order to allow triggered defaults to be reverted.
 }

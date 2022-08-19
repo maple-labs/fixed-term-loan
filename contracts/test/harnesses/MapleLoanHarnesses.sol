@@ -94,6 +94,10 @@ contract MapleLoanHarness is MapleLoan {
         _nextPaymentDueDate = nextPaymentDueDate_;
     }
 
+    function __setOriginalNextPaymentDueDate(uint256 originalNextPaymentDueDate_) external {
+        _originalNextPaymentDueDate = originalNextPaymentDueDate_;
+    }
+
     function __setPaymentInterval(uint256 paymentInterval_) external {
         _paymentInterval = paymentInterval_;
     }
