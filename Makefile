@@ -1,3 +1,17 @@
-test       :; ./test.sh -p local
-release    :; ./release.sh
-dapp-build :; ./dapp-build.sh
+install:
+	@git submodule update --init --recursive
+
+update:
+	@forge update
+
+build:
+	@scripts/build.sh
+
+release:
+	@scripts/release.sh
+
+test:
+	@scripts/test.sh
+
+clean:
+	@forge clean
