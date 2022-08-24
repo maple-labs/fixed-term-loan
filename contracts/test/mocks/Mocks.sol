@@ -71,6 +71,8 @@ contract MockFeeManager {
 
     function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external {}
 
+    function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external  {}
+
     /**********************/
     /*** View Functions ***/
     /**********************/
@@ -80,6 +82,14 @@ contract MockFeeManager {
     }
 
     function platformServiceFee(address loan_) public pure returns (uint256 platformServiceFee_) {
+        return 0;
+    }
+
+    function getServiceFeesForPeriod(address loan_, uint256 interval_) external view returns (uint256 serviceFee_) {
+        return 0;
+    }
+
+    function getServiceFees(address loan_, uint256 numberOfPayments_) external view returns (uint256 serviceFees_) {
         return 0;
     }
 

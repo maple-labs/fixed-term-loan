@@ -25,12 +25,22 @@ interface IMapleLoanFeeManager {
     event PlatformServiceFeeUpdated(address loan_, uint256 platformServiceFee_);
 
     /**
+     *  @dev   New fee terms have been set.
+     *  @param loan_                      The address of the loan contract.
+     *  @param partialPlatformServiceFee_ The  value for the platform service fee.
+     *  @param partialDelegateServiceFee_ The  value for the delegate service fee.
+     */
+    event PartialRefinanceServiceFeesUpdated(address loan_, uint256 partialPlatformServiceFee_, uint256 partialDelegateServiceFee_);
+
+    /**
      *  @dev   A fee payment was made.
-     *  @param loan_               The address of the loan contract.
-     *  @param delegateServiceFee_ The amount of delegate service fee paid.
-     *  @param platformServiceFee_ The amount of platform service fee paid.
+     *  @param loan_                               The address of the loan contract.
+     *  @param delegateServiceFee_                 The amount of delegate service fee paid.
+     *  @param partialRefinanceDelegateServiceFee_ The amount of partial delegate service fee from refinance paid.
+     *  @param platformServiceFee_                 The amount of platform service fee paid.
+     *  @param partialRefinancePlatformServiceFee_ The amount of partial platform service fee from refinance paid.
     */
-    event ServiceFeesPaid(address loan_, uint256 delegateServiceFee_, uint256 platformServiceFee_);
+    event ServiceFeesPaid(address loan_, uint256 delegateServiceFee_, uint256 partialRefinanceDelegateServiceFee_, uint256 platformServiceFee_, uint256 partialRefinancePlatformServiceFee_);
 
     /*************************/
     /*** Payment Functions ***/
@@ -63,6 +73,13 @@ interface IMapleLoanFeeManager {
     function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external;
 
     /**
+     *  @dev    Called during loan refinance to save the partial service fees accrued.
+     *  @param  principalRequested_   The amount of principal pre-refinance requested.
+     *  @param  timeSinceLastDueDate_ The amount of time since last payment due date.
+     */
+    function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external;
+
+    /**
      *  @dev Function called by loans to update the saved platform service fee rate.
      */
     function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external;
@@ -79,12 +96,6 @@ interface IMapleLoanFeeManager {
     function delegateOriginationFee(address loan_) external view returns (uint256 delegateOriginationFee_);
 
     /**
-     *  @dev    Gets the global contract address.
-     *  @return globals_ The address of the global contract.
-     */
-    function globals() external view returns (address globals_);
-
-    /**
      *  @dev    Gets the delegate service fee rate for the given loan.
      *  @param  loan_               The address of the loan contract.
      *  @return delegateServiceFee_ The amount of delegate service fee to be paid.
@@ -92,9 +103,78 @@ interface IMapleLoanFeeManager {
     function delegateServiceFee(address loan_) external view returns (uint256 delegateServiceFee_);
 
     /**
-     *  @dev     Gets the platform fee rate for the given loan.
-     *  @param   loan_              The address of the loan contract.
-     *  @return  platformServiceFee The amount of platform service fee to be paid.
+     *  @dev    Gets the delegate service fee rate for the given loan.
+     *  @param  loan_                        The address of the loan contract.
+     *  @return delegateRefinanceServiceFee_ The amount of delegate service fee to be paid.
+     */
+    function delegateRefinanceServiceFee(address loan_) external view returns (uint256 delegateRefinanceServiceFee_);
+
+    /**
+     *  @dev    Gets the delegate service fee for the given loan.
+     *  @param  loan_               The address of the loan contract.
+     *  @param  interval_           The time, in seconds, to get the proportional fee for
+     *  @return delegateServiceFee_ The amount of delegate service fee to be paid.
+     */
+    function getDelegateServiceFeesForPeriod(address loan_, uint256 interval_) external view returns (uint256 delegateServiceFee_);
+
+     /**
+     *  @dev    Gets the sum of all origination fees for the given loan.
+     *  @param  loan_               The address of the loan contract.
+     *  @param  principalRequested_ The amount of principal requested in the loan.
+     *  @return originationFees_    The amount of origination fees to be paid.
+     */
+    function getOriginationFees(address loan_, uint256 principalRequested_) external view  returns (uint256 originationFees_);
+
+    /**
+     *  @dev    Gets the platform origination fee value for the given loan.
+     *  @param  loan_                   The address of the loan contract.
+     *  @param  principalRequested_     The amount of principal requested in the loan.
+     *  @return platformOriginationFee_ The amount of platform origination fee to be paid.
+     */
+    function getPlatformOriginationFee(address loan_, uint256 principalRequested_) external view returns (uint256 platformOriginationFee_);
+
+    /**
+     *  @dev    Gets the delegate service fee for the given loan.
+     *  @param  loan_               The address of the loan contract.
+     *  @param  principalRequested_ The amount of principal requested in the loan.
+     *  @param  interval_           The time, in seconds, to get the proportional fee for
+     *  @return platformServiceFee_ The amount of platform service fee to be paid.
+     */
+    function getPlatformServiceFeeForPeriod(address loan_, uint256 principalRequested_, uint256 interval_) external view returns (uint256 platformServiceFee_);
+
+    /**
+     *  @dev    Gets the service fees for the given interval.
+     *  @param  loan_             The address of the loan contract.
+     *  @param  numberOfPayments_ The number of payments being paid.
+     *  @return serviceFees_      The amount of platform service fee to be paid.
+     */
+    function getServiceFees(address loan_, uint256 numberOfPayments_) external view returns (uint256 serviceFees_);
+
+    /**
+     *  @dev    Gets the service fees for the given interval.
+     *  @param  loan_        The address of the loan contract.
+     *  @param  interval_    The time, in seconds, to get the proportional fee for
+     *  @return serviceFees_ The amount of platform service fee to be paid.
+     */
+    function getServiceFeesForPeriod(address loan_, uint256 interval_) external view returns (uint256 serviceFees_);
+
+    /**
+     *  @dev    Gets the global contract address.
+     *  @return globals_ The address of the global contract.
+     */
+    function globals() external view returns (address globals_);
+
+    /**
+     *  @dev    Gets the platform fee rate for the given loan.
+     *  @param  loan_                        The address of the loan contract.
+     *  @return platformRefinanceServiceFee_ The amount of platform service fee to be paid.
+     */
+    function platformRefinanceServiceFee(address loan_) external view returns (uint256 platformRefinanceServiceFee_);
+
+    /**
+     *  @dev    Gets the platform fee rate for the given loan.
+     *  @param  loan_              The address of the loan contract.
+     *  @return platformServiceFee The amount of platform service fee to be paid.
      */
     function platformServiceFee(address loan_) external view returns (uint256 platformServiceFee);
 

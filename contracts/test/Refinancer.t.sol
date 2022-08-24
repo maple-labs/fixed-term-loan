@@ -1091,6 +1091,31 @@ contract RefinancingFeesTerms is TestUtils {
         loan.makePayment(0);
     }
 
+    function test_refinance_updateRefinanceServiceFees() external {
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 365 days, 6);
+
+        // Set Globlas values
+        globals.setPlatformServiceFeeRate(address(poolManager), 0.01e18);
+
+        // Prank as loan to update delegate service fee to be non-zero
+        vm.prank(address(loan));
+        feeManager.updateDelegateFeeTerms(0, 10_000);
+
+        // Warp to 1/10 of payment period
+        vm.warp(block.timestamp + 365 days / 10);
+        uint256 deadline_ = type(uint256).max;
+
+        // Using dummy refinance call
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("setPaymentsRemaining(uint256)", 5);
+
+        loan.proposeNewTerms(address(refinancer), deadline_, calls);
+        vm.prank(address(loanManager));
+        loan.acceptNewTerms(address(refinancer), deadline_, calls);
+
+        assertEq(feeManager.platformRefinanceServiceFee(address(loan)), 1_000_000e18 * 0.01 / 10); // Saved fee is 1/10 of annual refinance fee
+        assertEq(feeManager.delegateRefinanceServiceFee(address(loan)), 10_000 / 10);
+    }
 
     function testFuzz_refinance_pdOriginationFeeTransferFail(uint256 newDelegateOriginationFee_) external {
         setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);

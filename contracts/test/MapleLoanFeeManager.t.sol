@@ -314,3 +314,49 @@ contract UpdateFeeTerms_SetterTests is FeeManagerBase {
     }
 
 }
+
+contract FeeManager_Getters is FeeManagerBase {
+    
+    function setUp() public override {
+        super.setUp();
+    }
+
+    function test_getDelegateServiceFeesForPeriod() external {
+        defaultTermDetails = [uint256(10 days), uint256(10 days), uint256(3)];
+        address loan1 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
+
+
+        vm.prank(loan1);
+        feeManager.updateDelegateFeeTerms(50_000e18, 1000e18);
+
+        // The loan interval is 10 days. So this tests should return the proportional amount
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 0 days),  0);
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 1 days),  100e18);  // 10% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 5 days),  500e18);  // 50% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 10 days), 1000e18); // 100% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 11 days), 1100e18); // 110% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 15 days), 1500e18); // 150% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 20 days), 2000e18); // 200% of the full fee
+    }
+
+    function test_getPlatformServiceFeeForPeriod() external {
+        defaultTermDetails = [uint256(10 days), uint256(365 days), uint256(3)];
+        address loan1 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
+
+        _fundLoan(loan1, address(loanManager), 1_000_000e18);
+
+        globals.setPlatformServiceFeeRate(address(poolManager), 0.01e18);  // 0.1%
+
+        vm.prank(loan1);
+        feeManager.updatePlatformServiceFee(1_000_000e18, 365 days);
+
+        // The loan interval is 10 days. So this tests should return the proportional amount
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 0 days),  0);
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 10), 1_000e18);   // 10% of the full fee (1_000_000 * 0.001 / 10)
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 2 ), 5_000e18);   // 50% of the full fee
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days),      10_000e18); // 100% of the full fee
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days * 2),  20_000e18); // 200% of the full fee
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days * 3),  30_000e18); // 300% of the full fee
+    }
+
+}

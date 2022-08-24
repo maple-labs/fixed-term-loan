@@ -22,8 +22,10 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     address public override globals;
 
     mapping(address => uint256) public override delegateOriginationFee;
+    mapping(address => uint256) public override delegateRefinanceServiceFee;
     mapping(address => uint256) public override delegateServiceFee;
     mapping(address => uint256) public override platformServiceFee;
+    mapping(address => uint256) public override platformRefinanceServiceFee;
 
     constructor(address globals_) {
         globals = globals_;
@@ -45,15 +47,23 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     }
 
     function payServiceFees(address asset_, uint256 numberOfPayments_) external override returns (uint256 feePaid_) {
-        uint256 delegateServiceFee_ = delegateServiceFee[msg.sender] * numberOfPayments_;
-        uint256 platformServiceFee_ = platformServiceFee[msg.sender] * numberOfPayments_;
+        (
+            uint256 delegateServiceFee_,
+            uint256 delegateRefinanceServiceFee_,
+            uint256 platformServiceFee_,
+            uint256 plaftormRefinanceServiceFee_
+        ) = _getServiceFees(msg.sender, numberOfPayments_);
 
-        feePaid_ = delegateServiceFee_ + platformServiceFee_;
+        feePaid_ = delegateServiceFee_ + delegateRefinanceServiceFee_ + platformServiceFee_ + plaftormRefinanceServiceFee_;
 
-        _transferTo(asset_, _getPoolDelegate(msg.sender), delegateServiceFee_, "MLFM:PSF:PD_TRANSFER");
-        _transferTo(asset_, _getTreasury(),               platformServiceFee_, "MLFM:PSF:TREASURY_TRANSFER");
+        _transferTo(asset_, _getPoolDelegate(msg.sender), delegateServiceFee_ + delegateRefinanceServiceFee_, "MLFM:PSF:PD_TRANSFER");
+        _transferTo(asset_, _getTreasury(),               platformServiceFee_ + plaftormRefinanceServiceFee_, "MLFM:PSF:TREASURY_TRANSFER");
 
-        emit ServiceFeesPaid(msg.sender, delegateServiceFee_, platformServiceFee_);
+        // Refinance fees should be only paid once.
+        delete delegateRefinanceServiceFee[msg.sender];
+        delete platformRefinanceServiceFee[msg.sender];
+
+        emit ServiceFeesPaid(msg.sender, delegateServiceFee_, delegateRefinanceServiceFee_, platformServiceFee_, plaftormRefinanceServiceFee_);
     }
 
     /****************************/
@@ -67,6 +77,16 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         emit FeeTermsUpdated(msg.sender, delegateOriginationFee_, delegateServiceFee_);
     }
 
+    function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external override {
+        uint256 platformRefinanceServiceFee_ = getPlatformServiceFeeForPeriod(msg.sender, principalRequested_, timeSinceLastDueDate_);
+        uint256 delegateRefinanceServiceFee_ = getDelegateServiceFeesForPeriod(msg.sender, timeSinceLastDueDate_);
+
+        platformRefinanceServiceFee[msg.sender] = platformRefinanceServiceFee_;
+        delegateRefinanceServiceFee[msg.sender] = delegateRefinanceServiceFee_;
+
+        emit PartialRefinanceServiceFeesUpdated(msg.sender, platformRefinanceServiceFee_, delegateRefinanceServiceFee_);
+    }
+
     function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external override {
         uint256 platformServiceFeeRate_ = IGlobalsLike(globals).platformServiceFeeRate(_getPoolManager(msg.sender));
         uint256 platformServiceFee_     = principalRequested_ * platformServiceFeeRate_ * paymentInterval_ / 365 days / HUNDRED_PERCENT;
@@ -74,6 +94,46 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         platformServiceFee[msg.sender] = platformServiceFee_;
 
         emit PlatformServiceFeeUpdated(msg.sender, platformServiceFee_);
+    }
+
+    /***********************/
+    /***  View Functions ***/
+    /***********************/
+
+    function getDelegateServiceFeesForPeriod(address loan_, uint256 interval_) public view override returns (uint256 delegateServiceFee_) {
+        uint256 paymentInterval = ILoanLike(loan_).paymentInterval();
+
+        delegateServiceFee_ = delegateServiceFee[loan_] * interval_ / paymentInterval;
+    }
+
+    function getPlatformOriginationFee(address loan_, uint256 principalRequested_) external view override returns (uint256 platformOriginationFee_) {
+        platformOriginationFee_ =  _getPlatformOriginationFee(loan_, principalRequested_);
+    }
+
+    function getPlatformServiceFeeForPeriod(address loan_, uint256 principalRequested_, uint256 interval_) public view override returns (uint256 platformServiceFee_) {
+        uint256 platformServiceFeeRate_ = IGlobalsLike(globals).platformServiceFeeRate(_getPoolManager(loan_));
+        platformServiceFee_             = principalRequested_ * platformServiceFeeRate_ * interval_ / 365 days / HUNDRED_PERCENT;
+    }
+
+    function getServiceFees(address loan_, uint256 numberOfPayments_) external view override returns (uint256 serviceFees_) {
+        (
+            uint256 delegateServiceFee_,
+            uint256 delegateRefinanceServiceFee_,
+            uint256 platformServiceFee_,
+            uint256 platformRefinanceServiceFee_
+        ) = _getServiceFees(loan_, numberOfPayments_);
+
+        serviceFees_ = delegateServiceFee_ + delegateRefinanceServiceFee_ + platformServiceFee_ + platformRefinanceServiceFee_;
+    }
+
+    function getServiceFeesForPeriod(address loan_, uint256 interval_) external view override returns (uint256 serviceFee_) {
+        uint256 principalRequested = ILoanLike(loan_).principalRequested();
+
+        serviceFee_ = getDelegateServiceFeesForPeriod(loan_, interval_) + getPlatformServiceFeeForPeriod(loan_, principalRequested, interval_);
+    }
+
+    function getOriginationFees(address loan_, uint256 principalRequested_) external view override returns (uint256 originationFees_) {
+        originationFees_ = _getPlatformOriginationFee(msg.sender, principalRequested_) + delegateOriginationFee[msg.sender];
     }
 
     /*******************************/
@@ -97,6 +157,20 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
 
     function _getPoolDelegate(address loan_) internal view returns (address poolDelegate_) {
         return IPoolManagerLike(_getPoolManager(loan_)).poolDelegate();
+    }
+
+    function _getServiceFees(address loan_, uint256 numberOfPayments_) internal view
+        returns (
+            uint256 delegateServiceFee_,
+            uint256 delegateRefinanceFee_,
+            uint256 platformServiceFee_,
+            uint256 platformRefinanceFee_
+        )
+    {
+        delegateServiceFee_   = delegateServiceFee[loan_] * numberOfPayments_;
+        platformServiceFee_   = platformServiceFee[loan_] * numberOfPayments_;
+        delegateRefinanceFee_ = delegateRefinanceServiceFee[loan_];
+        platformRefinanceFee_ = platformRefinanceServiceFee[loan_];
     }
 
     function _getTreasury() internal view returns (address mapleTreasury_) {

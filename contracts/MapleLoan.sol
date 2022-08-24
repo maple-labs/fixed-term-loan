@@ -236,6 +236,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
 
+        uint256 paymentInterval_           = _paymentInterval;
+        uint256 nextPaymentDueDate_        = _nextPaymentDueDate;
+        uint256 previousPrincipalRequested = _principalRequested;
+
+        uint256 timeSinceLastDueDate_ = block.timestamp + paymentInterval_ < nextPaymentDueDate_ ? 0 : block.timestamp - (nextPaymentDueDate_ - paymentInterval_);
+
         // Get the amount of interest owed since the last payment due date, as well as the time since the last due date
         uint256 proRataInterest = getRefinanceInterest(block.timestamp);
 
@@ -252,8 +258,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         }
 
         address fundsAsset_         = _fundsAsset;
-        uint256 paymentInterval_    = _paymentInterval;
         uint256 principalRequested_ = _principalRequested;
+        paymentInterval_            = _paymentInterval;
 
         // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
         // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
@@ -262,6 +268,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Update Platform Fees and pay originations
         IMapleLoanFeeManager feeManager_ = IMapleLoanFeeManager(_feeManager);
 
+        feeManager_.updateRefinanceServiceFees(previousPrincipalRequested, timeSinceLastDueDate_);
         feeManager_.updatePlatformServiceFee(principalRequested_, paymentInterval_);
         feeManager_.payOriginationFees(fundsAsset_, principalRequested_);
 
@@ -436,10 +443,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Include any uncaptured interest from refinance.
         interest_ += _refinanceInterest;
 
-        uint256 delegateServiceFee_ = IMapleLoanFeeManager(_feeManager).delegateServiceFee(address(this));
-        uint256 platformServiceFee_ = IMapleLoanFeeManager(_feeManager).platformServiceFee(address(this));
-
-        fees_ = delegateServiceFee_ + platformServiceFee_;
+        fees_ = IMapleLoanFeeManager(_feeManager).getServiceFees(address(this), 1);
     }
 
     function getRefinanceInterest(uint256 timestamp_) public view override returns (uint256 proRataInterest_) {
