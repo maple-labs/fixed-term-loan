@@ -270,7 +270,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         feeManager_.updateRefinanceServiceFees(previousPrincipalRequested, timeSinceLastDueDate_);
         feeManager_.updatePlatformServiceFee(principalRequested_, paymentInterval_);
-        feeManager_.payOriginationFees(fundsAsset_, principalRequested_);
+
+        _drawableFunds -= feeManager_.payOriginationFees(fundsAsset_, principalRequested_);
 
         // Ensure that collateral is maintained after changes made.
         require(_isCollateralMaintained(),                       "ML:ANT:INSUFFICIENT_COLLATERAL");

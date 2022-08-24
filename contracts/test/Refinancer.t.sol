@@ -1191,6 +1191,7 @@ contract RefinancingFeesTerms is TestUtils {
         uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 1e18;  // Annualized over course of remaining loan term (150 days since payment was made)
 
         token.mint(address(loan), platformOriginationFee_ + newDelegateOriginationFee_);
+        loan.returnFunds(0); // Funds need to be returned through this function, otherwise drawableFunds won't be increased.
 
         assertEq(token.balanceOf(POOL_DELEGATE), 0);
         assertEq(token.balanceOf(TREASURY),      0);
@@ -1272,6 +1273,7 @@ contract RefinancingFeesTerms is TestUtils {
 
         // Minting origination fee because the fees are paid after the refinance calls, so the new fees are in effect.
         token.mint(address(loan), newOriginationFee_);
+        loan.returnFunds(0);
 
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
         vm.prank(address(loanManager));
