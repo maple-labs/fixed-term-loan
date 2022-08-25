@@ -144,6 +144,22 @@ interface IMapleLoanFeeManager {
 
     /**
      *  @dev    Gets the service fees for the given interval.
+     *  @param  loan_                 The address of the loan contract.
+     *  @param  numberOfPayments_     The number of payments being paid.
+     *  @return delegateServiceFee_   The amount of delegate service fee to be paid.
+     *  @return delegateRefinanceFee_ The amount of delegate refinance fee to be paid.
+     *  @return platformServiceFee_   The amount of platform service fee to be paid.
+     *  @return platformRefinanceFee_ The amount of platform refinance fee to be paid.
+     */
+    function getServiceFeeBreakdown(address loan_, uint256 numberOfPayments_) external view returns (
+        uint256 delegateServiceFee_,
+        uint256 delegateRefinanceFee_,
+        uint256 platformServiceFee_,
+        uint256 platformRefinanceFee_
+    );
+
+    /**
+     *  @dev    Gets the service fees for the given interval.
      *  @param  loan_             The address of the loan contract.
      *  @param  numberOfPayments_ The number of payments being paid.
      *  @return serviceFees_      The amount of platform service fee to be paid.

@@ -168,13 +168,16 @@ contract MapleLoanHarness is MapleLoan {
         uint256 lateFeeRate_,
         uint256 lateInterestPremium_
     )
-        external pure
+        external view
         returns (
             uint256 principalAmount_,
             uint256 interestAmount_
         )
     {
-        return _getPaymentBreakdown(
+        uint256[3] memory interestArray_;
+        uint256[2] memory feesArray_;
+
+        ( principalAmount_, interestArray_, feesArray_ ) = _getPaymentBreakdown(
             currentTime_,
             nextPaymentDueDate_,
             paymentInterval_,
@@ -185,6 +188,8 @@ contract MapleLoanHarness is MapleLoan {
             lateFeeRate_,
             lateInterestPremium_
         );
+
+        interestAmount_ = interestArray_[0] + interestArray_[1] + interestArray_[2];
     }
 
     function __getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) external pure returns (uint256 periodicInterestRate_) {

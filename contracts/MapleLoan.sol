@@ -428,8 +428,32 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
     }
 
+    function getNextPaymentDetailedBreakdown()
+        public view override returns (
+            uint256 principal_,
+            uint256[3] memory interest_,
+            uint256[2] memory fees_
+        )
+    {
+        ( principal_, interest_, fees_ )
+            = _getPaymentBreakdown(
+                block.timestamp,
+                _nextPaymentDueDate,
+                _paymentInterval,
+                _principal,
+                _endingPrincipal,
+                _paymentsRemaining,
+                _interestRate,
+                _lateFeeRate,
+                _lateInterestPremium
+            );
+    }
+
     function getNextPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        ( principal_, interest_ ) = _getPaymentBreakdown(
+        uint256[3] memory interestArray_;
+        uint256[2] memory feesArray_;
+
+        ( principal_, interestArray_, feesArray_ ) = _getPaymentBreakdown(
             block.timestamp,
             _nextPaymentDueDate,
             _paymentInterval,
@@ -441,10 +465,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             _lateInterestPremium
         );
 
-        // Include any uncaptured interest from refinance.
-        interest_ += _refinanceInterest;
-
-        fees_ = IMapleLoanFeeManager(_feeManager).getServiceFees(address(this), 1);
+        interest_ = interestArray_[0] + interestArray_[1] + interestArray_[2];
+        fees_     = feesArray_[0]     + feesArray_[1];
     }
 
     function getRefinanceInterest(uint256 timestamp_) public view override returns (uint256 proRataInterest_) {
@@ -587,7 +609,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     // TODO: Add actual function.
-    function isInDefaultWarning() external view returns (bool isInDefaultWarning) {
+    function isInDefaultWarning() external view returns (bool isInDefaultWarning_) {
         return false;
     }
 
@@ -689,10 +711,14 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 lateFeeRate_,
         uint256 lateInterestPremium_
     )
-        internal pure
-        returns (uint256 principalAmount_, uint256 interestAmount_)
+        internal view
+        returns (
+            uint256 principalAmount_,
+            uint256[3] memory interest_,
+            uint256[2] memory fees_
+        )
     {
-        ( principalAmount_, interestAmount_ ) = _getInstallment(
+        ( principalAmount_, interest_[0] ) = _getInstallment(
             principal_,
             endingPrincipal_,
             interestRate_,
@@ -702,7 +728,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         principalAmount_ = paymentsRemaining_ == uint256(1) ? principal_ : principalAmount_;
 
-        interestAmount_ += _getLateInterest(
+        interest_[1] = _getLateInterest(
             currentTime_,
             principal_,
             interestRate_,
@@ -710,6 +736,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             lateFeeRate_,
             lateInterestPremium_
         );
+
+        interest_[2] = _refinanceInterest;
+
+        (
+            uint256 delegateServiceFee_,
+            uint256 delegateRefinanceFee_,
+            uint256 platformServiceFee_,
+            uint256 platformRefinanceFee_
+        ) = IMapleLoanFeeManager(_feeManager).getServiceFeeBreakdown(address(this), 1);
+
+        fees_[0] = delegateServiceFee_ + delegateRefinanceFee_;
+        fees_[1] = platformServiceFee_ + platformRefinanceFee_;
     }
 
     function _getRefinanceInterest(

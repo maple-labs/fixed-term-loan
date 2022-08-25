@@ -93,6 +93,21 @@ contract MockFeeManager {
         return 0;
     }
 
+    function getServiceFeeBreakdown(address loan_, uint256 numberOfPayments_) external view
+        returns (
+            uint256 delegateServiceFee_,
+            uint256 delegateRefinanceFee_,
+            uint256 platformServiceFee_,
+            uint256 platformRefinanceFee_
+        )
+    {
+        // TODO: Make settable values
+        delegateServiceFee_   = 0;
+        platformServiceFee_   = 0;
+        delegateRefinanceFee_ = 0;
+        platformRefinanceFee_ = 0;
+    }
+
 }
 
 contract MockLoanManager {

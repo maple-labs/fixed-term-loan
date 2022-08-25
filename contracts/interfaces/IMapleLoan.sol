@@ -308,6 +308,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
+    // TODO: Natspec
+    function getNextPaymentDetailedBreakdown() external view returns (uint256 principal_, uint256[3] memory interest_, uint256[2] memory fees_);
+
     /**
      *  @dev    Get the extra interest that will be charged according to loan terms before refinance, based on a given timestamp.
      *  @param  timestamp_       The timestamp when the new terms will be accepted.

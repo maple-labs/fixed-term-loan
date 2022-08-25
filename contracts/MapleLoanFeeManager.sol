@@ -50,7 +50,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
             uint256 delegateRefinanceServiceFee_,
             uint256 platformServiceFee_,
             uint256 plaftormRefinanceServiceFee_
-        ) = _getServiceFees(msg.sender, numberOfPayments_);
+        ) = getServiceFeeBreakdown(msg.sender, numberOfPayments_);
 
         feePaid_ = delegateServiceFee_ + delegateRefinanceServiceFee_ + platformServiceFee_ + plaftormRefinanceServiceFee_;
 
@@ -119,7 +119,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
             uint256 delegateRefinanceServiceFee_,
             uint256 platformServiceFee_,
             uint256 platformRefinanceServiceFee_
-        ) = _getServiceFees(loan_, numberOfPayments_);
+        ) = getServiceFeeBreakdown(loan_, numberOfPayments_);
 
         serviceFees_ = delegateServiceFee_ + delegateRefinanceServiceFee_ + platformServiceFee_ + platformRefinanceServiceFee_;
     }
@@ -157,7 +157,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         return IPoolManagerLike(_getPoolManager(loan_)).poolDelegate();
     }
 
-    function _getServiceFees(address loan_, uint256 numberOfPayments_) internal view
+    function getServiceFeeBreakdown(address loan_, uint256 numberOfPayments_) public view override
         returns (
             uint256 delegateServiceFee_,
             uint256 delegateRefinanceFee_,

@@ -1060,10 +1060,10 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
             lateInterestPremium_
         );
 
-        ( uint256 actualPrincipal, uint256 actualInterest,  ) = _loan.getNextPaymentBreakdown();
+        ( uint256 actualPrincipal, uint256 actualInterest, ) = _loan.getNextPaymentBreakdown();
 
         assertEq(actualPrincipal, expectedPrincipal);
-        assertEq(actualInterest,  expectedInterest + refinanceInterest_);
+        assertEq(actualInterest,  expectedInterest);  // Refinance interest included in payment breakdown
     }
 
 }
@@ -1071,9 +1071,14 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
 contract MapleLoanLogic_GetPaymentBreakdownTests is TestUtils {
 
     address internal _loan;
+    address internal _feeManager;
 
     function setUp() external {
         _loan = address(new MapleLoanHarness());
+
+        _feeManager = address(new MockFeeManager());
+
+        MapleLoanHarness(_loan).__setFeeManager(_feeManager);
     }
 
     function _getPaymentBreakdownWith(
@@ -1081,7 +1086,7 @@ contract MapleLoanLogic_GetPaymentBreakdownTests is TestUtils {
         uint256 currentTime_,
         uint256 nextPaymentDueDate_
     )
-        internal pure
+        internal view
         returns (
             uint256 totalPrincipalAmount,
             uint256 totalInterestFees
