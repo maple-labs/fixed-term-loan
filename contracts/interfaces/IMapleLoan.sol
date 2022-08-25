@@ -271,9 +271,8 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     /**
      *  @dev   Fast forward the next payment due date to the current time.
      *         This enables the pool delegate to force a payment (or default).
-     *  @param nextPaymentDueDate_ The new payment due date.
      */
-    function triggerDefaultWarning(uint256 nextPaymentDueDate_) external;
+    function triggerDefaultWarning() external;
 
     /**********************/
     /*** View Functions ***/

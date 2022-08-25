@@ -73,6 +73,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         require(block.timestamp <= paymentDueDate_, "ML:CL:PAYMENT_IS_LATE");
 
+        _handleDefaultWarning();
+
         ( principal_, interest_, fees_ ) = getClosingPaymentBreakdown();
 
         _refinanceInterest = uint256(0);
@@ -123,6 +125,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function makePayment(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
+
+        _handleDefaultWarning();
 
         ( principal_, interest_, fees_ ) = getNextPaymentBreakdown();
 
@@ -265,6 +269,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
         _nextPaymentDueDate = block.timestamp + paymentInterval_;
 
+        _handleDefaultWarning();
+
         // Update Platform Fees and pay originations
         IMapleLoanFeeManager feeManager_ = IMapleLoanFeeManager(_feeManager);
 
@@ -365,17 +371,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit PendingLenderSet(_pendingLender = pendingLender_);
     }
 
-    // TODO: Should governor be able to set this?
-    function triggerDefaultWarning(uint256 nextPaymentDueDate_) external override {
+    function triggerDefaultWarning() external override {
         uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
 
-        require(msg.sender == _lender,                             "ML:TDW:NOT_LENDER");
-        require(nextPaymentDueDate_ >= block.timestamp,            "ML:TDW:IN_PAST");
-        require(nextPaymentDueDate_ < originalNextPaymentDueDate_, "ML:TDW:PAST_DUE_DATE");
+        require(msg.sender == _lender, "ML:TDW:NOT_LENDER");
+        require(!isInDefaultWarning(), "ML:TDW:ALREADY_TRIGGERED");
 
         emit NextPaymentDueDateFastForwarded(block.timestamp);
 
-        _nextPaymentDueDate         = nextPaymentDueDate_;
+        _nextPaymentDueDate         = block.timestamp;
         _originalNextPaymentDueDate = originalNextPaymentDueDate_;  // Store the existing payment due date to enable reversion.
     }
 
@@ -608,9 +612,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _refinanceInterest;
     }
 
-    // TODO: Add actual function.
-    function isInDefaultWarning() external view returns (bool isInDefaultWarning_) {
-        return false;
+    function isInDefaultWarning() public view returns (bool isInDefaultWarning_) {
+        return _originalNextPaymentDueDate != uint256(0);
     }
 
     /**********************************/
@@ -817,6 +820,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /// @dev Returns refinance commitment given refinance parameters.
     function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal pure returns (bytes32 refinanceCommitment_) {
         return keccak256(abi.encode(refinancer_, deadline_, calls_));
+    }
+
+    function _handleDefaultWarning() internal {
+        if (!isInDefaultWarning()) return;
+        _originalNextPaymentDueDate = uint256(0);
     }
 
     /**

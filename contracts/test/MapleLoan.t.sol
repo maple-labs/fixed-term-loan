@@ -424,10 +424,10 @@ contract MapleLoanTests is TestUtils {
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
         vm.expectRevert("ML:TDW:NOT_LENDER");
-        loan.triggerDefaultWarning(block.timestamp);
+        loan.triggerDefaultWarning();
 
         vm.prank(lender);
-        loan.triggerDefaultWarning(block.timestamp);
+        loan.triggerDefaultWarning();
     }
 
     function test_setLender_acl() external {
@@ -532,6 +532,23 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.drawableFunds(),                1);
     }
 
+    function test_triggerDefaultWarning_cantTriggerTwice() external {
+        uint256 start = 1 days;  // Non-zero start time.
+
+        vm.warp(start);
+
+        uint256 originalNextPaymentDate = start + 10 days;
+
+        loan.__setNextPaymentDueDate(originalNextPaymentDate);
+
+        vm.prank(lender);
+        loan.triggerDefaultWarning();
+
+        vm.expectRevert("ML:TDW:ALREADY_TRIGGERED");
+        vm.prank(lender);
+        loan.triggerDefaultWarning();
+    }
+
     function test_triggerDefaultWarning() external {
         uint256 start = 1 days;  // Non-zero start time.
 
@@ -542,41 +559,9 @@ contract MapleLoanTests is TestUtils {
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
         vm.prank(lender);
-        loan.triggerDefaultWarning(block.timestamp);
+        loan.triggerDefaultWarning();
 
         assertEq(loan.nextPaymentDueDate(), block.timestamp);
-    }
-
-     function test_triggerDefaultWarning_inPast() external {
-        uint256 start = 1 days;  // Non-zero start time.
-
-        vm.warp(start);
-
-        uint256 originalNextPaymentDate = start + 10 days;
-
-        loan.__setNextPaymentDueDate(originalNextPaymentDate);
-
-        vm.startPrank(lender);
-        vm.expectRevert("ML:TDW:IN_PAST");
-        loan.triggerDefaultWarning(block.timestamp - 1);
-
-        loan.triggerDefaultWarning(block.timestamp);
-    }
-
-    function test_triggerDefaultWarning_pastDueDate() external {
-        uint256 start = 1 days;  // Non-zero start time.
-
-        vm.warp(start);
-
-        uint256 originalNextPaymentDate = start + 10 days;
-
-        loan.__setNextPaymentDueDate(originalNextPaymentDate);
-
-        vm.startPrank(lender);
-        vm.expectRevert("ML:TDW:PAST_DUE_DATE");
-        loan.triggerDefaultWarning(originalNextPaymentDate);
-
-        loan.triggerDefaultWarning(originalNextPaymentDate - 1);
     }
 
     function test_removeDefaultWarning_noWarning() external {
