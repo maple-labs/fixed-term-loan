@@ -15,7 +15,7 @@ import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
 
 contract MapleLoanFeeManager is IMapleLoanFeeManager {
 
-    uint256 internal constant HUNDRED_PERCENT = 1e18;
+    uint256 internal constant HUNDRED_PERCENT = 100_0000;
 
     address public override globals;
 

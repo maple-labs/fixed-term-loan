@@ -102,7 +102,7 @@ contract PayClosingFeesTests is FeeManagerBase {
 
         loan = MapleLoan(_createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
 
-        globals.setPlatformServiceFeeRate(address(poolManager), 0.003e18);  // 0.3%
+        globals.setPlatformServiceFeeRate(address(poolManager), 3000);  // 0.3%
 
         _fundLoan(address(loan), address(loanManager), loan.principalRequested());
 
@@ -166,7 +166,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
 
         loan = MapleLoan(_createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
 
-        globals.setPlatformOriginationFeeRate(address(poolManager), 0.003e18);  // 0.3%
+        globals.setPlatformOriginationFeeRate(address(poolManager), 3000);  // 0.3%
     }
 
     function test_payOriginationFees_insufficientFunds_poolDelegate() external {
@@ -208,8 +208,7 @@ contract PayServiceFeesTests is FeeManagerBase {
 
     MapleLoan loan;
 
-    uint256 delegateServiceFeeRate = 0.006e18;  // 0.06%
-    uint256 platformServiceFeeRate = 0.003e18;  // 0.03%
+    uint256 platformServiceFeeRate = 3000;  // 0.3%
 
     function setUp() public override {
         super.setUp();
@@ -281,7 +280,7 @@ contract UpdatePlatformServiceFeeTests is FeeManagerBase {
         assertEq(feeManager.platformServiceFee(loan1), 0);
         assertEq(feeManager.platformServiceFee(loan2), 0);
 
-        globals.setPlatformServiceFeeRate(address(poolManager), 0.003e18);  // 0.3%
+        globals.setPlatformServiceFeeRate(address(poolManager), 3000);  // 0.3%
 
         vm.prank(loan1);
         feeManager.updatePlatformServiceFee(1_000_000e18, 365 days / 12);
@@ -289,7 +288,7 @@ contract UpdatePlatformServiceFeeTests is FeeManagerBase {
         assertEq(feeManager.platformServiceFee(loan1), 250e18);  // Updated from globals (1m * 0.3% / 12)
         assertEq(feeManager.platformServiceFee(loan2), 0);       // Unchanged from globals
 
-        globals.setPlatformServiceFeeRate(address(poolManager), 0.006e18);  // 0.6%
+        globals.setPlatformServiceFeeRate(address(poolManager), 6000);  // 0.6%
 
         vm.prank(loan2);
         feeManager.updatePlatformServiceFee(1_000_000e18, 365 days / 12);
@@ -316,7 +315,7 @@ contract UpdateFeeTerms_SetterTests is FeeManagerBase {
 }
 
 contract FeeManager_Getters is FeeManagerBase {
-    
+
     function setUp() public override {
         super.setUp();
     }
@@ -345,15 +344,15 @@ contract FeeManager_Getters is FeeManagerBase {
 
         _fundLoan(loan1, address(loanManager), 1_000_000e18);
 
-        globals.setPlatformServiceFeeRate(address(poolManager), 0.01e18);  // 0.1%
+        globals.setPlatformServiceFeeRate(address(poolManager), 1_0000);
 
         vm.prank(loan1);
         feeManager.updatePlatformServiceFee(1_000_000e18, 365 days);
 
         // The loan interval is 10 days. So this tests should return the proportional amount
         assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 0 days),  0);
-        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 10), 1_000e18);   // 10% of the full fee (1_000_000 * 0.001 / 10)
-        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 2 ), 5_000e18);   // 50% of the full fee
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 10), 1_000e18);  // 10% of the full fee (1_000_000 * 0.001 / 10)
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 2 ), 5_000e18);  // 50% of the full fee
         assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days),      10_000e18); // 100% of the full fee
         assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days * 2),  20_000e18); // 200% of the full fee
         assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days * 3),  30_000e18); // 300% of the full fee

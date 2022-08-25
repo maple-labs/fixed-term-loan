@@ -1017,6 +1017,7 @@ contract RefinancingFeesTerms is TestUtils {
     address internal TREASURY      = address(888);
 
     // Loan Boundaries
+    uint256 internal constant MAX_FEE_RATE     = 100_0000;         // 100 %
     uint256 internal constant MAX_RATE         = 1e18;             // 100 %
     uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
@@ -1094,8 +1095,8 @@ contract RefinancingFeesTerms is TestUtils {
     function test_refinance_updateRefinanceServiceFees() external {
         setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 365 days, 6);
 
-        // Set Globlas values
-        globals.setPlatformServiceFeeRate(address(poolManager), 0.01e18);
+        // Set Globals values
+        globals.setPlatformServiceFeeRate(address(poolManager), 1_0000);
 
         // Prank as loan to update delegate service fee to be non-zero
         vm.prank(address(loan));
@@ -1146,7 +1147,7 @@ contract RefinancingFeesTerms is TestUtils {
         uint256 deadline_ = type(uint256).max;
 
         newDelegateOriginationFee_     = constrictToRange(newDelegateOriginationFee_,     1, MAX_TOKEN_AMOUNT);
-        newPlatformOriginationFeeRate_ = constrictToRange(newPlatformOriginationFeeRate_, 1, MAX_RATE);
+        newPlatformOriginationFeeRate_ = constrictToRange(newPlatformOriginationFeeRate_, 1, MAX_FEE_RATE);
 
         globals.setPlatformOriginationFeeRate(address(poolManager), newPlatformOriginationFeeRate_);
 
@@ -1176,7 +1177,7 @@ contract RefinancingFeesTerms is TestUtils {
         uint256 deadline_ = type(uint256).max;
 
         newDelegateOriginationFee_     = constrictToRange(newDelegateOriginationFee_,     1, MAX_TOKEN_AMOUNT);
-        newPlatformOriginationFeeRate_ = constrictToRange(newPlatformOriginationFeeRate_, 1, MAX_RATE);
+        newPlatformOriginationFeeRate_ = constrictToRange(newPlatformOriginationFeeRate_, 1, MAX_FEE_RATE);
 
         // Initial values are zeroed
         assertEq(feeManager.delegateOriginationFee(address(loan)), 0);
@@ -1188,7 +1189,7 @@ contract RefinancingFeesTerms is TestUtils {
 
         calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", newDelegateOriginationFee_, 100e18);
 
-        uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 1e18;  // Annualized over course of remaining loan term (150 days since payment was made)
+        uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 100_0000;  // Annualized over course of remaining loan term (150 days since payment was made)
 
         token.mint(address(loan), platformOriginationFee_ + newDelegateOriginationFee_);
         loan.returnFunds(0); // Funds need to be returned through this function, otherwise drawableFunds won't be increased.
@@ -1212,7 +1213,7 @@ contract RefinancingFeesTerms is TestUtils {
     function testFuzz_refinance_updatesPlatformServiceFees(uint256 newPlatformServiceFeeRate_) external {
         setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
 
-        newPlatformServiceFeeRate_ = constrictToRange(newPlatformServiceFeeRate_, 1, MAX_RATE);
+        newPlatformServiceFeeRate_ = constrictToRange(newPlatformServiceFeeRate_, 1, MAX_FEE_RATE);
 
         globals.setPlatformServiceFeeRate(address(poolManager), newPlatformServiceFeeRate_);
 
@@ -1229,7 +1230,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(address(loanManager));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
-        assertEq(feeManager.platformServiceFee(address(loan)), 1_000_000e18 * newPlatformServiceFeeRate_ * 30 days / 365 days / 1e18);
+        assertEq(feeManager.platformServiceFee(address(loan)), 1_000_000e18 * newPlatformServiceFeeRate_ * 30 days / 365 days / 100_0000);
     }
 
     function testFuzz_refinance_updateFeeTerms(
