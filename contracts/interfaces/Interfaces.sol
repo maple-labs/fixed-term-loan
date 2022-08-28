@@ -9,6 +9,9 @@ interface ILenderLike {
 
 interface IMapleGlobalsLike {
 
+    /// @dev The address of the security admin
+    function globalAdmin() external view returns (address globalAdmin_);
+
     /// @dev The address of the Governor responsible for management of global Maple variables.
     function governor() external view returns (address governor_);
 

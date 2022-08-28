@@ -468,6 +468,27 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.implementation(), newImplementation);
     }
 
+    function test_upgrade_acl_GlobalsAdmin() external {
+        MockFactory factory = new MockFactory();
+
+        factory.setGlobals(address(globals));
+
+        address globalsAdmin = address(2222);
+
+        globals.setGlobalsAdmin(globalsAdmin);
+
+        loan.__setFactory(address(factory));
+
+        address newImplementation = address(new ManipulatableMapleLoan());
+
+        try loan.upgrade(1, abi.encode(newImplementation)) { assertTrue(false, "Non-borrower was able to set implementation"); } catch { }
+
+        vm.prank(globalsAdmin);
+        loan.upgrade(1, abi.encode(newImplementation));
+
+        assertEq(loan.implementation(), newImplementation);
+    }
+
     /***********************************/
     /*** Loan Transfer-Related Tests ***/
     /***********************************/
