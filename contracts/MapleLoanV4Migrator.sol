@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
+import { IERC20 } from "../modules/erc20/contracts/interfaces/IERC20.sol";
+
 import { IMapleFeeManagerLike } from "./interfaces/Interfaces.sol";
 import { IMapleLoanV4Migrator } from "./interfaces/IMapleLoanV4Migrator.sol";
 
@@ -26,6 +28,8 @@ contract MapleLoanV4Migrator is IMapleLoanV4Migrator, MapleLoanStorage {
 
         IMapleFeeManagerLike(feeManager_).updateDelegateFeeTerms(0, __deprecated_delegateFee);
         IMapleFeeManagerLike(feeManager_).updatePlatformServiceFee(_principalRequested, _paymentInterval);
+
+        IERC20(_fundsAsset).approve(_feeManager, type(uint256).max);
     }
 
 }
