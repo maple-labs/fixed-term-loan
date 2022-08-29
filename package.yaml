@@ -1,17 +1,13 @@
 name: loan
-version: 2.0.0
+version: 3.0.1-beta.0
 source: contracts
 packages:
   - path: contracts/MapleLoan.sol
     contractName: MapleLoan
-    customChecksum: 0x7822e81c18e1e4b5aee7d41e6033da13a2e2bf0c212a117fecb218e8fa8a5d1b
   - path: contracts/MapleLoanFactory.sol
     contractName: MapleLoanFactory
-    customChecksum: 0x6378c7f34e9cad0e3a914e93a84ee665ef7a53134d98009a67005efaa4f2c9a9
   - path: contracts/MapleLoanInitializer.sol
     contractName: MapleLoanInitializer
-    customChecksum: 0x6aba07fb7a1ce75c05293a3bef618ebff607699afb91196689227388cb32aea8
   - path: contracts/Refinancer.sol
     contractName: Refinancer
-    customChecksum: 0xdf9225c1d5af59f6d7fa500ebeea7fcd1ed0fd2ff894944ec770128ef95c1229
 customDescription: Maple Loan Artifacts and ABIs
