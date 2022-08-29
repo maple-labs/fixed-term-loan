@@ -1,5 +1,5 @@
 name: loan
-version: 4.0.0-alpha.0
+version: 4.0.0-beta.0
 source: contracts
 packages:
   - path: contracts/MapleLoan.sol

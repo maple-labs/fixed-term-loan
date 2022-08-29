@@ -307,7 +307,17 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_, uint256 fees_);
 
-    // TODO: Natspec
+    /**
+     *  @dev    Get the detailed breakdown of the total payment needed to satisfy the next payment installment.
+     *  @return principal_ The portion of the total amount that will go towards principal.
+     *  @return interest_  The portion of the total amount that will go towards interest fees.
+     *                      [0] Interest from the payment interval.
+     *                      [1] Late interest.
+     *                      [2] Refinance interest.
+     *  @return fees_      The portion of the total amount that will go towards paying administrative fees.
+     *                      [0] Delegate fees.
+     *                      [1] Plaftorm fees.
+     */
     function getNextPaymentDetailedBreakdown() external view returns (uint256 principal_, uint256[3] memory interest_, uint256[2] memory fees_);
 
     /**
