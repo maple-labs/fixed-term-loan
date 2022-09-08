@@ -145,7 +145,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     }
 
     function getOriginationFees(address loan_, uint256 principalRequested_) external view override returns (uint256 originationFees_) {
-        originationFees_ = _getPlatformOriginationFee(msg.sender, principalRequested_) + delegateOriginationFee[msg.sender];
+        originationFees_ = _getPlatformOriginationFee(loan_, principalRequested_) + delegateOriginationFee[loan_];
     }
 
     /*******************************/
