@@ -249,7 +249,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Not ideal for checks-effects-interactions, but the feeManager is a trusted contract and it's needed to save the fee before refinance.
         IMapleLoanFeeManager feeManager_ = IMapleLoanFeeManager(_feeManager);
         feeManager_.updateRefinanceServiceFees(previousPrincipalRequested, timeSinceLastDueDate_);
-        
+
         // Get the amount of interest owed since the last payment due date, as well as the time since the last due date
         uint256 proRataInterest = getRefinanceInterest(block.timestamp);
 
@@ -375,8 +375,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function triggerDefaultWarning() external override {
         uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
 
-        require(msg.sender == _lender, "ML:TDW:NOT_LENDER");
-        require(!isInDefaultWarning(), "ML:TDW:ALREADY_TRIGGERED");
+        require(msg.sender == _lender,                         "ML:TDW:NOT_LENDER");
+        require(block.timestamp < originalNextPaymentDueDate_, "ML:TDW:NOT_EARLY");
+        require(!isInDefaultWarning(),                         "ML:TDW:ALREADY_TRIGGERED");
 
         emit NextPaymentDueDateFastForwarded(block.timestamp);
 

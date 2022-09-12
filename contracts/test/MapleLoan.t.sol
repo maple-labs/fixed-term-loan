@@ -532,6 +532,27 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.drawableFunds(),                1);
     }
 
+    function test_triggerDefaultWarning_lateLoan() external {
+        uint256 start = 1 days;  // Non-zero start time.
+
+        vm.warp(start);
+
+        uint256 originalNextPaymentDate = start + 10 days;
+
+        loan.__setNextPaymentDueDate(originalNextPaymentDate);
+
+        vm.warp(originalNextPaymentDate);
+
+        vm.expectRevert("ML:TDW:NOT_EARLY");
+        vm.prank(lender);
+        loan.triggerDefaultWarning();
+
+        vm.warp(originalNextPaymentDate - 1);
+
+        vm.prank(lender);
+        loan.triggerDefaultWarning();
+    }
+
     function test_triggerDefaultWarning_cantTriggerTwice() external {
         uint256 start = 1 days;  // Non-zero start time.
 
@@ -543,6 +564,8 @@ contract MapleLoanTests is TestUtils {
 
         vm.prank(lender);
         loan.triggerDefaultWarning();
+
+        vm.warp(block.timestamp - 1);
 
         vm.expectRevert("ML:TDW:ALREADY_TRIGGERED");
         vm.prank(lender);
