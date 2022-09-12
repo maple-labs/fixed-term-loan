@@ -58,8 +58,8 @@ contract MockFactory {
 
         require(success);
     }
-}
 
+}
 
 contract MockFeeManager {
 
@@ -67,7 +67,7 @@ contract MockFeeManager {
 
     function payServiceFees(address asset_, uint256 paymentsRemaining_) external returns (uint256 feePaid_) { }
 
-    function updateDelegateFeeTerms(uint256 delegateOriginatonFee_, uint256 delegateServiceFee_) external { }
+    function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external { }
 
     function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external {}
 
@@ -124,30 +124,12 @@ contract MockLoanManager {
 
 }
 
-contract MockLoan {
-
-    address public fundsAsset;
-
-    constructor(address fundsAsset_) {
-        fundsAsset = fundsAsset_;
-    }
-
-}
-
 contract MockPoolManager {
 
     address public poolDelegate;
 
     constructor(address poolDelegate_) {
         poolDelegate = poolDelegate_;
-    }
-
-}
-
-contract SomeAccount {
-
-    function createLoan(address factory_, bytes calldata arguments_, bytes32 salt_) external returns (address loan_) {
-        return IMapleLoanFactory(factory_).createInstance(arguments_, salt_);
     }
 
 }
@@ -169,5 +151,11 @@ contract RevertingERC20 {
     function transfer(address, uint256) external pure returns (bool) {
         revert();
     }
+
+}
+
+contract MockLender {
+
+    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external { }
 
 }

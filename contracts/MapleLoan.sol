@@ -275,7 +275,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         _handleDefaultWarning();
 
-        // Update Platform Fees and pay originations
+        // Update Platform Fees and pay originations.
         feeManager_.updatePlatformServiceFee(principalRequested_, paymentInterval_);
 
         _drawableFunds -= feeManager_.payOriginationFees(fundsAsset_, principalRequested_);
@@ -390,7 +390,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*******************************/
 
     function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
-        require((msg.sender == _borrower) || (msg.sender == _lender), "L:RNT:NO_AUTH");
+        require((msg.sender == _borrower) || (msg.sender == _lender), "ML:RNT:NO_AUTH");
 
         require(
             _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
@@ -403,12 +403,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function skim(address token_, address destination_) external override returns (uint256 skimmed_) {
-        require((msg.sender == _borrower) || (msg.sender == _lender),    "L:S:NO_AUTH");
-        require((token_ != _fundsAsset) && (token_ != _collateralAsset), "L:S:INVALID_TOKEN");
+        require((msg.sender == _borrower) || (msg.sender == _lender),    "ML:S:NO_AUTH");
+        require((token_ != _fundsAsset) && (token_ != _collateralAsset), "ML:S:INVALID_TOKEN");
 
         emit Skimmed(token_, skimmed_ = IERC20(token_).balanceOf(address(this)), destination_);
 
-        require(ERC20Helper.transfer(token_, destination_, skimmed_), "L:S:TRANSFER_FAILED");
+        require(ERC20Helper.transfer(token_, destination_, skimmed_), "ML:S:TRANSFER_FAILED");
     }
 
     /**********************/

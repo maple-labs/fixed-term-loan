@@ -19,7 +19,7 @@ contract MapleLoanHarness is MapleLoan {
     /***********************/
 
     function __isCollateralMaintained() external view returns (bool isMaintained_) {
-        return _isCollateralMaintained();
+        isMaintained_ = _isCollateralMaintained();
     }
 
     /**********************/
@@ -138,7 +138,7 @@ contract MapleLoanHarness is MapleLoan {
     )
         external pure returns (uint256 collateral_)
     {
-        return _getCollateralRequiredFor(principal_, drawableFunds_, principalRequested_, collateralRequired_);
+        collateral_ = _getCollateralRequiredFor(principal_, drawableFunds_, principalRequested_, collateralRequired_);
     }
 
     function __getInstallment(
@@ -150,11 +150,11 @@ contract MapleLoanHarness is MapleLoan {
     )
         external pure returns (uint256 principalAmount_, uint256 interestAmount_)
     {
-        return _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
+        ( principalAmount_, interestAmount_ ) = _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
     }
 
     function __getInterest(uint256 principal_, uint256 interestRate_, uint256 interval_) external pure returns (uint256 interest_) {
-        return _getInterest(principal_, interestRate_, interval_);
+        interest_ = _getInterest(principal_, interestRate_, interval_);
     }
 
     function __getPaymentBreakdown(
@@ -193,15 +193,15 @@ contract MapleLoanHarness is MapleLoan {
     }
 
     function __getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) external pure returns (uint256 periodicInterestRate_) {
-        return _getPeriodicInterestRate(interestRate_, interval_);
+        periodicInterestRate_ = _getPeriodicInterestRate(interestRate_, interval_);
     }
 
     function __getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
-        return _getRefinanceCommitment(refinancer_, deadline_, calls_);
+        refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_);
     }
 
     function __scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) external pure returns (uint256 result_) {
-        return _scaledExponent(base_, exponent_, one_);
+        result_ = _scaledExponent(base_, exponent_, one_);
     }
 
 }

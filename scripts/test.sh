@@ -14,7 +14,7 @@ echo Using profile: $FOUNDRY_PROFILE
 
 if [ -z "$test" ];
 then
-    forge test
+    forge test;
 else
-    forge test --match-test "$test";
+    forge test --match "$test";
 fi

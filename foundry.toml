@@ -8,11 +8,8 @@ verbosity = 3                 # The verbosity of tests
 bytecode_hash = "none"        # For deterministic code
 block_timestamp = 1622400000  # Timestamp for tests (non-zero)
 
-[profile.local]
-fuzz_runs = 100
-
 [profile.deep]
-fuzz_runs = 5000
+fuzz_runs = 1000
 
 [profile.super_deep]
 fuzz_runs = 50000

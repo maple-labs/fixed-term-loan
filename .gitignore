@@ -1,9 +1,13 @@
-/out
-hevm*
-.vscode/*
-/package
+# Foundry
+cache/
+out/
+.vscode/
+
+# MacOS
 .DS_Store
+
+hevm*
+/package
 artifacts/
 docs/
 metadata.json
-cache/

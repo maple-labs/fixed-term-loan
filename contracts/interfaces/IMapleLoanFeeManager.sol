@@ -47,16 +47,16 @@ interface IMapleLoanFeeManager {
     /*************************/
 
     /**
-     *  @dev    Called during `makePayment`, performs fee payments to the pool delegate and treasury.
-     *  @param  asset_            The address asset in which fees were paid.
-     *  @param  numberOfPayments_ The number of payments for which service fees will be paid.
+     *  @dev   Called during `makePayment`, performs fee payments to the pool delegate and treasury.
+     *  @param asset_            The address asset in which fees were paid.
+     *  @param numberOfPayments_ The number of payments for which service fees will be paid.
      */
     function payServiceFees(address asset_, uint256 numberOfPayments_) external returns (uint256 feePaid_);
 
     /**
      *  @dev    Called during `fundLoan`, performs fee payments to poolDelegate and treasury.
      *  @param  asset_              The address asset in which fees were paid.
-     *  @param  principalRequested_ The total amount of principal requested, which will be used to calcuate fees.
+     *  @param  principalRequested_ The total amount of principal requested, which will be used to calculate fees.
      *  @return feePaid_            The total amount of fees paid.
      */
     function payOriginationFees(address asset_, uint256 principalRequested_) external returns (uint256 feePaid_);
@@ -66,16 +66,16 @@ interface IMapleLoanFeeManager {
     /****************************/
 
     /**
-     *  @dev    Called during loan creation or refinance, sets the fee terms.
-     *  @param  delegateOriginationFee_ The amount of delegate origination fee to be paid.
-     *  @param  delegateServiceFee_     The amount of delegate service fee to be paid.
+     *  @dev   Called during loan creation or refinance, sets the fee terms.
+     *  @param delegateOriginationFee_ The amount of delegate origination fee to be paid.
+     *  @param delegateServiceFee_     The amount of delegate service fee to be paid.
      */
     function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external;
 
     /**
-     *  @dev    Called during loan refinance to save the partial service fees accrued.
-     *  @param  principalRequested_   The amount of principal pre-refinance requested.
-     *  @param  timeSinceLastDueDate_ The amount of time since last payment due date.
+     *  @dev   Called during loan refinance to save the partial service fees accrued.
+     *  @param principalRequested_   The amount of principal pre-refinance requested.
+     *  @param timeSinceLastDueDate_ The amount of time since last payment due date.
      */
     function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external;
 

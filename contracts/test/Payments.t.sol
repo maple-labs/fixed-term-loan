@@ -1,28 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { TestUtils }         from "../../modules/contract-test-utils/contracts/test.sol";
-import { IERC20 }            from "../../modules/erc20/contracts/interfaces/IERC20.sol";
-import { MockERC20 }         from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { MapleProxyFactory } from "../../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
+import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { MapleProxyFactory }  from "../../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
 import { MapleLoan }            from "../MapleLoan.sol";
 import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
 
-import { Borrower } from "./accounts/Borrower.sol";
-import { Governor } from "./accounts/Governor.sol";
-import { Lender }   from "./accounts/Lender.sol";
-
-import { MapleGlobalsMock, MockFeeManager } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockFeeManager, MockLender } from "./mocks/Mocks.sol";
 
 // TODO: Add fees
 contract MapleLoanPaymentsTestBase is TestUtils {
 
     uint256 start;
 
-    Borrower             borrower;
-    Governor             governor;
-    Lender               lender;
     MapleGlobalsMock     globals;
     MapleLoan            implementation;
     MapleProxyFactory    factory;
@@ -30,28 +22,30 @@ contract MapleLoanPaymentsTestBase is TestUtils {
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
     MockFeeManager       feeManager;
+    MockLender           lender;
+
+    address borrower = address(new Address());
+    address governor = address(new Address());
 
     function setUp() external {
         start = block.timestamp;
 
-        borrower = new Borrower();
-        governor = new Governor();
-        lender   = new Lender();
-
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
+        feeManager      = new MockFeeManager();
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
+        globals         = new MapleGlobalsMock(governor);
+        implementation  = new MapleLoan();
+        initializer     = new MapleLoanInitializer();
+        lender          = new MockLender();
 
-        globals = new MapleGlobalsMock(address(governor));
+        factory = new MapleProxyFactory(address(globals));
 
-        feeManager     = new MockFeeManager();
-        factory        = new MapleProxyFactory(address(globals));
-        implementation = new MapleLoan();
-        initializer    = new MapleLoanInitializer();
+        globals.setValidBorrower(borrower, true);
 
-        globals.setValidBorrower(address(borrower), true);
-
-        governor.mapleProxyFactory_registerImplementation(address(factory), 1, address(implementation), address(initializer));
-        governor.mapleProxyFactory_setDefaultVersion(address(factory), 1);
+        vm.startPrank(governor);
+        factory.registerImplementation(1, address(implementation), address(initializer));
+        factory.setDefaultVersion(1);
+        vm.stopPrank();
     }
 
     function createLoanFundAndDrawdown(
@@ -63,24 +57,28 @@ contract MapleLoanPaymentsTestBase is TestUtils {
     )
         internal returns (MapleLoan loan)
     {
-        collateralAsset.mint(address(borrower), amounts[0]);
-        fundsAsset.mint(address(lender),        amounts[1]);
-        fundsAsset.mint(address(borrower),      amounts[1]);  // Mint more than enough for borrower to make payments
+        collateralAsset.mint(borrower, amounts[0]);
+        fundsAsset.mint(address(lender), amounts[1]);
+        fundsAsset.mint(borrower, amounts[1]);         // Mint more than enough for borrower to make payments
 
-        bytes memory arguments = initializer.encodeArguments(address(borrower), address(feeManager), assets, termDetails, amounts, rates, fees);
+        bytes memory arguments = initializer.encodeArguments(borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create Loan
         loan = MapleLoan(factory.createInstance(arguments, salt));
 
         // Approve and fund Loan
-        lender.erc20_transfer(address(fundsAsset), address(loan), amounts[1]);
-        lender.loan_fundLoan(address(loan), address(lender));
+        vm.startPrank(address(lender));
+        fundsAsset.transfer(address(loan), amounts[1]);
+        loan.fundLoan(address(lender));
+        vm.stopPrank();
 
         // Transfer and post collateral and drawdown
-        borrower.erc20_transfer(address(collateralAsset), address(loan), amounts[0]);
-        borrower.loan_postCollateral(address(loan), 0);
-        borrower.loan_drawdownFunds(address(loan), amounts[1], address(borrower));
+        vm.startPrank(borrower);
+        collateralAsset.transfer(address(loan), amounts[0]);
+        loan.postCollateral(0);
+        loan.drawdownFunds(amounts[1], borrower);
+        vm.stopPrank();
     }
 
     function assertOnTimePayment(
@@ -106,8 +104,10 @@ contract MapleLoanPaymentsTestBase is TestUtils {
 
         // Warp to when payment is due and make payment
         vm.warp(loan.nextPaymentDueDate());
-        borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_makePayment(address(loan), 0);
+        vm.startPrank(borrower);
+        fundsAsset.transfer(address(loan), paymentAmount);
+        loan.makePayment(0);
+        vm.stopPrank();
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 
@@ -246,13 +246,13 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
         assertIgnoringDecimals(interestPortion,  uint256(18_031.882052 ether),  13);
 
         // Make payment
-        borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_closeLoan(address(loan), 0);
+        vm.startPrank(borrower);
+        fundsAsset.transfer(address(loan), paymentAmount);
+        loan.closeLoan(0);
+        vm.stopPrank();
 
-        assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
-
-        assertEq(loan.principal(), 0);  // No principal left
-
+        assertEq(loan.drawableFunds(),      0);  // No extra funds left in contract
+        assertEq(loan.principal(),          0);  // No principal left
         assertEq(loan.paymentsRemaining(),  0);  // Payments remaining increases
         assertEq(loan.nextPaymentDueDate(), 0);  // Payment due date increases
     }
@@ -336,8 +336,10 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
         assertIgnoringDecimals(interestPortion,  uint256(13_404.249086 ether),  13);
 
         // Make payment
-        borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_closeLoan(address(loan), 0);
+        vm.startPrank(borrower);
+        fundsAsset.transfer(address(loan), paymentAmount);
+        loan.closeLoan(0);
+        vm.stopPrank();
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 
@@ -727,8 +729,10 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
         assertIgnoringDecimals(interestPortion,  uint256(  2_456.366964 ether) + lateInterest + lateFee, 13);  // Note: This was 2,292.609166 + 163.757798 from sheet, also late interest wasn't accounted for
 
         // Make payment
-        borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-        borrower.loan_makePayment(address(loan), 0);
+        vm.startPrank(borrower);
+        fundsAsset.transfer(address(loan), paymentAmount);
+        loan.makePayment(0);
+        vm.stopPrank();
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 
@@ -834,8 +838,10 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             assertIgnoringDecimals(interestPortion,  uint256( 8_219.178082 ether) + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for.
 
             // Make payment
-            borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-            borrower.loan_makePayment(address(loan), 0);
+            vm.startPrank(borrower);
+            fundsAsset.transfer(address(loan), paymentAmount);
+            loan.makePayment(0);
+            vm.stopPrank();
 
             assertEq(loan.paymentsRemaining(),  3);  // Payments remaining increases
             assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 4);  // Payment due date increases.
@@ -961,8 +967,10 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             assertIgnoringDecimals(interestPortion,  onTimeInterestPortions[1] + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for
 
             // Make payment
-            borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-            borrower.loan_makePayment(address(loan), 0);
+            vm.startPrank(borrower);
+            fundsAsset.transfer(address(loan), paymentAmount);
+            loan.makePayment(0);
+            vm.stopPrank();
 
             assertEq(loan.paymentsRemaining(),  4);  // Payments remaining increases
             assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 3);  // Payment due date increases to day 30 (still one day late)
@@ -992,8 +1000,10 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             assertIgnoringDecimals(interestPortion,  onTimeInterestPortions[2] + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for
 
             // Make payment
-            borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-            borrower.loan_makePayment(address(loan), 0);
+            vm.startPrank(borrower);
+            fundsAsset.transfer(address(loan), paymentAmount);
+            loan.makePayment(0);
+            vm.stopPrank();
 
             assertEq(loan.paymentsRemaining(),  3);  // Payments remaining increases
             assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 4);  // Payment due date increases to day 45 (still one day late)
@@ -1102,8 +1112,10 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             assertIgnoringDecimals(interestPortion,  uint256( 8_219.178082 ether) + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for
 
             // Make payment
-            borrower.erc20_transfer(address(fundsAsset), address(loan), paymentAmount);
-            borrower.loan_makePayment(address(loan), 0);
+            vm.startPrank(borrower);
+            fundsAsset.transfer(address(loan), paymentAmount);
+            loan.makePayment(0);
+            vm.stopPrank();
 
             assertEq(loan.paymentsRemaining(),  5);  // Payments remaining increases
             assertEq(loan.nextPaymentDueDate(), start + loan.paymentInterval() * 2);  // Payment due date increases

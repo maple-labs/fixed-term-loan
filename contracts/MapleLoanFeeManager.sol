@@ -49,19 +49,19 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
             uint256 delegateServiceFee_,
             uint256 delegateRefinanceServiceFee_,
             uint256 platformServiceFee_,
-            uint256 plaftormRefinanceServiceFee_
+            uint256 platformRefinanceServiceFee_
         ) = getServiceFeeBreakdown(msg.sender, numberOfPayments_);
 
-        feePaid_ = delegateServiceFee_ + delegateRefinanceServiceFee_ + platformServiceFee_ + plaftormRefinanceServiceFee_;
+        feePaid_ = delegateServiceFee_ + delegateRefinanceServiceFee_ + platformServiceFee_ + platformRefinanceServiceFee_;
 
         _transferTo(asset_, _getPoolDelegate(msg.sender), delegateServiceFee_ + delegateRefinanceServiceFee_, "MLFM:PSF:PD_TRANSFER");
-        _transferTo(asset_, _getTreasury(),               platformServiceFee_ + plaftormRefinanceServiceFee_, "MLFM:PSF:TREASURY_TRANSFER");
+        _transferTo(asset_, _getTreasury(),               platformServiceFee_ + platformRefinanceServiceFee_, "MLFM:PSF:TREASURY_TRANSFER");
 
         // Refinance fees should be only paid once.
         delete delegateRefinanceServiceFee[msg.sender];
         delete platformRefinanceServiceFee[msg.sender];
 
-        emit ServiceFeesPaid(msg.sender, delegateServiceFee_, delegateRefinanceServiceFee_, platformServiceFee_, plaftormRefinanceServiceFee_);
+        emit ServiceFeesPaid(msg.sender, delegateServiceFee_, delegateRefinanceServiceFee_, platformServiceFee_, platformRefinanceServiceFee_);
     }
 
     /****************************/

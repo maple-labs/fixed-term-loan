@@ -5,13 +5,13 @@ update:
 	@forge update
 
 build:
-	@scripts/build.sh
+	@scripts/build.sh -p default
 
 release:
 	@scripts/release.sh
 
 test:
-	@scripts/test.sh
+	@scripts/test.sh -p default
 
 clean:
 	@forge clean

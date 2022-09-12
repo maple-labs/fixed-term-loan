@@ -316,7 +316,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *                      [2] Refinance interest.
      *  @return fees_      The portion of the total amount that will go towards paying administrative fees.
      *                      [0] Delegate fees.
-     *                      [1] Plaftorm fees.
+     *                      [1] Platform fees.
      */
     function getNextPaymentDetailedBreakdown() external view returns (uint256 principal_, uint256[3] memory interest_, uint256[2] memory fees_);
 

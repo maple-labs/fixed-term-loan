@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { console, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { MapleLoanFeeManager } from "../MapleLoanFeeManager.sol";
 import { Refinancer }          from "../Refinancer.sol";
@@ -14,9 +14,9 @@ import {
     MockFactory,
     MockFeeManager,
     MockLoanManager,
-    MockPoolManager
+    MockPoolManager,
+    MockLender
 } from "./mocks/Mocks.sol";
-import { Lender } from "./accounts/Lender.sol";
 
 // Helper contract with common functionality
 contract RefinancerTestBase is TestUtils {
@@ -28,22 +28,26 @@ contract RefinancerTestBase is TestUtils {
     uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
     uint256 internal constant MAX_PAYMENTS     = 20;
 
-    MapleGlobalsMock       globals;
     ConstructableMapleLoan loan;
-    Lender                 lender;
+    MapleGlobalsMock       globals;
     MockERC20              token;
     MockFactory            factory;
     MockFeeManager         feeManager;
+    MockLender             lender;
     Refinancer             refinancer;
 
-    function setUp() public virtual {
-        globals    = new MapleGlobalsMock(address(this));
-        lender     = new Lender();
-        refinancer = new Refinancer();
-        factory    = new MockFactory(address(globals));
-        feeManager = new MockFeeManager();
+    address borrower = address(new Address());
+    address governor = address(new Address());
 
-        globals.setValidBorrower(address(this), true);
+    function setUp() public virtual {
+        feeManager = new MockFeeManager();
+        globals    = new MapleGlobalsMock(governor);
+        lender     = new MockLender();
+        refinancer = new Refinancer();
+
+        factory = new MockFactory(address(globals));
+
+        globals.setValidBorrower(borrower, true);
     }
 
     function setUpOngoingLoan(
@@ -65,17 +69,18 @@ contract RefinancerTestBase is TestUtils {
         uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        // TODO: prank borrower
-        vm.startPrank(address(factory));
-        loan = new ConstructableMapleLoan(address(factory), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
-        vm.stopPrank();
+        vm.prank(address(factory));
+        loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
 
         token.mint(address(loan), principalRequested_);
+
+        vm.prank(address(lender));
         loan.fundLoan(address(lender));
 
         token.mint(address(loan), collateralRequired_);
         loan.postCollateral(0);
 
+        vm.prank(borrower);
         loan.drawdownFunds(principalRequested_, address(1));
 
         // Warp to when payment is due
@@ -132,25 +137,30 @@ contract RefinancerCollateralRequiredTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setCollateralRequired(uint256)", newCollateralRequired_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         uint256 requiredCollateral = loan.__getCollateralRequiredFor(loan.principal(), loan.drawableFunds(), loan.principalRequested(), newCollateralRequired_);
         uint256 currentCollateral  = loan.collateral();
 
         if (requiredCollateral > currentCollateral) {
-            assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data));
+            vm.prank(address(lender));
+            vm.expectRevert("ML:ANT:INSUFFICIENT_COLLATERAL");
+            loan.acceptNewTerms(address(refinancer), deadline_, data);
 
             token.mint(address(loan), requiredCollateral - currentCollateral);
             loan.postCollateral(0);
         }
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.collateralRequired(), newCollateralRequired_);
 
         if (requiredCollateral < currentCollateral) {
             // Some amount of collateral should've been freed
-            loan.removeCollateral(currentCollateral - requiredCollateral, address(this));
+            vm.prank(borrower);
+            loan.removeCollateral(currentCollateral - requiredCollateral, borrower);
         }
     }
 
@@ -177,17 +187,20 @@ contract RefinancerDeadlineTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", newPaymentInterval_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         vm.warp(deadline_ + 1);
 
-        vm.expectRevert(bytes("ML:ANT:EXPIRED_COMMITMENT"));
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+        vm.prank(address(lender));
+        vm.expectRevert("ML:ANT:EXPIRED_COMMITMENT");
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         vm.warp(deadline_);
 
         // Success
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
@@ -210,13 +223,16 @@ contract RefinancerDeadlineTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", newPaymentInterval_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
-        vm.expectRevert(bytes("ML:ANT:COMMITMENT_MISMATCH"));
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_ - 1, data);
+        vm.prank(address(lender));
+        vm.expectRevert("ML:ANT:COMMITMENT_MISMATCH");
+        loan.acceptNewTerms(address(refinancer), deadline_ - 1, data);
 
         // Success
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
@@ -258,8 +274,11 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", newEndingPrincipal_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.endingPrincipal(), newEndingPrincipal_);
 
@@ -292,7 +311,6 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
 
         deadline_ = constrictToRange(deadline_, block.timestamp, type(uint256).max);
 
-
         // Current ending principal is requested amount
         assertTrue(loan.endingPrincipal() < loan.principalRequested());
 
@@ -303,8 +321,11 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
         // Propose Refinance
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", loan.principal());
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.endingPrincipal(), loan.principal());
 
@@ -341,9 +362,12 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setEndingPrincipal(uint256)", newEndingPrincipal_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data));
+        vm.prank(address(lender));
+        vm.expectRevert("ML:ANT:FAILED");
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
     }
 
 }
@@ -382,8 +406,11 @@ contract RefinancerFeeTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setClosingRate(uint256)", newClosingRate_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.closingRate(), newClosingRate_);
     }
@@ -420,8 +447,11 @@ contract RefinancerFeeTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setLateFeeRate(uint256)", newLateFeeRate_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.lateFeeRate(), newLateFeeRate_);
     }
@@ -458,8 +488,11 @@ contract RefinancerFeeTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setLateInterestPremium(uint256)", newLateInterestPremium_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.lateInterestPremium(), newLateInterestPremium_);
     }
@@ -499,8 +532,11 @@ contract RefinancerGracePeriodTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setGracePeriod(uint256)", newGracePeriod_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.gracePeriod(), newGracePeriod_);
     }
@@ -540,8 +576,11 @@ contract RefinancerInterestRateTests is RefinancerTestBase {
         bytes[] memory data = _encodeWithSignatureAndUint("setInterestRate(uint256)", newInterestRate_);
 
         // The new interest rate will be applied retroactively until the last payment made.
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.interestRate(), newInterestRate_);
     }
@@ -559,22 +598,26 @@ contract RefinancerInterestTests is TestUtils {
     uint256 internal constant USD              = 1e6;
     uint256 internal constant WAD              = 1e18;
 
-    MapleGlobalsMock       globals;
     ConstructableMapleLoan loan;
-    Lender                 lender;
+    MapleGlobalsMock       globals;
     MockERC20              token;
     MockFactory            factory;
     MockFeeManager         feeManager;
+    MockLender             lender;
     Refinancer             refinancer;
 
+    address borrower = address(new Address());
+    address governor = address(new Address());
+
     function setUp() external {
-        globals    = new MapleGlobalsMock(address(this));
-        factory    = new MockFactory(address(globals));
+        globals    = new MapleGlobalsMock(address(governor));
         feeManager = new MockFeeManager();
-        lender     = new Lender();
+        lender     = new MockLender();
         refinancer = new Refinancer();
 
-        globals.setValidBorrower(address(this), true);
+        factory = new MockFactory(address(globals));
+
+        globals.setValidBorrower(borrower, true);
     }
 
     function test_acceptNewTerms_makePayment_withRefinanceInterest() external {
@@ -611,8 +654,7 @@ contract RefinancerInterestTests is TestUtils {
         token.mint(address(loan), interestPortion);  // Interest only payment
         loan.makePayment(0);
 
-        assertEq(interestPortion, 8_219_178_082);
-
+        assertEq(interestPortion,         8_219_178_082);
         assertEq(token.balanceOf(address(lender)), interestPortion);
 
         bytes[] memory data = new bytes[](4);
@@ -621,6 +663,7 @@ contract RefinancerInterestTests is TestUtils {
         data[2] = abi.encodeWithSignature("increasePrincipal(uint256)",    1_000_000 * USD);  // Ending principal stays the same so switches to amortized
         data[3] = abi.encodeWithSignature("setPaymentsRemaining(uint256)", 3);  // Ending principal stays the same so switches to amortized
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), start + 40 days, data);
 
         vm.warp(start + 40 days);  // Warp 10 days into next payment cycle
@@ -630,7 +673,8 @@ contract RefinancerInterestTests is TestUtils {
         // Assert that there is no refinanceInterest until acceptNewTerms
         assertEq(loan.refinanceInterest(), 0);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), start + 40 days, data);
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), start + 40 days, data);
 
         assertEq(loan.principalRequested(), 2_000_000 * USD);
         assertEq(loan.collateralRequired(), 0);
@@ -664,10 +708,8 @@ contract RefinancerInterestTests is TestUtils {
         uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        // TODO: prank borrower
-        vm.startPrank(address(factory));
-        loan = new ConstructableMapleLoan(address(factory), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
-        vm.stopPrank();
+        vm.prank(address(factory));
+        loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
 
         token.mint(address(loan), principalRequested_);
         loan.fundLoan(address(lender));
@@ -675,6 +717,7 @@ contract RefinancerInterestTests is TestUtils {
         token.mint(address(loan), collateralRequired_);
         loan.postCollateral(0);
 
+        vm.prank(borrower);
         loan.drawdownFunds(principalRequested_, address(1));
     }
 
@@ -687,16 +730,19 @@ contract RefinancerInterestTests is TestUtils {
 
 contract RefinancerMiscellaneousTests is RefinancerTestBase {
 
-    function testFail_refinance_invalidRefinancer() external {
+    function test_refinance_invalidRefinancer() external {
         setUpOngoingLoan(1, 1, 1, 1, 1, 1, 1);
 
         bytes[] memory data = new bytes[](1);
         data[0] = abi.encodeWithSignature("setEndingPrincipal(uint256)", 0);
 
         // Executing refinance
+        vm.prank(borrower);
         loan.proposeNewTerms(address(1), block.timestamp, data);
 
-        lender.loan_acceptNewTerms(address(loan), address(1), block.timestamp, data);
+        vm.prank(address(lender));
+        vm.expectRevert("ML:ANT:INVALID_REFINANCER");
+        loan.acceptNewTerms(address(1), block.timestamp, data);
     }
 
 }
@@ -754,6 +800,7 @@ contract RefinancerMultipleParameterTests is RefinancerTestBase {
         data[5] = abi.encodeWithSignature("increasePrincipal(uint256)",     principalIncrease_);
 
         // Executing refinance
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         uint256 currentCollateral = loan.collateral();
@@ -767,7 +814,8 @@ contract RefinancerMultipleParameterTests is RefinancerTestBase {
 
         uint256 expectedRefinanceInterest = loan.getRefinanceInterest(block.timestamp);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.collateralRequired(), newCollateralRequired_);
         assertEq(loan.endingPrincipal(),    newEndingPrincipal_);
@@ -788,14 +836,20 @@ contract RefinancerPaymentIntervalTests is RefinancerTestBase {
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", 0);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline, data);
+
+        vm.prank(address(lender));
         vm.expectRevert("ML:ANT:FAILED");
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data);
+        loan.acceptNewTerms(address(refinancer), deadline, data);
 
         data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", 1);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline, data);
     }
 
     function test_refinance_paymentInterval(
@@ -829,8 +883,11 @@ contract RefinancerPaymentIntervalTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", newPaymentInterval_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
@@ -845,14 +902,20 @@ contract RefinancerPaymentsRemainingTests is RefinancerTestBase {
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", 0);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline, data);
+
+        vm.prank(address(lender));
         vm.expectRevert("ML:ANT:FAILED");
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data);
+        loan.acceptNewTerms(address(refinancer), deadline, data);
 
         data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", 1);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline, data);
     }
 
     function test_refinance_paymentRemaining(
@@ -888,8 +951,11 @@ contract RefinancerPaymentsRemainingTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", newPaymentsRemaining_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         assertEq(loan.paymentsRemaining(), newPaymentsRemaining_);
     }
@@ -934,10 +1000,13 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("increasePrincipal(uint256)", principalIncrease_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), block.timestamp, data);
 
         // Increasing the amount without sending it first should fail
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data));
+        vm.prank(address(lender));
+        vm.expectRevert("ML:ANT:FAILED");
+        loan.acceptNewTerms(address(refinancer), block.timestamp, data);
 
         {
             // Since the collateral rate has remained the same, we need to also send more collateral
@@ -949,17 +1018,18 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
 
         token.mint(address(loan), principalIncrease_);
 
-        initialPrincipal      = loan.principal();
-        initialDrawableFunds  = loan.drawableFunds();
+        initialPrincipal     = loan.principal();
+        initialDrawableFunds = loan.drawableFunds();
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), block.timestamp, data);
+        vm.prank(address(lender));
+        loan.acceptNewTerms(address(refinancer), block.timestamp, data);
 
         assertEq(loan.principalRequested(), principalRequested_  + principalIncrease_);
         assertEq(loan.principal(),          initialPrincipal     + principalIncrease_);
         assertEq(loan.drawableFunds(),      initialDrawableFunds + principalIncrease_);
     }
 
-    function testFail_refinance_increasePrincipalRequested(
+    function test_refinance_increasePrincipalRequestedWithInsufficientFunds(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -991,10 +1061,13 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
 
         bytes[] memory data = _encodeWithSignatureAndUint("increasePrincipal(uint256)", principalIncrease_);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
 
         // Increasing the amount without sending it first should fail
-        assertTrue(!lender.try_loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data));
+        vm.prank(address(lender));
+        vm.expectRevert("ML:ANT:FAILED");
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
 
         // Since the collateral rate has remained the same, we need to also send more collateral
         uint256 extraCollateral = collateralRequired_ * principalIncrease_ / principalRequested_;
@@ -1005,7 +1078,9 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
         // Sending 1 too little, causes revert
         token.mint(address(loan), principalIncrease_ - 1);
 
-        lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline_, data);
+        vm.prank(address(lender));
+        vm.expectRevert("ML:ANT:FAILED");
+        loan.acceptNewTerms(address(refinancer), deadline_, data);
     }
 
 }
@@ -1013,8 +1088,8 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
 // Not Using RefinancerTestBase due to the need to use Mocks for the
 contract RefinancingFeesTerms is TestUtils {
 
-    address internal POOL_DELEGATE = address(777);
-    address internal TREASURY      = address(888);
+    address internal POOL_DELEGATE = address(new Address());
+    address internal TREASURY      = address(new Address());
 
     // Loan Boundaries
     uint256 internal constant MAX_FEE_RATE     = 100_0000;         // 100 %
@@ -1026,7 +1101,6 @@ contract RefinancingFeesTerms is TestUtils {
 
     MapleGlobalsMock       globals;
     ConstructableMapleLoan loan;
-    Lender                 lender;
     MockERC20              token;
     MockFactory            factory;
     MapleLoanFeeManager    feeManager;
@@ -1034,17 +1108,19 @@ contract RefinancingFeesTerms is TestUtils {
     MockPoolManager        poolManager;
     Refinancer             refinancer;
 
+    address borrower = address(new Address());
+    address governor = address(new Address());
+
     function setUp() public virtual {
-        globals     = new MapleGlobalsMock(address(this));
-        lender      = new Lender();
+        globals     = new MapleGlobalsMock(governor);
+        poolManager = new MockPoolManager(address(POOL_DELEGATE));
         refinancer  = new Refinancer();
+
         factory     = new MockFactory(address(globals));
         feeManager  = new MapleLoanFeeManager(address(globals));
-        poolManager = new MockPoolManager(address(POOL_DELEGATE));
         loanManager = new MockLoanManager(address(POOL_DELEGATE), address(poolManager));
 
-        globals.setValidBorrower(address(this), true);
-
+        globals.setValidBorrower(borrower, true);
         globals.setMapleTreasury(TREASURY);
     }
 
@@ -1069,9 +1145,8 @@ contract RefinancingFeesTerms is TestUtils {
         uint256[4] memory rates       = [interestRate_, uint256(0.10e18), uint256(0.15e18), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        vm.startPrank(address(factory));
-        loan = new ConstructableMapleLoan(address(factory), address(this), address(feeManager), assets, termDetails, amounts, rates, fees);
-        vm.stopPrank();
+        vm.prank(address(factory));
+        loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
 
         token.mint(address(loan), principalRequested_);
         loan.fundLoan(address(loanManager));
@@ -1079,7 +1154,8 @@ contract RefinancingFeesTerms is TestUtils {
         collateralToken.mint(address(loan), collateralRequired_);
         loan.postCollateral(0);
 
-        loan.drawdownFunds(principalRequested_, address(1));
+        vm.prank(borrower);
+        loan.drawdownFunds(principalRequested_, borrower);
 
         // Warp to when payment is due
         vm.warp(loan.nextPaymentDueDate());
@@ -1110,7 +1186,9 @@ contract RefinancingFeesTerms is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("setPaymentsRemaining(uint256)", 5);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
+
         vm.prank(address(loanManager));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
@@ -1136,7 +1214,9 @@ contract RefinancingFeesTerms is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("setPaymentsRemaining(uint256)", 5);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
+
         vm.prank(address(loanManager));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
@@ -1147,7 +1227,9 @@ contract RefinancingFeesTerms is TestUtils {
         vm.warp(block.timestamp + 365 days / 10);
 
         // Refinance again, without making any payment
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
+
         vm.prank(address(loanManager));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
@@ -1173,7 +1255,9 @@ contract RefinancingFeesTerms is TestUtils {
 
         token.mint(address(loan), newDelegateOriginationFee_ - 1);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
+
         vm.prank(address(loanManager));
         vm.expectRevert("MLFM:POF:PD_TRANSFER");
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
@@ -1203,7 +1287,9 @@ contract RefinancingFeesTerms is TestUtils {
 
         token.mint(address(loan), platformOriginationFee_ + newDelegateOriginationFee_ - 1);
 
+        vm.prank(address(borrower));
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
+
         vm.prank(address(loanManager));
         vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
@@ -1227,15 +1313,20 @@ contract RefinancingFeesTerms is TestUtils {
 
         calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", newDelegateOriginationFee_, 100e18);
 
-        uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 100_0000;  // Annualized over course of remaining loan term (150 days since payment was made)
+        // Annualized over course of remaining loan term (150 days since payment was made)
+        uint256 platformOriginationFee_ = 1_000_000e18 * newPlatformOriginationFeeRate_ * 150 days / 365 days / 100_0000;
 
         token.mint(address(loan), platformOriginationFee_ + newDelegateOriginationFee_);
-        loan.returnFunds(0); // Funds need to be returned through this function, otherwise drawableFunds won't be increased.
+
+        // Funds need to be returned through this function, otherwise drawableFunds won't be increased.
+        loan.returnFunds(0);
 
         assertEq(token.balanceOf(POOL_DELEGATE), 0);
         assertEq(token.balanceOf(TREASURY),      0);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
+
         vm.prank(address(loanManager));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
@@ -1264,7 +1355,9 @@ contract RefinancingFeesTerms is TestUtils {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSignature("updateDelegateFeeTerms(uint256,uint256)", 0, 0);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
+
         vm.prank(address(loanManager));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
@@ -1314,7 +1407,9 @@ contract RefinancingFeesTerms is TestUtils {
         token.mint(address(loan), newOriginationFee_);
         loan.returnFunds(0);
 
+        vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
+
         vm.prank(address(loanManager));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 

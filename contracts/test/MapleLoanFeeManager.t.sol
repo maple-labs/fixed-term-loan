@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, console, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }                   from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { IMapleProxyFactory }          from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
+import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { IMapleProxyFactory } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
-import { MapleGlobalsMock, MockLoanManager, MockPoolManager, MockLoan } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
 
 import { MapleLoan }            from "../MapleLoan.sol";
 import { MapleLoanFactory }     from "../MapleLoanFactory.sol";
@@ -15,19 +15,20 @@ import { MapleLoanFeeManager }  from "../MapleLoanFeeManager.sol";
 contract FeeManagerBase is TestUtils {
 
     address BORROWER = address(new Address());
+    address GOVERNOR = address(new Address());
     address PD       = address(new Address());
     address TREASURY = address(new Address());
 
     address implementation;
     address initializer;
 
-    MapleGlobalsMock      globals;
-    MapleLoanFactory      factory;
-    MapleLoanFeeManager   feeManager;
-    MockERC20             collateralAsset;
-    MockERC20             fundsAsset;
-    MockLoanManager       loanManager;
-    MockPoolManager       poolManager;
+    MapleGlobalsMock    globals;
+    MapleLoanFactory    factory;
+    MapleLoanFeeManager feeManager;
+    MockERC20           collateralAsset;
+    MockERC20           fundsAsset;
+    MockLoanManager     loanManager;
+    MockPoolManager     poolManager;
 
     address[2] internal defaultAssets;
     uint256[3] internal defaultTermDetails;
@@ -39,19 +40,22 @@ contract FeeManagerBase is TestUtils {
         implementation = address(new MapleLoan());
         initializer    = address(new MapleLoanInitializer());
 
-        globals         = new MapleGlobalsMock(address(this));
-        factory         = new MapleLoanFactory(address(globals));
-        feeManager      = new MapleLoanFeeManager(address(globals));
         collateralAsset = new MockERC20("MockCollateral", "MC", 18);
         fundsAsset      = new MockERC20("MockAsset", "MA", 18);
+        globals         = new MapleGlobalsMock(GOVERNOR);
         poolManager     = new MockPoolManager(PD);
-        loanManager     = new MockLoanManager(PD, address(poolManager));
 
+        factory     = new MapleLoanFactory(address(globals));
+        feeManager  = new MapleLoanFeeManager(address(globals));
+        loanManager = new MockLoanManager(PD, address(poolManager));
+
+        vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);
 
         globals.setMapleTreasury(TREASURY);
         globals.setValidBorrower(BORROWER, true);
+        vm.stopPrank();
 
         defaultAssets      = [address(collateralAsset), address(fundsAsset)];
         defaultTermDetails = [uint256(10 days), uint256(365 days / 12), uint256(3)];
@@ -80,15 +84,14 @@ contract FeeManagerBase is TestUtils {
 
     function _fundLoan(address loan_, address lender_, uint256 amount_) internal {
         fundsAsset.mint(address(loan_), amount_);
-
         vm.prank(lender_);
         MapleLoan(loan_).fundLoan(lender_);
     }
 
     function _drawdownLoan(address loan_, address borrower_) internal {
-        vm.startPrank(MapleLoan(loan_).borrower());
-        MapleLoan(loan_).drawdownFunds(MapleLoan(loan_).drawableFunds(), borrower_);
-        vm.stopPrank();
+        uint256 drawableFunds = MapleLoan(loan_).drawableFunds();
+        vm.prank(BORROWER);
+        MapleLoan(loan_).drawdownFunds(drawableFunds, borrower_);
     }
 
 }
@@ -112,7 +115,10 @@ contract PayClosingFeesTests is FeeManagerBase {
     function test_payClosingServiceFees_insufficientFunds_poolDelegate() external {
         uint256 delegateServiceFee = 1500e18;  // 500 * 3 = 1500
 
-        fundsAsset.mint(address(this),    delegateServiceFee - 1);
+        fundsAsset.mint(BORROWER, delegateServiceFee - 1);
+
+        vm.startPrank(BORROWER);
+
         fundsAsset.approve(address(loan), delegateServiceFee - 1);
 
         vm.expectRevert("MLFM:PSF:PD_TRANSFER");
@@ -123,7 +129,10 @@ contract PayClosingFeesTests is FeeManagerBase {
         uint256 delegateServiceFee = 1500e18;  // 500 * 3 = 1500
         uint256 platformServiceFee = 750e18;   // 1m * 0.3% / 12 * 3 = 750
 
-        fundsAsset.mint(address(this),    delegateServiceFee + platformServiceFee - 1);
+        fundsAsset.mint(BORROWER, delegateServiceFee + platformServiceFee - 1);
+
+        vm.startPrank(BORROWER);
+
         fundsAsset.approve(address(loan), delegateServiceFee + platformServiceFee - 1);
 
         vm.expectRevert("MLFM:PSF:TREASURY_TRANSFER");
@@ -137,17 +146,20 @@ contract PayClosingFeesTests is FeeManagerBase {
         assertEq(interest,  20_000e18);
         assertEq(fees,      2_250e18);  // 1m * (0.3% + 0.6%) / 12 * 3 = 1000 + 750
 
-        fundsAsset.mint(address(this),    1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
+        fundsAsset.mint(BORROWER, 72_250e18);  // 1m + 20k + 2.25k = 1_022_250 = 950k + 72.25k
+
+        vm.startPrank(BORROWER);
+
         fundsAsset.approve(address(loan), 1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
 
-        assertEq(fundsAsset.balanceOf(address(this)),        1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
+        assertEq(fundsAsset.balanceOf(BORROWER),             1_022_250e18);  // 1m + 20k + 2.25k + = 1_022_250
         assertEq(fundsAsset.balanceOf(address(loanManager)), 0);
         assertEq(fundsAsset.balanceOf(PD),                   50_000e18);  // Origination fees
         assertEq(fundsAsset.balanceOf(TREASURY),             0);
 
         loan.closeLoan(1_022_250e18);
 
-        assertEq(fundsAsset.balanceOf(address(this)),        0);
+        assertEq(fundsAsset.balanceOf(BORROWER),             0);
         assertEq(fundsAsset.balanceOf(address(loanManager)), 1_020_000e18);  // Principal + interest
         assertEq(fundsAsset.balanceOf(PD),                   50_000e18 + 1_500e18);
         assertEq(fundsAsset.balanceOf(TREASURY),             750e18);
@@ -196,7 +208,6 @@ contract PayOriginationFeesTests is FeeManagerBase {
         vm.prank(address(loanManager));
         loan.fundLoan(address(loanManager));
 
-        assertEq(fundsAsset.balanceOf(address(this)), 0);
         assertEq(fundsAsset.balanceOf(address(loan)), 949_250e18);  // Principal - both origination fees
         assertEq(fundsAsset.balanceOf(PD),            50_000e18);   // 50k origination fee to PD
         assertEq(fundsAsset.balanceOf(TREASURY),      750e18);      // (1m * 0.3% / 12 * 3) = 750 to treasury
@@ -224,7 +235,10 @@ contract PayServiceFeesTests is FeeManagerBase {
     function test_payServiceFees_insufficientFunds_poolDelegate() external {
         uint256 platformServiceFee = 250e18;  // 1m * 0.3% / 12 = 250
 
-        fundsAsset.mint(address(this),    platformServiceFee - 1);
+        fundsAsset.mint(BORROWER, platformServiceFee - 1);
+
+        vm.startPrank(BORROWER);
+
         fundsAsset.approve(address(loan), platformServiceFee - 1);
 
         vm.expectRevert("MLFM:PSF:PD_TRANSFER");
@@ -236,7 +250,10 @@ contract PayServiceFeesTests is FeeManagerBase {
         uint256 platformServiceFee = 250e18;  // 1m * 0.3% / 12 = 250
         uint256 delegateServiceFee = 500e18;  // 500 = 500
 
-        fundsAsset.mint(address(this),    delegateServiceFee + platformServiceFee - 1);
+        fundsAsset.mint(BORROWER, delegateServiceFee + platformServiceFee - 1);
+
+        vm.startPrank(BORROWER);
+
         fundsAsset.approve(address(loan), delegateServiceFee + platformServiceFee - 1);
 
         vm.expectRevert("MLFM:PSF:TREASURY_TRANSFER");
@@ -248,20 +265,21 @@ contract PayServiceFeesTests is FeeManagerBase {
 
         assertEq(principal, 0);
         assertEq(interest,  10_000e18);
-        assertEq(fees,      750e18);  // 1m * (0.3% + 0.6%) / 12 = 250 + 500
+        assertEq(fees,      750e18);     // 1m * (0.3% + 0.6%) / 12 = 250 + 500
 
-        fundsAsset.mint(address(this),    10_750e18);
+        vm.startPrank(BORROWER);
+
         fundsAsset.approve(address(loan), 10_750e18);
 
-        assertEq(fundsAsset.balanceOf(address(this)),        10_750e18);
+        assertEq(fundsAsset.balanceOf(BORROWER),             950_000e18);
         assertEq(fundsAsset.balanceOf(address(loanManager)), 0);
         assertEq(fundsAsset.balanceOf(PD),                   50_000e18);  // Origination fees
         assertEq(fundsAsset.balanceOf(TREASURY),             0);
 
         loan.makePayment(10_750e18);
 
-        assertEq(fundsAsset.balanceOf(address(this)),        0);
-        assertEq(fundsAsset.balanceOf(address(loanManager)), 10_000e18);  // Interest
+        assertEq(fundsAsset.balanceOf(BORROWER),             939_250e18);          // 950k - 10.75k
+        assertEq(fundsAsset.balanceOf(address(loanManager)), 10_000e18);           // Interest
         assertEq(fundsAsset.balanceOf(PD),                   50_000e18 + 500e18);
         assertEq(fundsAsset.balanceOf(TREASURY),             250e18);
     }
@@ -270,7 +288,7 @@ contract PayServiceFeesTests is FeeManagerBase {
 
 contract UpdatePlatformServiceFeeTests is FeeManagerBase {
 
-    function test_updatePlaformServiceFee() external {
+    function test_updatePlatformServiceFee() external {
         address loan1 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
         address loan2 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt2");
 
@@ -302,14 +320,16 @@ contract UpdatePlatformServiceFeeTests is FeeManagerBase {
 contract UpdateFeeTerms_SetterTests is FeeManagerBase {
 
     function test_updateDelegateFeeTerms() external {
+        address someContract = address(new Address());
 
-        assertEq(feeManager.delegateOriginationFee(address(this)), 0);
-        assertEq(feeManager.delegateServiceFee(address(this)),     0);
+        assertEq(feeManager.delegateOriginationFee(someContract), 0);
+        assertEq(feeManager.delegateServiceFee(someContract),     0);
 
+        vm.prank(someContract);
         feeManager.updateDelegateFeeTerms(50_000e18, 1000e18);
 
-        assertEq(feeManager.delegateOriginationFee(address(this)), 50_000e18);
-        assertEq(feeManager.delegateServiceFee(address(this)),     1000e18);
+        assertEq(feeManager.delegateOriginationFee(someContract), 50_000e18);
+        assertEq(feeManager.delegateServiceFee(someContract),     1000e18);
     }
 
 }
@@ -322,7 +342,7 @@ contract FeeManager_Getters is FeeManagerBase {
 
     function test_getDelegateServiceFeesForPeriod() external {
         defaultTermDetails = [uint256(10 days), uint256(10 days), uint256(3)];
-        address loan1 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
+        address loan1      = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
 
 
         vm.prank(loan1);
@@ -330,17 +350,17 @@ contract FeeManager_Getters is FeeManagerBase {
 
         // The loan interval is 10 days. So this tests should return the proportional amount
         assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 0 days),  0);
-        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 1 days),  100e18);  // 10% of the full fee
-        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 5 days),  500e18);  // 50% of the full fee
-        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 10 days), 1000e18); // 100% of the full fee
-        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 11 days), 1100e18); // 110% of the full fee
-        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 15 days), 1500e18); // 150% of the full fee
-        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 20 days), 2000e18); // 200% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 1 days),  100e18);   // 10% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 5 days),  500e18);   // 50% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 10 days), 1000e18);  // 100% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 11 days), 1100e18);  // 110% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 15 days), 1500e18);  // 150% of the full fee
+        assertEq(feeManager.getDelegateServiceFeesForPeriod(loan1, 20 days), 2000e18);  // 200% of the full fee
     }
 
     function test_getPlatformServiceFeeForPeriod() external {
         defaultTermDetails = [uint256(10 days), uint256(365 days), uint256(3)];
-        address loan1 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
+        address loan1      = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
 
         _fundLoan(loan1, address(loanManager), 1_000_000e18);
 
@@ -351,11 +371,11 @@ contract FeeManager_Getters is FeeManagerBase {
 
         // The loan interval is 10 days. So this tests should return the proportional amount
         assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 0 days),  0);
-        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 10), 1_000e18);  // 10% of the full fee (1_000_000 * 0.001 / 10)
-        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 2 ), 5_000e18);  // 50% of the full fee
-        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days),      10_000e18); // 100% of the full fee
-        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days * 2),  20_000e18); // 200% of the full fee
-        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days * 3),  30_000e18); // 300% of the full fee
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 10), 1_000e18);   // 10% of the full fee (1_000_000 * 0.001 / 10)
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days / 2 ), 5_000e18);   // 50% of the full fee
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days),      10_000e18);  // 100% of the full fee
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days * 2),  20_000e18);  // 200% of the full fee
+        assertEq(feeManager.getPlatformServiceFeeForPeriod(loan1, 1_000_000e18, 365 days * 3),  30_000e18);  // 300% of the full fee
     }
 
 }
