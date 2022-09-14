@@ -328,6 +328,8 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_setPendingBorrower_acl() external {
+        globals.setValidBorrower(address(1), true);
+
         vm.expectRevert("ML:SPB:NOT_BORROWER");
         loan.setPendingBorrower(address(1));
 
@@ -1251,8 +1253,20 @@ contract MapleLoanRoleTests is TestUtils {
         _loan = new ConstructableMapleLoan(address(_factory), borrower, address(_feeManager), assets, termDetails, amounts, rates, fees);
     }
 
+    function test_transferBorrowerRole_failIfInvalidBorrower() public {
+        address newBorrower = address(new Address());
+
+        vm.prank(address(borrower));
+        vm.expectRevert("ML:SPB:INVALID_BORROWER");
+        _loan.setPendingBorrower(address(newBorrower));
+    }
+
     function test_transferBorrowerRole() public {
         address newBorrower = address(new Address());
+
+        // Set addresse used in this test case as valid borrowers.
+        _globals.setValidBorrower(address(newBorrower), true);
+        _globals.setValidBorrower(address(1),           true);
 
         assertEq(_loan.pendingBorrower(), address(0));
         assertEq(_loan.borrower(),        borrower);

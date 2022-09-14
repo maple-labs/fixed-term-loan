@@ -208,7 +208,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function setPendingBorrower(address pendingBorrower_) external override {
-        require(msg.sender == _borrower, "ML:SPB:NOT_BORROWER");
+        require(msg.sender == _borrower,                              "ML:SPB:NOT_BORROWER");
+        require(IGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
         emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
     }
