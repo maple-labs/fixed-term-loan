@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
 
 import { MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager, RevertingERC20 } from "./mocks/Mocks.sol";
 
-import { Refinancer } from "../Refinancer.sol";
+import { Refinancer } from "../contracts/Refinancer.sol";
 
 contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
@@ -1915,8 +1915,6 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
 
         vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
         _loan.rejectNewTerms(address(_refinancer), deadline, new bytes[](0));
-
-        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_rejectNewTerms_commitmentMismatch_mismatchedRefinancer() external {
@@ -1930,8 +1928,6 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
         address anotherRefinancer = address(new Refinancer());
         vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
         _loan.rejectNewTerms(anotherRefinancer, deadline, calls);
-
-        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_rejectNewTerms_commitmentMismatch_mismatchedDeadline() external {
@@ -1944,14 +1940,12 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
 
         vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
         _loan.rejectNewTerms(address(_refinancer), deadline + 1, calls);
-
-        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
     }
 
     function test_rejectNewTerms_commitmentMismatch_mismatchedCalls() external {
         uint256 deadline     = block.timestamp + 10 days;
         bytes[] memory calls = new bytes[](1);
-        bytes memory originalCall = calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(1));
+        calls[0]             = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(1));
 
         vm.startPrank(_borrower);
         _loan.proposeNewTerms(address(_refinancer), deadline, calls);
@@ -1959,10 +1953,6 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
         calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(2));
 
         vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
-        _loan.rejectNewTerms(address(_refinancer), deadline, calls);
-
-        calls[0] = originalCall;
-
         _loan.rejectNewTerms(address(_refinancer), deadline, calls);
     }
 

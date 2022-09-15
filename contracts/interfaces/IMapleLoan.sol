@@ -229,9 +229,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function removeCollateral(uint256 amount_, address destination_) external;
 
     /**
-     *  @dev Remove the default warning by restoring the original payment due date.
+     *  @dev Remove the loan impairment by restoring the original payment due date.
      */
-    function removeDefaultWarning() external;
+    function removeLoanImpairment() external;
 
     /**
      *  @dev    Return funds to the loan (opposite of drawing down).
@@ -272,7 +272,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @dev   Fast forward the next payment due date to the current time.
      *         This enables the pool delegate to force a payment (or default).
      */
-    function triggerDefaultWarning() external;
+    function impairLoan() external;
 
     /**********************/
     /*** View Functions ***/

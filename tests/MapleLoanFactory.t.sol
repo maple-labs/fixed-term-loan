@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 
-import { MapleLoan }            from "../MapleLoan.sol";
-import { MapleLoanFactory }     from "../MapleLoanFactory.sol";
-import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
+import { MapleLoan }            from "../contracts/MapleLoan.sol";
+import { MapleLoanFactory }     from "../contracts/MapleLoanFactory.sol";
+import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 
 import { MapleGlobalsMock, MockFeeManager } from "./mocks/Mocks.sol";
 
-import { Proxy } from "../../modules/maple-proxy-factory/modules/proxy-factory/contracts/Proxy.sol";
+import { Proxy } from "../modules/maple-proxy-factory/modules/proxy-factory/contracts/Proxy.sol";
 
 contract MapleLoanFactoryTest is TestUtils {
 

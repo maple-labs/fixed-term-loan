@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
 
@@ -371,14 +371,14 @@ contract MapleLoanTests is TestUtils {
         loan.acceptNewTerms(mockRefinancer, deadline, calls);
     }
 
-    function test_removeDefaultWarning_acl() external {
+    function test_removeLoanImpairment_acl() external {
         loan.__setOriginalNextPaymentDueDate(block.timestamp + 300);
 
         vm.expectRevert("ML:RDW:NOT_LENDER");
-        loan.removeDefaultWarning();
+        loan.removeLoanImpairment();
 
         vm.prank(lender);
-        loan.removeDefaultWarning();
+        loan.removeLoanImpairment();
 
         assertEq(loan.nextPaymentDueDate(), block.timestamp + 300);
     }
@@ -399,7 +399,7 @@ contract MapleLoanTests is TestUtils {
         loan.repossess(lender);
     }
 
-    function test_triggerDefaultWarning_acl() external {
+    function test_impairLoan_acl() external {
         uint256 start = 1 days;  // Non-zero start time.
 
         vm.warp(start);
@@ -409,10 +409,10 @@ contract MapleLoanTests is TestUtils {
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
         vm.expectRevert("ML:TDW:NOT_LENDER");
-        loan.triggerDefaultWarning();
+        loan.impairLoan();
 
         vm.prank(lender);
-        loan.triggerDefaultWarning();
+        loan.impairLoan();
     }
 
     function test_setPendingLender_acl() external {
@@ -513,7 +513,7 @@ contract MapleLoanTests is TestUtils {
         loan.acceptNewTerms(refinancer, deadline, calls);
     }
 
-    function test_triggerDefaultWarning_lateLoan() external {
+    function test_impairLoan_lateLoan() external {
         uint256 start = 1 days;  // Non-zero start time.
 
         vm.warp(start);
@@ -526,15 +526,10 @@ contract MapleLoanTests is TestUtils {
 
         vm.expectRevert("ML:TDW:NOT_EARLY");
         vm.prank(lender);
-        loan.triggerDefaultWarning();
-
-        vm.warp(originalNextPaymentDate - 1);
-
-        vm.prank(lender);
-        loan.triggerDefaultWarning();
+        loan.impairLoan();
     }
 
-    function test_triggerDefaultWarning_cantTriggerTwice() external {
+    function test_impairLoan_cantTriggerTwice() external {
         uint256 start = 1 days;  // Non-zero start time.
 
         vm.warp(start);
@@ -544,16 +539,16 @@ contract MapleLoanTests is TestUtils {
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
         vm.prank(lender);
-        loan.triggerDefaultWarning();
+        loan.impairLoan();
 
         vm.warp(block.timestamp - 1);
 
         vm.expectRevert("ML:TDW:ALREADY_TRIGGERED");
         vm.prank(lender);
-        loan.triggerDefaultWarning();
+        loan.impairLoan();
     }
 
-    function test_triggerDefaultWarning() external {
+    function test_impairLoan() external {
         uint256 start = 1 days;  // Non-zero start time.
 
         vm.warp(start);
@@ -563,28 +558,28 @@ contract MapleLoanTests is TestUtils {
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
         vm.prank(lender);
-        loan.triggerDefaultWarning();
+        loan.impairLoan();
 
         assertEq(loan.nextPaymentDueDate(), block.timestamp);
     }
 
-    function test_removeDefaultWarning_noWarning() external {
+    function test_removeLoanImpairment_notImpaired() external {
         vm.prank(lender);
-        vm.expectRevert("ML:RDW:NO_WARNING");
-        loan.removeDefaultWarning();
+        vm.expectRevert("ML:RDW:NOT_IMPAIRED");
+        loan.removeLoanImpairment();
     }
 
-    function test_removeDefaultWarning_pastDate() external {
+    function test_removeLoanImpairment_pastDate() external {
         vm.warp(1 days);
 
         loan.__setOriginalNextPaymentDueDate(block.timestamp - 1);
 
         vm.prank(lender);
         vm.expectRevert("ML:RDW:PAST_DATE");
-        loan.removeDefaultWarning();
+        loan.removeLoanImpairment();
     }
 
-    function test_removeDefaultWarning_success() external {
+    function test_removeLoanImpairment_success() external {
         vm.warp(1 days);
 
         loan.__setNextPaymentDueDate(block.timestamp);
@@ -593,7 +588,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.nextPaymentDueDate(), block.timestamp);
 
         vm.prank(lender);
-        loan.removeDefaultWarning();
+        loan.removeLoanImpairment();
 
         assertEq(loan.nextPaymentDueDate(), block.timestamp + 1);
     }

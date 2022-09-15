@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { IMapleLoanFactory } from "../../interfaces/IMapleLoanFactory.sol";
+import { IMapleLoanFactory } from "../../contracts/interfaces/IMapleLoanFactory.sol";
 
 contract MapleGlobalsMock {
 

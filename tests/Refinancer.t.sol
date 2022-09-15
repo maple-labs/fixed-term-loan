@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-import { MapleLoanFeeManager } from "../MapleLoanFeeManager.sol";
-import { Refinancer }          from "../Refinancer.sol";
+import { MapleLoanFeeManager } from "../contracts/MapleLoanFeeManager.sol";
+import { Refinancer }          from "../contracts/Refinancer.sol";
 
 import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
 

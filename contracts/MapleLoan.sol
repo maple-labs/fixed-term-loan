@@ -73,7 +73,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         require(block.timestamp <= paymentDueDate_, "ML:CL:PAYMENT_IS_LATE");
 
-        _handleDefaultWarning();
+        _handleImpairment();
 
         ( principal_, interest_, fees_ ) = getClosingPaymentBreakdown();
 
@@ -126,7 +126,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
 
-        _handleDefaultWarning();
+        _handleImpairment();
 
         ( principal_, interest_, fees_ ) = getNextPaymentBreakdown();
 
@@ -274,7 +274,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
         _nextPaymentDueDate = block.timestamp + paymentInterval_;
 
-        _handleDefaultWarning();
+        _handleImpairment();
 
         // Update Platform Fees and pay originations.
         feeManager_.updatePlatformServiceFee(principalRequested_, paymentInterval_);
@@ -317,11 +317,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeDefaultWarning() external override {
+    function removeLoanImpairment() external override {
         uint256 originalNextPaymentDueDate_ = _originalNextPaymentDueDate;
 
         require(msg.sender == _lender,                          "ML:RDW:NOT_LENDER");
-        require(originalNextPaymentDueDate_ != 0,               "ML:RDW:NO_WARNING");
+        require(originalNextPaymentDueDate_ != 0,               "ML:RDW:NOT_IMPAIRED");
         require(block.timestamp <= originalNextPaymentDueDate_, "ML:RDW:PAST_DATE");  // TODO: Should we remove this? Will it mess up LM accounting?
 
         _nextPaymentDueDate = originalNextPaymentDueDate_;
@@ -373,12 +373,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit PendingLenderSet(_pendingLender = pendingLender_);
     }
 
-    function triggerDefaultWarning() external override {
+    function impairLoan() external override {
         uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
 
         require(msg.sender == _lender,                         "ML:TDW:NOT_LENDER");
         require(block.timestamp < originalNextPaymentDueDate_, "ML:TDW:NOT_EARLY");
-        require(!isInDefaultWarning(),                         "ML:TDW:ALREADY_TRIGGERED");
+        require(!isImpaired(),                                 "ML:TDW:ALREADY_TRIGGERED");
 
         emit NextPaymentDueDateFastForwarded(block.timestamp);
 
@@ -615,7 +615,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _refinanceInterest;
     }
 
-    function isInDefaultWarning() public view returns (bool isInDefaultWarning_) {
+    function isImpaired() public view returns (bool isImpaired_) {
         return _originalNextPaymentDueDate != uint256(0);
     }
 
@@ -825,8 +825,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return keccak256(abi.encode(refinancer_, deadline_, calls_));
     }
 
-    function _handleDefaultWarning() internal {
-        if (!isInDefaultWarning()) return;
+    function _handleImpairment() internal {
+        if (!isImpaired()) return;
         _originalNextPaymentDueDate = uint256(0);
     }
 

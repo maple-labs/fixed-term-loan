@@ -128,7 +128,7 @@ interface IMapleLoanEvents {
     event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
 
     /**
-     *  @dev   The next payment due date was restored to it's original value, reverting the action of triggering the default warning.
+     *  @dev   The next payment due date was restored to it's original value, reverting the action of loan impairment.
      *  @param nextPaymentDueDate_ The new next payment due date.
      */
     event NextPaymentDueDateRestored(uint256 nextPaymentDueDate_);

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../../modules/contract-test-utils/contracts/test.sol";
-import { MockERC20 }          from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { IMapleProxyFactory } from "../../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 
 import { MapleGlobalsMock, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
 
-import { MapleLoan }            from "../MapleLoan.sol";
-import { MapleLoanFactory }     from "../MapleLoanFactory.sol";
-import { MapleLoanInitializer } from "../MapleLoanInitializer.sol";
-import { MapleLoanFeeManager }  from "../MapleLoanFeeManager.sol";
+import { MapleLoan }            from "../contracts/MapleLoan.sol";
+import { MapleLoanFactory }     from "../contracts/MapleLoanFactory.sol";
+import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
+import { MapleLoanFeeManager }  from "../contracts/MapleLoanFeeManager.sol";
 
 contract FeeManagerBase is TestUtils {
 
