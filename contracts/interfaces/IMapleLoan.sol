@@ -261,7 +261,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function setPendingLender(address pendingLender_) external;
 
     /**
-     *  @dev    Remove some token (neither fundsAsset nor collateralAsset) from the loan.
+     *  @dev    Remove all token that is not accounted for by the loan (i.e. not `collateral` or `drawableFunds`).
      *  @param  token_       The address of the token contract.
      *  @param  destination_ The recipient of the token.
      *  @return skimmed_     The amount of token removed from the loan.

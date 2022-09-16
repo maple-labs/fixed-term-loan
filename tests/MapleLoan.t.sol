@@ -433,39 +433,6 @@ contract MapleLoanTests is TestUtils {
         loan.acceptLender();
     }
 
-    function test_skim_acl() external {
-        MockERC20 otherAsset = new MockERC20("OA", "OA", 18);
-
-        otherAsset.mint(address(loan), 1);
-
-        vm.expectRevert("ML:S:NO_AUTH");
-        loan.skim(address(otherAsset), lender);
-
-        assertEq(otherAsset.balanceOf(address(loan)), 1);
-        assertEq(otherAsset.balanceOf(lender),        0);
-        assertEq(otherAsset.balanceOf(borrower),      0);
-
-        vm.prank(lender);
-        loan.skim(address(otherAsset), lender);
-
-        assertEq(otherAsset.balanceOf(address(loan)), 0);
-        assertEq(otherAsset.balanceOf(lender),        1);
-        assertEq(otherAsset.balanceOf(borrower),      0);
-
-        otherAsset.mint(address(loan), 1);
-
-        assertEq(otherAsset.balanceOf(address(loan)), 1);
-        assertEq(otherAsset.balanceOf(lender),        1);
-        assertEq(otherAsset.balanceOf(borrower),      0);
-
-        vm.prank(borrower);
-        loan.skim(address(otherAsset), borrower);
-
-        assertEq(otherAsset.balanceOf(address(loan)), 0);
-        assertEq(otherAsset.balanceOf(lender),        1);
-        assertEq(otherAsset.balanceOf(borrower),      1);
-    }
-
     function test_upgrade_acl() external {
         MockFactory factory = new MockFactory(address(globals));
 

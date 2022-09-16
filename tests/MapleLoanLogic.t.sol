@@ -2379,3 +2379,65 @@ contract MapleLoanLogic_ScaledExponentTests is TestUtils {
     }
 
 }
+
+contract MapleLoanLogic_SkimTests is TestUtils {
+
+    MapleLoanHarness internal _loan;
+    MockERC20        internal _collateralAsset;
+    MockERC20        internal _fundsAsset;
+
+    address _user = address(new Address());
+
+    function setUp() external {
+        _collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        _fundsAsset      = new MockERC20("Funds Asset", "FA", 0);
+        _loan            = new MapleLoanHarness();
+
+        _loan.__setCollateral(1);
+        _loan.__setCollateralAsset(address(_collateralAsset));
+        _loan.__setDrawableFunds(1);
+        _loan.__setFundsAsset(address(_fundsAsset));
+
+        _collateralAsset.mint(address(_loan), 1);
+        _fundsAsset.mint(address(_loan), 1);
+    }
+
+    function test_skim_collateralAsset() external {
+        _collateralAsset.mint(address(_loan), 1);
+
+        assertEq(_collateralAsset.balanceOf(address(_loan)), 2);
+        assertEq(_collateralAsset.balanceOf(_user),          0);
+
+        _loan.skim(address(_collateralAsset), _user);
+
+        assertEq(_collateralAsset.balanceOf(address(_loan)), 1);
+        assertEq(_collateralAsset.balanceOf(_user),          1);
+    }
+
+    function test_skim_fundsAsset() external {
+        _fundsAsset.mint(address(_loan), 1);
+
+        assertEq(_fundsAsset.balanceOf(address(_loan)), 2);
+        assertEq(_fundsAsset.balanceOf(_user),          0);
+
+        _loan.skim(address(_fundsAsset), _user);
+
+        assertEq(_fundsAsset.balanceOf(address(_loan)), 1);
+        assertEq(_fundsAsset.balanceOf(_user),          1);
+    }
+
+    function test_skim_otherAsset() external {
+        MockERC20 otherAsset = new MockERC20("Other Asset", "OA", 18);
+
+        otherAsset.mint(address(_loan), 1);
+
+        assertEq(otherAsset.balanceOf(address(_loan)), 1);
+        assertEq(otherAsset.balanceOf(_user),          0);
+
+        _loan.skim(address(otherAsset), _user);
+
+        assertEq(otherAsset.balanceOf(address(_loan)), 0);
+        assertEq(otherAsset.balanceOf(_user),          1);
+    }
+
+}

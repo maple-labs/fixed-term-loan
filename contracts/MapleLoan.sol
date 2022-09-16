@@ -404,11 +404,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function skim(address token_, address destination_) external override returns (uint256 skimmed_) {
-        require((msg.sender == _borrower) || (msg.sender == _lender),    "ML:S:NO_AUTH");
-        require((token_ != _fundsAsset) && (token_ != _collateralAsset), "ML:S:INVALID_TOKEN");
-
-        emit Skimmed(token_, skimmed_ = IERC20(token_).balanceOf(address(this)), destination_);
-
+        emit Skimmed(token_, skimmed_ = getUnaccountedAmount(token_), destination_);
         require(ERC20Helper.transfer(token_, destination_, skimmed_), "ML:S:TRANSFER_FAILED");
     }
 
