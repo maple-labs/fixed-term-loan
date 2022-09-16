@@ -320,9 +320,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function removeLoanImpairment() external override {
         uint256 originalNextPaymentDueDate_ = _originalNextPaymentDueDate;
 
-        require(msg.sender == _lender,                          "ML:RDW:NOT_LENDER");
-        require(originalNextPaymentDueDate_ != 0,               "ML:RDW:NOT_IMPAIRED");
-        require(block.timestamp <= originalNextPaymentDueDate_, "ML:RDW:PAST_DATE");  // TODO: Should we remove this? Will it mess up LM accounting?
+        require(msg.sender == _lender,                          "ML:RLI:NOT_LENDER");
+        require(originalNextPaymentDueDate_ != 0,               "ML:RLI:NOT_IMPAIRED");
+        require(block.timestamp <= originalNextPaymentDueDate_, "ML:RLI:PAST_DATE");  // TODO: Should we remove this? Will it mess up LM accounting?
 
         _nextPaymentDueDate = originalNextPaymentDueDate_;
         delete _originalNextPaymentDueDate;
@@ -376,9 +376,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function impairLoan() external override {
         uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
 
-        require(msg.sender == _lender,                         "ML:TDW:NOT_LENDER");
-        require(block.timestamp < originalNextPaymentDueDate_, "ML:TDW:NOT_EARLY");
-        require(!isImpaired(),                                 "ML:TDW:ALREADY_TRIGGERED");
+        require(msg.sender == _lender,                         "ML:IL:NOT_LENDER");
+        require(block.timestamp < originalNextPaymentDueDate_, "ML:IL:NOT_EARLY");
+        require(!isImpaired(),                                 "ML:IL:ALREADY_TRIGGERED");
 
         emit NextPaymentDueDateFastForwarded(block.timestamp);
 

@@ -374,7 +374,7 @@ contract MapleLoanTests is TestUtils {
     function test_removeLoanImpairment_acl() external {
         loan.__setOriginalNextPaymentDueDate(block.timestamp + 300);
 
-        vm.expectRevert("ML:RDW:NOT_LENDER");
+        vm.expectRevert("ML:RLI:NOT_LENDER");
         loan.removeLoanImpairment();
 
         vm.prank(lender);
@@ -408,7 +408,7 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
-        vm.expectRevert("ML:TDW:NOT_LENDER");
+        vm.expectRevert("ML:IL:NOT_LENDER");
         loan.impairLoan();
 
         vm.prank(lender);
@@ -524,7 +524,7 @@ contract MapleLoanTests is TestUtils {
 
         vm.warp(originalNextPaymentDate);
 
-        vm.expectRevert("ML:TDW:NOT_EARLY");
+        vm.expectRevert("ML:IL:NOT_EARLY");
         vm.prank(lender);
         loan.impairLoan();
     }
@@ -543,7 +543,7 @@ contract MapleLoanTests is TestUtils {
 
         vm.warp(block.timestamp - 1);
 
-        vm.expectRevert("ML:TDW:ALREADY_TRIGGERED");
+        vm.expectRevert("ML:IL:ALREADY_TRIGGERED");
         vm.prank(lender);
         loan.impairLoan();
     }
@@ -565,7 +565,7 @@ contract MapleLoanTests is TestUtils {
 
     function test_removeLoanImpairment_notImpaired() external {
         vm.prank(lender);
-        vm.expectRevert("ML:RDW:NOT_IMPAIRED");
+        vm.expectRevert("ML:RLI:NOT_IMPAIRED");
         loan.removeLoanImpairment();
     }
 
@@ -575,7 +575,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setOriginalNextPaymentDueDate(block.timestamp - 1);
 
         vm.prank(lender);
-        vm.expectRevert("ML:RDW:PAST_DATE");
+        vm.expectRevert("ML:RLI:PAST_DATE");
         loan.removeLoanImpairment();
     }
 
