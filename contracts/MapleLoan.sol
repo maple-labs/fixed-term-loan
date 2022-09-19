@@ -376,13 +376,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function impairLoan() external override {
         uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
 
-        require(msg.sender == _lender,                         "ML:IL:NOT_LENDER");
-        require(block.timestamp < originalNextPaymentDueDate_, "ML:IL:NOT_EARLY");
-        require(!isImpaired(),                                 "ML:IL:ALREADY_TRIGGERED");
+        require(msg.sender == _lender, "ML:IL:NOT_LENDER");
+        require(!isImpaired(),         "ML:IL:ALREADY_TRIGGERED");
 
-        emit NextPaymentDueDateFastForwarded(block.timestamp);
+        // If the loan is late, do not change the payment due date.
+        uint256 newPaymentDueDate_ = block.timestamp > originalNextPaymentDueDate_ ? originalNextPaymentDueDate_ : block.timestamp;
 
-        _nextPaymentDueDate         = block.timestamp;
+        emit LoanImpaired(newPaymentDueDate_);
+
+        _nextPaymentDueDate         = newPaymentDueDate_;
         _originalNextPaymentDueDate = originalNextPaymentDueDate_;  // Store the existing payment due date to enable reversion.
     }
 
@@ -577,6 +579,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function nextPaymentDueDate() external view override returns (uint256 nextPaymentDueDate_) {
         return _nextPaymentDueDate;
+    }
+
+    function originalNextPaymentDueDate() external view override returns (uint256 originalNextPaymentDueDate_) {
+        return _originalNextPaymentDueDate;
     }
 
     function paymentInterval() external view override returns (uint256 paymentInterval_) {

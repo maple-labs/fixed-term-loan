@@ -93,6 +93,13 @@ interface IMapleLoanEvents {
     event LenderAccepted(address indexed lender_);
 
     /**
+     *  @dev   The next payment due date was fast forwarded to the current time, activating the grace period.
+     *         This is emitted when the pool delegate wants to force a payment (or default).
+     *  @param nextPaymentDueDate_ The new next payment due date.
+     */
+    event LoanImpaired(uint256 nextPaymentDueDate_);
+
+    /**
      *  @dev   Loan was repaid early and closed.
      *  @param principalPaid_ The portion of the total amount that went towards principal.
      *  @param interestPaid_  The portion of the total amount that went towards interest.
@@ -132,13 +139,6 @@ interface IMapleLoanEvents {
      *  @param nextPaymentDueDate_ The new next payment due date.
      */
     event NextPaymentDueDateRestored(uint256 nextPaymentDueDate_);
-
-    /**
-     *  @dev   The next payment due date was fast forwarded to the current time, activating the grace period.
-     *         This is emitted when the pool delegate wants to force a payment (or default).
-     *  @param nextPaymentDueDate_ The new next payment due date.
-     */
-    event NextPaymentDueDateFastForwarded(uint256 nextPaymentDueDate_);
 
     /**
      *  @dev   Payments were made.

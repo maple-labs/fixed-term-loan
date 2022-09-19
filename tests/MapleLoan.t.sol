@@ -480,22 +480,6 @@ contract MapleLoanTests is TestUtils {
         loan.acceptNewTerms(refinancer, deadline, calls);
     }
 
-    function test_impairLoan_lateLoan() external {
-        uint256 start = 1 days;  // Non-zero start time.
-
-        vm.warp(start);
-
-        uint256 originalNextPaymentDate = start + 10 days;
-
-        loan.__setNextPaymentDueDate(originalNextPaymentDate);
-
-        vm.warp(originalNextPaymentDate);
-
-        vm.expectRevert("ML:IL:NOT_EARLY");
-        vm.prank(lender);
-        loan.impairLoan();
-    }
-
     function test_impairLoan_cantTriggerTwice() external {
         uint256 start = 1 days;  // Non-zero start time.
 
@@ -524,10 +508,33 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
+        assertEq(loan.originalNextPaymentDueDate(), 0);
+        assertEq(loan.nextPaymentDueDate(),         originalNextPaymentDate);
+
         vm.prank(lender);
         loan.impairLoan();
 
-        assertEq(loan.nextPaymentDueDate(), block.timestamp);
+        assertEq(loan.originalNextPaymentDueDate(), originalNextPaymentDate);
+        assertEq(loan.nextPaymentDueDate(),         start);
+    }
+
+    function test_impairLoan_lateLoan() external {
+        uint256 start = 1 days;  // Non-zero start time.
+
+        uint256 originalNextPaymentDate = start + 10 days;
+
+        loan.__setNextPaymentDueDate(originalNextPaymentDate);
+
+        vm.warp(originalNextPaymentDate + 1 days);
+
+        assertEq(loan.originalNextPaymentDueDate(), 0);
+        assertEq(loan.nextPaymentDueDate(),         originalNextPaymentDate);
+
+        vm.prank(lender);
+        loan.impairLoan();
+
+        assertEq(loan.originalNextPaymentDueDate(), originalNextPaymentDate);
+        assertEq(loan.nextPaymentDueDate(),         originalNextPaymentDate);
     }
 
     function test_removeLoanImpairment_notImpaired() external {

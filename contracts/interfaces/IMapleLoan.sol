@@ -101,6 +101,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
 
     /**
+     *  @dev The saved original payment due date from a loan impairment.
+     */
+    function originalNextPaymentDueDate() external view returns (uint256 originalNextPaymentDueDate_);
+
+    /**
      *  @dev The specified time between loan payments.
      */
     function paymentInterval() external view returns (uint256 paymentInterval_);
