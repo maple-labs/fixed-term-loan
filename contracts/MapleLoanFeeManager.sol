@@ -179,8 +179,8 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     /*** Internal Helper Functions ***/
     /*********************************/
 
-    // TODO: Investigate removing this function if gas is significantly reduced.
     function _transferTo(address asset_, address destination_, uint256 amount_, string memory errorMessage_) internal {
+        require(destination_ != address(0), "MLFM:TT:ZERO_DESTINATION");
         require(ERC20Helper.transferFrom(asset_, msg.sender, destination_, amount_), errorMessage_);
     }
 

@@ -189,12 +189,22 @@ contract PayOriginationFeesTests is FeeManagerBase {
         loan.fundLoan(address(loanManager));
     }
 
-
     function test_payOriginationFees_insufficientFunds_treasury() external {
         fundsAsset.mint(address(loan), 50_750e18 - 1);  // 50k + (1m * 0.3% / 12 * 3) = 50_750
 
         vm.prank(address(loanManager));
         vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
+        loan.fundLoan(address(loanManager));
+    }
+
+    function test_payOriginationFees_zeroTreasury() external {
+        vm.prank(GOVERNOR);
+        globals.setMapleTreasury(address(0));
+
+        fundsAsset.mint(address(loan), 1_000_000e18);  // 1m + 50k + (1m * 0.3% = 3_000) = 1_053_000
+
+        vm.prank(address(loanManager));
+        vm.expectRevert("MLFM:TT:ZERO_DESTINATION");
         loan.fundLoan(address(loanManager));
     }
 
@@ -245,7 +255,6 @@ contract PayServiceFeesTests is FeeManagerBase {
         loan.makePayment(platformServiceFee - 1);
     }
 
-
     function test_payServiceFees_insufficientFunds_treasury() external {
         uint256 platformServiceFee = 250e18;  // 1m * 0.3% / 12 = 250
         uint256 delegateServiceFee = 500e18;  // 500 = 500
@@ -258,6 +267,24 @@ contract PayServiceFeesTests is FeeManagerBase {
 
         vm.expectRevert("MLFM:PSF:TREASURY_TRANSFER");
         loan.makePayment(delegateServiceFee + platformServiceFee - 1);
+    }
+
+    function test_payServiceFees_zeroTreasury() external {
+        ( uint256 principal, uint256 interest, uint256 fees ) = loan.getNextPaymentBreakdown();
+
+        assertEq(principal, 0);
+        assertEq(interest,  10_000e18);
+        assertEq(fees,      750e18);     // 1m * (0.3% + 0.6%) / 12 = 250 + 500
+
+        vm.prank(GOVERNOR);
+        globals.setMapleTreasury(address(0));
+
+        vm.startPrank(BORROWER);
+
+        fundsAsset.approve(address(loan), 10_750e18);
+
+        vm.expectRevert("MLFM:TT:ZERO_DESTINATION");
+        loan.makePayment(10_750e18);
     }
 
     function test_payServiceFees() external {
