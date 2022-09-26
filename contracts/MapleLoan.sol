@@ -67,6 +67,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function closeLoan(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
 
         uint256 paymentDueDate_ = _nextPaymentDueDate;
@@ -124,6 +125,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function makePayment(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
 
         _handleImpairment();
@@ -163,6 +165,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function postCollateral(uint256 amount_) public override returns (uint256 collateralPosted_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(
             amount_ == uint256(0) || ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_),
             "ML:PC:TRANSFER_FROM_FAILED"
@@ -200,6 +203,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function returnFunds(uint256 amount_) external override returns (uint256 fundsReturned_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:RF:TRANSFER_FROM_FAILED");
 
         _drawableFunds += (fundsReturned_ = getUnaccountedAmount(_fundsAsset));
@@ -286,7 +290,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
     }
 
-    // TODO: Revert on over fund
     function fundLoan(address lender_) external override returns (uint256 fundsLent_) {
         require((_lender = lender_) != address(0), "ML:FL:INVALID_LENDER");
 

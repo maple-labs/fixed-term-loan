@@ -170,6 +170,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Repay all principal and interest and close a loan.
+     *          FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
      *  @param  amount_    An amount to pull from the caller, if any.
      *  @return principal_ The portion of the amount paying back principal.
      *  @return interest_  The portion of the amount paying interest.
@@ -194,6 +195,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Make a payment to the loan.
+     *          FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
      *  @param  amount_    An amount to pull from the caller, if any.
      *  @return principal_ The portion of the amount paying back principal.
      *  @return interest_  The portion of the amount paying interest fees.
@@ -203,13 +205,14 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Post collateral to the loan.
+     *          FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
      *  @param  amount_           An amount to pull from the caller, if any.
      *  @return collateralPosted_ The amount posted.
      */
     function postCollateral(uint256 amount_) external returns (uint256 collateralPosted_);
 
     /**
-     *  @dev    Propose new terms for refinance
+     *  @dev    Propose new terms for refinance.
      *  @param  refinancer_          The address of the refinancer contract.
      *  @param  deadline_            The deadline for accepting the new terms.
      *  @param  calls_               The encoded arguments to be passed to refinancer.
@@ -240,6 +243,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Return funds to the loan (opposite of drawing down).
+     *          FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
      *  @param  amount_        An amount to pull from the caller, if any.
      *  @return fundsReturned_ The amount returned.
      */
