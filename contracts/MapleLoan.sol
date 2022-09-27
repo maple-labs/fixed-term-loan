@@ -380,7 +380,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
 
         require(msg.sender == _lender, "ML:IL:NOT_LENDER");
-        require(!isImpaired(),         "ML:IL:ALREADY_TRIGGERED");
 
         // If the loan is late, do not change the payment due date.
         uint256 newPaymentDueDate_ = block.timestamp > originalNextPaymentDueDate_ ? originalNextPaymentDueDate_ : block.timestamp;

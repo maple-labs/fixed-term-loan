@@ -480,25 +480,6 @@ contract MapleLoanTests is TestUtils {
         loan.acceptNewTerms(refinancer, deadline, calls);
     }
 
-    function test_impairLoan_cantTriggerTwice() external {
-        uint256 start = 1 days;  // Non-zero start time.
-
-        vm.warp(start);
-
-        uint256 originalNextPaymentDate = start + 10 days;
-
-        loan.__setNextPaymentDueDate(originalNextPaymentDate);
-
-        vm.prank(lender);
-        loan.impairLoan();
-
-        vm.warp(block.timestamp - 1);
-
-        vm.expectRevert("ML:IL:ALREADY_TRIGGERED");
-        vm.prank(lender);
-        loan.impairLoan();
-    }
-
     function test_impairLoan() external {
         uint256 start = 1 days;  // Non-zero start time.
 
