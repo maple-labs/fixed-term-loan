@@ -42,6 +42,8 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         _transferTo(asset_, _getTreasury(),               platformOriginationFee_, "MLFM:POF:TREASURY_TRANSFER");
 
         feePaid_ = delegateOriginationFee_ + platformOriginationFee_;
+
+        emit OriginationFeesPaid(msg.sender, delegateOriginationFee_, platformOriginationFee_);
     }
 
     function payServiceFees(address asset_, uint256 numberOfPayments_) external override returns (uint256 feePaid_) {

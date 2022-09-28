@@ -18,6 +18,14 @@ interface IMapleLoanFeeManager {
     event FeeTermsUpdated(address loan_, uint256 delegateOriginationFee_, uint256 delegateServiceFee_);
 
     /**
+     *  @dev   A fee payment was made.
+     *  @param loan_                   The address of the loan contract.
+     *  @param delegateOriginationFee_ The amount of delegate origination fee paid.
+     *  @param platformOriginationFee_ The amount of platform origination fee paid.
+    */
+    event OriginationFeesPaid(address loan_, uint256 delegateOriginationFee_, uint256 platformOriginationFee_);
+
+    /**
      *  @dev   New fee terms have been set.
      *  @param loan_               The address of the loan contract.
      *  @param platformServiceFee_ The new value for the platform service fee.
