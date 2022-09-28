@@ -352,9 +352,9 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setCollateralAsset(address(token));                // Needed for the getUnaccountedAmount check
         loan.__setFundsAsset(address(token));                     // Needed for the getUnaccountedAmount check
-        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for establishment fee checks (TODO update)
-        loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
-        loan.__setPaymentsRemaining(3);                           // Needed for establishment fee checks (TODO update)
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for origination fee checks
+        loan.__setPaymentInterval(30 days);                       // Needed for origination fee checks
+        loan.__setPaymentsRemaining(3);                           // Needed for origination fee checks
         loan.__setPrincipalRequested(1);                          // Needed for the collateralMaintained check
 
         address mockRefinancer = address(new EmptyContract());
@@ -457,9 +457,9 @@ contract MapleLoanTests is TestUtils {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
 
         loan.__setFundsAsset(address(fundsAsset));
-        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for establishment fee checks (TODO update)
-        loan.__setPaymentInterval(30 days);                       // Needed for establishment fee checks (TODO update)
-        loan.__setPaymentsRemaining(3);                           // Needed for establishment fee checks (TODO update)
+        loan.__setNextPaymentDueDate(block.timestamp + 25 days);  // Needed for origination fee checks
+        loan.__setPaymentInterval(30 days);                       // Needed for origination fee checks
+        loan.__setPaymentsRemaining(3);                           // Needed for origination fee checks
         loan.__setPrincipal(1);
         loan.__setPrincipalRequested(1);
 

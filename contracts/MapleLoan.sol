@@ -31,9 +31,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_drawableFunds >= drawableFundsBeforePayment, "ML:CANNOT_USE_DRAWABLE");
     }
 
-    /********************************/
-    /*** Administrative Functions ***/
-    /********************************/
+    /*#*****************************************************************************************************************************/
+    /*** Administrative Functions                                                                                                ***/
+    /**#****************************************************************************************************************************/
 
     function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "ML:M:NOT_FACTORY");
@@ -53,9 +53,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         IMapleProxyFactory(_factory()).upgradeInstance(toVersion_, arguments_);
     }
 
-    /************************/
-    /*** Borrow Functions ***/
-    /************************/
+    /******************************************************************************************************************************/
+    /*** Borrow Functions                                                                                                       ***/
+    /******************************************************************************************************************************/
 
     function acceptBorrower() external override {
         require(msg.sender == _pendingBorrower, "ML:AB:NOT_PENDING_BORROWER");
@@ -136,7 +136,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint256 principalAndInterest = principal_ + interest_;
 
-        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, 1);  // TODO: Reinvestigate to see if we can implement CEI here.
+        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, 1);
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
@@ -218,9 +218,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
     }
 
-    /**********************/
-    /*** Lend Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** Lend Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     function acceptLender() external override {
         require(msg.sender == _pendingLender, "ML:AL:NOT_PENDING_LENDER");
@@ -287,7 +287,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         // Ensure that collateral is maintained after changes made.
         require(_isCollateralMaintained(),                       "ML:ANT:INSUFFICIENT_COLLATERAL");
-        require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
+        require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");
     }
 
     function fundLoan(address lender_) external override returns (uint256 fundsLent_) {
@@ -300,7 +300,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 paymentInterval_    = _paymentInterval;
         uint256 principalRequested_ = _principalRequested;
 
-        // TODO: Investigate using exact approvals
         IERC20(fundsAsset_).approve(_feeManager, type(uint256).max);
 
         // Saves the platform service fee rate for future payments.
@@ -308,10 +307,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint256 originationFees_ = IMapleLoanFeeManager(_feeManager).payOriginationFees(fundsAsset_, principalRequested_);
 
-        // TODO: Add drawableFunds assertions in fundLoan tests in MapleLoan.t.sol
         _drawableFunds = principalRequested_ - originationFees_;
 
-        require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:FL:UNEXPECTED_FUNDS");  // TODO: Investigate using pull patterns instead of strict equalities
+        require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:FL:UNEXPECTED_FUNDS");
 
         emit Funded(
             lender_,
@@ -325,7 +323,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         require(msg.sender == _lender,                          "ML:RLI:NOT_LENDER");
         require(originalNextPaymentDueDate_ != 0,               "ML:RLI:NOT_IMPAIRED");
-        require(block.timestamp <= originalNextPaymentDueDate_, "ML:RLI:PAST_DATE");  // TODO: Should we remove this? Will it mess up LM accounting?
+        require(block.timestamp <= originalNextPaymentDueDate_, "ML:RLI:PAST_DATE");
 
         _nextPaymentDueDate = originalNextPaymentDueDate_;
         delete _originalNextPaymentDueDate;
@@ -390,9 +388,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _originalNextPaymentDueDate = originalNextPaymentDueDate_;  // Store the existing payment due date to enable reversion.
     }
 
-    /*******************************/
-    /*** Miscellaneous Functions ***/
-    /*******************************/
+    /******************************************************************************************************************************/
+    /*** Miscellaneous Functions                                                                                                ***/
+    /******************************************************************************************************************************/
 
     function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
         require((msg.sender == _borrower) || (msg.sender == _lender), "ML:RNT:NO_AUTH");
@@ -412,9 +410,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(ERC20Helper.transfer(token_, destination_, skimmed_), "ML:S:TRANSFER_FAILED");
     }
 
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** View Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     function getAdditionalCollateralRequiredFor(uint256 drawdown_) public view override returns (uint256 collateral_) {
         // Determine the collateral needed in the contract for a reduced drawable funds amount.
@@ -496,9 +494,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             - (asset_ == _fundsAsset      ? _drawableFunds : uint256(0));  // `_drawableFunds` is `_fundsAsset` accounted for.
     }
 
-    /****************************/
-    /*** State View Functions ***/
-    /****************************/
+    /******************************************************************************************************************************/
+    /*** State View Functions                                                                                                   ***/
+    /******************************************************************************************************************************/
 
     function borrower() external view override returns (address borrower_) {
         return _borrower;
@@ -623,9 +621,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _originalNextPaymentDueDate != uint256(0);
     }
 
-    /**********************************/
-    /*** Internal General Functions ***/
-    /**********************************/
+    /******************************************************************************************************************************/
+    /*** Internal General Functions                                                                                             ***/
+    /******************************************************************************************************************************/
 
     /// @dev Clears all state variables to end a loan, but keep borrower and lender withdrawal functionality intact.
     function _clearLoanAccounting() internal {
@@ -646,18 +644,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _originalNextPaymentDueDate = uint256(0);
     }
 
-    /*******************************/
-    /*** Internal View Functions ***/
-    /*******************************/
+    /******************************************************************************************************************************/
+    /*** Internal View Functions                                                                                                ***/
+    /******************************************************************************************************************************/
 
     /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
     function _isCollateralMaintained() internal view returns (bool isMaintained_) {
         return _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
-    /*******************************/
-    /*** Internal Pure Functions ***/
-    /*******************************/
+    /******************************************************************************************************************************/
+    /*** Internal Pure Functions                                                                                                ***/
+    /******************************************************************************************************************************/
 
     /// @dev Returns the total collateral to be posted for some drawn down (outstanding) principal and overall collateral ratio requirement.
     function _getCollateralRequiredFor(

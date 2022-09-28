@@ -8,9 +8,9 @@ import { IMapleLoanEvents } from "./IMapleLoanEvents.sol";
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
 interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
-    /***********************/
-    /*** State Variables ***/
-    /***********************/
+    /******************************************************************************************************************************/
+    /*** State Variables                                                                                                        ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev The borrower of the loan, responsible for repayments.
@@ -145,9 +145,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function refinanceInterest() external view returns (uint256 refinanceInterest_);
 
-    /********************************/
-    /*** State Changing Functions ***/
-    /********************************/
+    /******************************************************************************************************************************/
+    /*** State Changing Functions                                                                                               ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev Accept the borrower role, must be called by pendingBorrower.
@@ -283,9 +283,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function impairLoan() external;
 
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** View Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev    Returns the excess collateral that can be removed.

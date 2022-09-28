@@ -29,9 +29,9 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         globals = globals_;
     }
 
-    /*************************/
-    /*** Payment Functions ***/
-    /*************************/
+    /******************************************************************************************************************************/
+    /*** Payment Functions                                                                                                      ***/
+    /******************************************************************************************************************************/
 
     function payOriginationFees(address asset_, uint256 principalRequested_) external override returns (uint256 feePaid_) {
         uint256 delegateOriginationFee_ = delegateOriginationFee[msg.sender];
@@ -66,9 +66,9 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         emit ServiceFeesPaid(msg.sender, delegateServiceFee_, delegateRefinanceServiceFee_, platformServiceFee_, platformRefinanceServiceFee_);
     }
 
-    /****************************/
-    /*** Fee Update Functions ***/
-    /****************************/
+    /******************************************************************************************************************************/
+    /*** Fee Update Functions                                                                                                   ***/
+    /******************************************************************************************************************************/
 
     function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external override {
         delegateOriginationFee[msg.sender] = delegateOriginationFee_;
@@ -96,9 +96,9 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         emit PlatformServiceFeeUpdated(msg.sender, platformServiceFee_);
     }
 
-    /***********************/
-    /***  View Functions ***/
-    /***********************/
+    /******************************************************************************************************************************/
+    /***  View Functions                                                                                                        ***/
+    /******************************************************************************************************************************/
 
     function getDelegateServiceFeesForPeriod(address loan_, uint256 interval_) public view override returns (uint256 delegateServiceFee_) {
         uint256 paymentInterval = ILoanLike(loan_).paymentInterval();
@@ -150,9 +150,9 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         originationFees_ = _getPlatformOriginationFee(loan_, principalRequested_) + delegateOriginationFee[loan_];
     }
 
-    /*******************************/
-    /*** Internal View Functions ***/
-    /*******************************/
+    /******************************************************************************************************************************/
+    /*** Internal View Functions                                                                                                ***/
+    /******************************************************************************************************************************/
 
     function _getAsset(address loan_) internal view returns (address asset_) {
         return ILoanLike(loan_).fundsAsset();
@@ -177,9 +177,9 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         return IGlobalsLike(globals).mapleTreasury();
     }
 
-    /*********************************/
-    /*** Internal Helper Functions ***/
-    /*********************************/
+    /******************************************************************************************************************************/
+    /*** Internal Helper Functions                                                                                              ***/
+    /******************************************************************************************************************************/
 
     function _transferTo(address asset_, address destination_, uint256 amount_, string memory errorMessage_) internal {
         require(destination_ != address(0), "MLFM:TT:ZERO_DESTINATION");

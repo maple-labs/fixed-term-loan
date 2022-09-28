@@ -5,9 +5,9 @@ pragma solidity 0.8.7;
 
 interface IMapleLoanFeeManager {
 
-    /**************/
-    /*** Events ***/
-    /**************/
+    /******************************************************************************************************************************/
+    /*** Events                                                                                                                 ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev   New fee terms have been set.
@@ -50,9 +50,9 @@ interface IMapleLoanFeeManager {
     */
     event ServiceFeesPaid(address loan_, uint256 delegateServiceFee_, uint256 partialRefinanceDelegateServiceFee_, uint256 platformServiceFee_, uint256 partialRefinancePlatformServiceFee_);
 
-    /*************************/
-    /*** Payment Functions ***/
-    /*************************/
+    /******************************************************************************************************************************/
+    /*** Payment Functions                                                                                                      ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev   Called during `makePayment`, performs fee payments to the pool delegate and treasury.
@@ -69,9 +69,9 @@ interface IMapleLoanFeeManager {
      */
     function payOriginationFees(address asset_, uint256 principalRequested_) external returns (uint256 feePaid_);
 
-    /****************************/
-    /*** Fee Update Functions ***/
-    /****************************/
+    /******************************************************************************************************************************/
+    /*** Fee Update Functions                                                                                                   ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev   Called during loan creation or refinance, sets the fee terms.
@@ -92,9 +92,9 @@ interface IMapleLoanFeeManager {
      */
     function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external;
 
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
+    /******************************************************************************************************************************/
+    /*** View Functions                                                                                                         ***/
+    /******************************************************************************************************************************/
 
     /**
      *  @dev    Gets the delegate origination fee for the given loan.
