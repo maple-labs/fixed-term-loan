@@ -243,8 +243,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         require(block.timestamp <= deadline_, "ML:ANT:EXPIRED_COMMITMENT");
 
-        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
-
         uint256 paymentInterval_           = _paymentInterval;
         uint256 nextPaymentDueDate_        = _nextPaymentDueDate;
         uint256 previousPrincipalRequested = _principalRequested;
@@ -269,6 +267,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             require(success, "ML:ANT:FAILED");
             unchecked { ++i; }
         }
+
+        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
 
         address fundsAsset_         = _fundsAsset;
         uint256 principalRequested_ = _principalRequested;
