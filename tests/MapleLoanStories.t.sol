@@ -29,6 +29,7 @@ contract MapleLoanStoryTests is TestUtils {
         factory = new MockFactory(address(globals));
 
         globals.setValidBorrower(borrower, true);
+        globals.setValidCollateralAsset(address(token), true);
     }
 
     function test_story_fullyAmortized() external {

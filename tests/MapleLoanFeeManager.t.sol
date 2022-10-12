@@ -55,6 +55,7 @@ contract FeeManagerBase is TestUtils {
 
         globals.setMapleTreasury(TREASURY);
         globals.setValidBorrower(BORROWER, true);
+        globals.setValidCollateralAsset(address(collateralAsset), true);
         vm.stopPrank();
 
         defaultAssets      = [address(collateralAsset), address(fundsAsset)];

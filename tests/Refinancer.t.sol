@@ -63,6 +63,8 @@ contract RefinancerTestBase is TestUtils {
     {
         token = new MockERC20("Test", "TST", 0);
 
+        globals.setValidCollateralAsset(address(token), true);
+
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
@@ -702,6 +704,8 @@ contract RefinancerInterestTests is TestUtils {
     {
         token = new MockERC20("Test", "TST", 0);
 
+        globals.setValidCollateralAsset(address(token), true);
+
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];
         uint256[3] memory termDetails = [gracePeriod_, paymentInterval_, paymentsRemaining_];
@@ -1138,6 +1142,8 @@ contract RefinancingFeesTerms is TestUtils {
         token = new MockERC20("Test", "TST", 0);
 
         MockERC20 collateralToken = new MockERC20("Collateral", "COL", 0);
+
+        globals.setValidCollateralAsset(address(collateralToken), true);
 
         address[2] memory assets      = [address(collateralToken), address(token)];
         uint256[3] memory amounts     = [collateralRequired_, principalRequested_, endingPrincipal_];

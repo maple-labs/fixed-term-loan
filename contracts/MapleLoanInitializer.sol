@@ -103,8 +103,9 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
         address globals_ = IMapleProxyFactoryLike(msg.sender).mapleGlobals();
 
-        require((_borrower = borrower_) != address(0),        "MLI:I:ZERO_BORROWER");
-        require(IGlobalsLike(globals_).isBorrower(borrower_), "MLI:I:INVALID_BORROWER");
+        require((_borrower = borrower_) != address(0),                "MLI:I:ZERO_BORROWER");
+        require(IGlobalsLike(globals_).isBorrower(borrower_),         "MLI:I:INVALID_BORROWER");
+        require(IGlobalsLike(globals_).isCollateralAsset(assets_[0]), "MLI:I:INVALID_COLLATERAL_ASSET");
 
         require((_feeManager = feeManager_) != address(0), "MLI:I:INVALID_MANAGER");
 

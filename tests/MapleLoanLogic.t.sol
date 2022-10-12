@@ -53,6 +53,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         _defaultFees        = [uint256(0), uint256(0)];
 
         _globals.setValidBorrower(_defaultBorrower, true);
+        _globals.setValidCollateralAsset(address(_collateralAsset), true);
 
         vm.startPrank(address(_factory));
         _loan = new ConstructableMapleLoan(address(_factory), _defaultBorrower, address(_feeManager), _defaultAssets, _defaultTermDetails, _defaultAmounts, _defaultRates, _defaultFees);
@@ -912,6 +913,7 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
         _defaultTermDetails = [uint256(1), uint256(20 days), uint256(3)];
 
         _globals.setValidBorrower(_defaultBorrower, true);
+        _globals.setValidCollateralAsset(address(_token0), true);
     }
 
     function test_getClosingPaymentBreakdown(uint256 principal_, uint256 closingRate_, uint256 refinanceInterest_) external {
@@ -1450,6 +1452,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         _defaultFees        = [uint256(0), uint256(0)];
 
         _globals.setValidBorrower(_defaultBorrower, true);
+        _globals.setValidCollateralAsset(address(_token0), true);
     }
 
     function test_initialize() external {

@@ -7,6 +7,8 @@ interface IGlobalsLike {
 
     function isBorrower(address account_) external view returns (bool isBorrower_);
 
+    function isCollateralAsset(address collateralAsset_) external view returns (bool isCollateralAsset_);
+
     function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_);
 
     function mapleTreasury() external view returns (address governor_);

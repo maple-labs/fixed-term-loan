@@ -41,6 +41,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         factory = new MapleProxyFactory(address(globals));
 
         globals.setValidBorrower(borrower, true);
+        globals.setValidCollateralAsset(address(collateralAsset), true);
 
         vm.startPrank(governor);
         factory.registerImplementation(1, address(implementation), address(initializer));
