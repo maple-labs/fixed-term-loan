@@ -1,6 +1,9 @@
-name: Basic PR Tests
+name: Forge Tests
 
-on: [pull_request]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   run-ci:
@@ -19,4 +22,4 @@ jobs:
           git submodule update --init --recursive
 
       - name: Run forge tests
-        run: ./scripts/test.sh -p deep
+        run: ./scripts/test.sh -p super_deep

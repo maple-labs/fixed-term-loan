@@ -1,6 +1,6 @@
 # MapleLoan
 
-![Foundry CI](https://github.com/maple-labs/loan/actions/workflows/push-to-main.yml/badge.svg) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+![Foundry CI](https://github.com/maple-labs/loan/actions/workflows/forge.yaml/badge.svg) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 **DISCLAIMER: This code has NOT been externally audited and is actively being developed. Please do not use in production without taking the appropriate steps to ensure maximum security.**
 
@@ -16,7 +16,7 @@ This repo contains a set of contracts to facilitate on-chain Loans between Maple
 9. Upgrade Loan logic using upgradeability patterns.
 
 ### Dependencies/Inheritance
-The `MapleLoan` contract is deployed using the `MapleProxyFactory`, which can be found in the modules or on GitHub [here](https://github.com/maple-labs/maple-proxy-factory).
+The `MapleLoan` contract is deployed using the `MapleProxyFactory` (v1.0.0), which can be found in the modules or on GitHub [here](https://github.com/maple-labs/maple-proxy-factory).
 
 `MapleProxyFactory` inherits from the generic `ProxyFactory` contract which can be found [here](https://github.com/maple-labs/proxy-factory).
 
@@ -46,19 +46,19 @@ For more in-depth technical documentation about these contracts, please refer to
 | Auditor | Report link |
 |---|---|
 | Trail of Bits - LoanV2 | [ToB Report - Dec 28, 2021](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-core/files/7847684/Maple.Finance.-.Final.Report_v3.pdf) |
-| Code 4rena - LoanV2 | [C4 Report - Jan 5, 2022](https://code4rena.com/reports/2021-12-maple/) |
+| Code 4rena - LoanV2    | [C4 Report - Jan 5, 2022](https://code4rena.com/reports/2021-12-maple/) |
 | Trail of Bits - LoanV3 | [ToB Report - April 12, 2022](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-core/files/8507237/Maple.Finance.-.Final.Report.-.Fixes.pdf) |
-| Code 4rena - LoanV3 | [C4 Report - April 20, 2022](https://code4rena.com/reports/2022-03-maple/) |
+| Code 4rena - LoanV3    | [C4 Report - April 20, 2022](https://code4rena.com/reports/2022-03-maple/) |
 
 ## Bug Bounty
 
-For all information related to the ongoing bug bounty for these contracts run by [Immunefi](https://immunefi.com/), please visit this [site](https://immunefi.com/bounty/maple/). 
+For all information related to the ongoing bug bounty for these contracts run by [Immunefi](https://immunefi.com/), please visit this [site](https://immunefi.com/bounty/maple/).
 
 | Severity of Finding | Payout |
 |---|---|
 | Critical | $50,000 |
-| High | $25,000 |
-| Medium | $1,000 |
+| High     | $25,000 |
+| Medium   | $1,000  |
 
 ## About Maple
 [Maple Finance](https://maple.finance) is a decentralized corporate credit market. Maple provides capital to institutional borrowers through globally accessible fixed-income yield opportunities.
