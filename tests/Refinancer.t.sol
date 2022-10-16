@@ -22,11 +22,11 @@ import {
 contract RefinancerTestBase is TestUtils {
 
     // Loan Boundaries
-    uint256 internal constant MAX_RATE         = 1e18;             // 100 %
-    uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
-    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
-    uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
-    uint256 internal constant MAX_PAYMENTS     = 20;
+    uint256 constant MAX_RATE         = 1e18;             // 100 %
+    uint256 constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
+    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+    uint256 constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
+    uint256 constant MAX_PAYMENTS     = 20;
 
     ConstructableMapleLoan loan;
     MapleGlobalsMock       globals;
@@ -592,13 +592,13 @@ contract RefinancerInterestRateTests is RefinancerTestBase {
 contract RefinancerInterestTests is TestUtils {
 
     // Loan Boundaries
-    uint256 internal constant MAX_RATE         = 1e18;             // 100 %
-    uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
-    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
-    uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
-    uint256 internal constant MAX_PAYMENTS     = 20;
-    uint256 internal constant USD              = 1e6;
-    uint256 internal constant WAD              = 1e18;
+    uint256 constant MAX_RATE         = 1e18;             // 100 %
+    uint256 constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
+    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+    uint256 constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
+    uint256 constant MAX_PAYMENTS     = 20;
+    uint256 constant USD              = 1e6;
+    uint256 constant WAD              = 1e18;
 
     ConstructableMapleLoan loan;
     MapleGlobalsMock       globals;
@@ -1092,16 +1092,16 @@ contract RefinancerPrincipalRequestedTests is RefinancerTestBase {
 // Not Using RefinancerTestBase due to the need to use Mocks for the
 contract RefinancingFeesTerms is TestUtils {
 
-    address internal POOL_DELEGATE = address(new Address());
-    address internal TREASURY      = address(new Address());
+    address POOL_DELEGATE = address(new Address());
+    address TREASURY      = address(new Address());
 
     // Loan Boundaries
-    uint256 internal constant MAX_FEE_RATE     = 100_0000;         // 100 %
-    uint256 internal constant MAX_RATE         = 1e18;             // 100 %
-    uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
-    uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
-    uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
-    uint256 internal constant MAX_PAYMENTS     = 20;
+    uint256 constant MAX_FEE_RATE     = 100_0000;         // 100 %
+    uint256 constant MAX_RATE         = 1e18;             // 100 %
+    uint256 constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
+    uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
+    uint256 constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
+    uint256 constant MAX_PAYMENTS     = 20;
 
     MapleGlobalsMock       globals;
     ConstructableMapleLoan loan;

@@ -31,9 +31,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_drawableFunds >= drawableFundsBeforePayment, "ML:CANNOT_USE_DRAWABLE");
     }
 
-    /*#*****************************************************************************************************************************/
+    /*******************************************************************************************************************************/
     /*** Administrative Functions                                                                                                ***/
-    /**#****************************************************************************************************************************/
+    /*******************************************************************************************************************************/
 
     function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "ML:M:NOT_FACTORY");

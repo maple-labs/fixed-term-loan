@@ -210,9 +210,9 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.excessCollateral(), 1_200_000);
     }
 
-    /****************************/
-    /*** Access Control Tests ***/
-    /****************************/
+    /******************************************************************************************************************************/
+    /*** Access Control Tests                                                                                                   ***/
+    /******************************************************************************************************************************/
 
     function test_migrate_acl() external {
         address mockMigrator = address(new EmptyContract());
@@ -449,9 +449,9 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.implementation(), newImplementation);
     }
 
-    /***********************************/
-    /*** Loan Transfer-Related Tests ***/
-    /***********************************/
+    /******************************************************************************************************************************/
+    /*** Loan Transfer-Related Tests                                                                                            ***/
+    /******************************************************************************************************************************/
 
     function test_acceptNewTerms() external {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);

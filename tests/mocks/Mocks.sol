@@ -82,23 +82,23 @@ contract MockFeeManager {
     /*** View Functions ***/
     /**********************/
 
-    function delegateServiceFee(address loan_) public pure returns (uint256 platformServiceFee_) {
+    function delegateServiceFee(address) public pure returns (uint256 platformServiceFee_) {
         return 0;
     }
 
-    function platformServiceFee(address loan_) public pure returns (uint256 platformServiceFee_) {
+    function platformServiceFee(address) public pure returns (uint256 platformServiceFee_) {
         return 0;
     }
 
-    function getServiceFeesForPeriod(address loan_, uint256 interval_) external view returns (uint256 serviceFee_) {
+    function getServiceFeesForPeriod(address, uint256) external pure returns (uint256 serviceFee_) {
         return 0;
     }
 
-    function getServiceFees(address loan_, uint256 numberOfPayments_) external view returns (uint256 serviceFees_) {
+    function getServiceFees(address, uint256) external pure returns (uint256 serviceFees_) {
         return 0;
     }
 
-    function getServiceFeeBreakdown(address loan_, uint256 numberOfPayments_) external view
+    function getServiceFeeBreakdown(address, uint256) external pure
         returns (
             uint256 delegateServiceFee_,
             uint256 delegateRefinanceFee_,
