@@ -6,11 +6,23 @@ import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.s
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { IMapleLoan }                                        from "./interfaces/IMapleLoan.sol";
-import { IMapleLoanFeeManager }                              from "./interfaces/IMapleLoanFeeManager.sol";
-import { IGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
+import { IMapleLoan }           from "./interfaces/IMapleLoan.sol";
+import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
+
+import { IMapleGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
+
+/*
+
+    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗    ██╗      ██████╗  █████╗ ███╗   ██╗    ██╗   ██╗██╗  ██╗
+    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝    ██║     ██╔═══██╗██╔══██╗████╗  ██║    ██║   ██║██║  ██║
+    ██╔████╔██║███████║██████╔╝██║     █████╗      ██║     ██║   ██║███████║██╔██╗ ██║    ██║   ██║███████║
+    ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝      ██║     ██║   ██║██╔══██║██║╚██╗██║    ╚██╗ ██╔╝╚════██║
+    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗    ███████╗╚██████╔╝██║  ██║██║ ╚████║     ╚████╔╝      ██║
+    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝    ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝      ╚═══╝       ╚═╝
+
+*/
 
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
@@ -212,8 +224,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function setPendingBorrower(address pendingBorrower_) external override {
-        require(msg.sender == _borrower,                              "ML:SPB:NOT_BORROWER");
-        require(IGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
+        require(msg.sender == _borrower,                                   "ML:SPB:NOT_BORROWER");
+        require(IMapleGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
         emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
     }
@@ -292,6 +304,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function fundLoan(address lender_) external override returns (uint256 fundsLent_) {
         require((_lender = lender_) != address(0), "ML:FL:INVALID_LENDER");
+
+        address loanManagerFactory_ = ILenderLike(lender_).factory();
+
+        require(IMapleGlobalsLike(globals()).isFactory("LOAN_MANAGER", loanManagerFactory_), "ML:FL:INVALID_FACTORY");
+        require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),             "ML:FL:INVALID_INSTANCE");
 
         // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
         require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
@@ -550,7 +567,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function governor() public view override returns (address governor_) {
-        governor_ = IGlobalsLike(globals()).governor();
+        governor_ = IMapleGlobalsLike(globals()).governor();
     }
 
     function gracePeriod() external view override returns (uint256 gracePeriod_) {

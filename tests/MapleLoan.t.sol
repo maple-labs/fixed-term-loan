@@ -25,8 +25,8 @@ contract MapleLoanTests is TestUtils {
 
     function setUp() external {
         feeManager = new MockFeeManager();
-        globals    = new MapleGlobalsMock(governor);
-        lender     = address(new MockLoanManager(address(0), address(0)));
+        lender     = address(new MockLoanManager());
+        globals    = new MapleGlobalsMock(governor, MockLoanManager(lender).factory());
         loan       = new MapleLoanHarness();
 
         factoryMock = new MockFactory(address(globals));
@@ -1174,34 +1174,36 @@ contract MapleLoanTests is TestUtils {
 
 contract MapleLoanRoleTests is TestUtils {
 
-    ConstructableMapleLoan internal _loan;
-    MapleGlobalsMock       internal _globals;
-    MockERC20              internal _token;
-    MockFactory            internal _factory;
-    MockFeeManager         internal _feeManager;
+    address lender;
 
-    address internal borrower = address(new Address());
-    address internal governor = address(new Address());
-    address internal lender   = address(new Address());
+    address borrower = address(new Address());
+    address governor = address(new Address());
+
+    ConstructableMapleLoan loan;
+    MapleGlobalsMock       globals;
+    MockERC20              token;
+    MockFactory            factory;
+    MockFeeManager         feeManager;
 
     function setUp() public {
-        _globals    = new MapleGlobalsMock(governor);
-        _feeManager = new MockFeeManager();
-        _token      = new MockERC20("Token", "T", 0);
+        lender     = address(new MockLoanManager());
+        globals    = new MapleGlobalsMock(governor, MockLoanManager(lender).factory());
+        feeManager = new MockFeeManager();
+        token      = new MockERC20("Token", "T", 0);
 
-        _factory = new MockFactory(address(_globals));
+        factory = new MockFactory(address(globals));
 
-        address[2] memory assets      = [address(_token), address(_token)];
+        address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
         uint256[4] memory rates       = [uint256(0.12e18), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        _globals.setValidBorrower(borrower, true);
-        _globals.setValidCollateralAsset(address(_token), true);
+        globals.setValidBorrower(borrower, true);
+        globals.setValidCollateralAsset(address(token), true);
 
-        vm.prank(address(_factory));
-        _loan = new ConstructableMapleLoan(address(_factory), borrower, address(_feeManager), assets, termDetails, amounts, rates, fees);
+        vm.prank(address(factory));
+        loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
     }
 
     function test_transferBorrowerRole_failIfInvalidBorrower() public {
@@ -1209,109 +1211,109 @@ contract MapleLoanRoleTests is TestUtils {
 
         vm.prank(address(borrower));
         vm.expectRevert("ML:SPB:INVALID_BORROWER");
-        _loan.setPendingBorrower(address(newBorrower));
+        loan.setPendingBorrower(address(newBorrower));
     }
 
     function test_transferBorrowerRole() public {
         address newBorrower = address(new Address());
 
         // Set addresse used in this test case as valid borrowers.
-        _globals.setValidBorrower(address(newBorrower), true);
-        _globals.setValidBorrower(address(1),           true);
+        globals.setValidBorrower(address(newBorrower), true);
+        globals.setValidBorrower(address(1),           true);
 
-        assertEq(_loan.pendingBorrower(), address(0));
-        assertEq(_loan.borrower(),        borrower);
+        assertEq(loan.pendingBorrower(), address(0));
+        assertEq(loan.borrower(),        borrower);
 
         // Only borrower can call setPendingBorrower
         vm.prank(newBorrower);
         vm.expectRevert("ML:SPB:NOT_BORROWER");
-        _loan.setPendingBorrower(newBorrower);
+        loan.setPendingBorrower(newBorrower);
 
         vm.prank(borrower);
-        _loan.setPendingBorrower(newBorrower);
+        loan.setPendingBorrower(newBorrower);
 
-        assertEq(_loan.pendingBorrower(), newBorrower);
+        assertEq(loan.pendingBorrower(), newBorrower);
 
         // Pending borrower can't call setPendingBorrower
         vm.prank(newBorrower);
         vm.expectRevert("ML:SPB:NOT_BORROWER");
-        _loan.setPendingBorrower(address(1));
+        loan.setPendingBorrower(address(1));
 
         vm.prank(borrower);
-        _loan.setPendingBorrower(address(1));
+        loan.setPendingBorrower(address(1));
 
-        assertEq(_loan.pendingBorrower(), address(1));
+        assertEq(loan.pendingBorrower(), address(1));
 
         // Can be reset if mistake is made
         vm.prank(borrower);
-        _loan.setPendingBorrower(newBorrower);
+        loan.setPendingBorrower(newBorrower);
 
-        assertEq(_loan.pendingBorrower(), newBorrower);
-        assertEq(_loan.borrower(),        borrower);
+        assertEq(loan.pendingBorrower(), newBorrower);
+        assertEq(loan.borrower(),        borrower);
 
         // Pending borrower is the only one who can call acceptBorrower
         vm.prank(borrower);
         vm.expectRevert("ML:AB:NOT_PENDING_BORROWER");
-        _loan.acceptBorrower();
+        loan.acceptBorrower();
 
         vm.prank(newBorrower);
-        _loan.acceptBorrower();
+        loan.acceptBorrower();
 
         // Pending borrower is set to zero
-        assertEq(_loan.pendingBorrower(), address(0));
-        assertEq(_loan.borrower(),        newBorrower);
+        assertEq(loan.pendingBorrower(), address(0));
+        assertEq(loan.borrower(),        newBorrower);
     }
 
     function test_transferLenderRole() public {
-        // Fund the _loan to set the lender
-        _token.mint(address(_loan), 1_000_000);
+        // Fund the loan to set the lender
+        token.mint(address(loan), 1_000_000);
 
         vm.prank(lender);
-        _loan.fundLoan(lender);
+        loan.fundLoan(lender);
 
         address newLender = address(new Address());
 
-        assertEq(_loan.pendingLender(), address(0));
-        assertEq(_loan.lender(),        lender);
+        assertEq(loan.pendingLender(), address(0));
+        assertEq(loan.lender(),        lender);
 
         // Only lender can call setPendingLender
         vm.prank(newLender);
         vm.expectRevert("ML:SPL:NOT_LENDER");
-        _loan.setPendingLender(newLender);
+        loan.setPendingLender(newLender);
 
         vm.prank(lender);
-        _loan.setPendingLender(newLender);
+        loan.setPendingLender(newLender);
 
-        assertEq(_loan.pendingLender(), newLender);
+        assertEq(loan.pendingLender(), newLender);
 
         // Pending lender can't call setPendingLender
         vm.prank(newLender);
         vm.expectRevert("ML:SPL:NOT_LENDER");
-        _loan.setPendingLender(address(1));
+        loan.setPendingLender(address(1));
 
         vm.prank(lender);
-        _loan.setPendingLender(address(1));
+        loan.setPendingLender(address(1));
 
-        assertEq(_loan.pendingLender(), address(1));
+        assertEq(loan.pendingLender(), address(1));
 
         // Can be reset if mistake is made
         vm.prank(lender);
-        _loan.setPendingLender(newLender);
+        loan.setPendingLender(newLender);
 
-        assertEq(_loan.pendingLender(), newLender);
-        assertEq(_loan.lender(),        lender);
+        assertEq(loan.pendingLender(), newLender);
+        assertEq(loan.lender(),        lender);
 
         // Pending lender is the only one who can call acceptLender
         vm.prank(lender);
         vm.expectRevert("ML:AL:NOT_PENDING_LENDER");
-        _loan.acceptLender();
+        loan.acceptLender();
 
         vm.prank(newLender);
-        _loan.acceptLender();
+        loan.acceptLender();
 
         // Pending lender is set to zero
-        assertEq(_loan.pendingLender(), address(0));
-        assertEq(_loan.lender(),        newLender);
+        assertEq(loan.pendingLender(), address(0));
+        assertEq(loan.lender(),        newLender);
     }
 
 }

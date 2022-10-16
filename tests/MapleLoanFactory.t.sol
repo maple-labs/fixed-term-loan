@@ -24,7 +24,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
     function setUp() external {
         feeManager     = new MockFeeManager();
-        globals        = new MapleGlobalsMock(governor);
+        globals        = new MapleGlobalsMock(governor, address(0));
         implementation = address(new MapleLoan());
         initializer    = address(new MapleLoanInitializer());
 

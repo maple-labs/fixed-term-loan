@@ -42,12 +42,14 @@ contract FeeManagerBase is TestUtils {
 
         collateralAsset = new MockERC20("MockCollateral", "MC", 18);
         fundsAsset      = new MockERC20("MockAsset", "MA", 18);
-        globals         = new MapleGlobalsMock(GOVERNOR);
         poolManager     = new MockPoolManager(PD);
 
+        loanManager = new MockLoanManager();
+        globals     = new MapleGlobalsMock(GOVERNOR, loanManager.factory());
         factory     = new MapleLoanFactory(address(globals));
         feeManager  = new MapleLoanFeeManager(address(globals));
-        loanManager = new MockLoanManager(PD, address(poolManager));
+
+        loanManager.__setPoolManager(address(poolManager));
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);

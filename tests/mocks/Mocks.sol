@@ -8,14 +8,17 @@ contract MapleGlobalsMock {
     address public governor;
     address public mapleTreasury;
 
+    mapping(bytes32 => mapping(address => bool)) public isFactory;
+
     mapping(address => uint256) public platformOriginationFeeRate;
     mapping(address => uint256) public platformServiceFeeRate;
 
     mapping(address => bool) public isBorrower;
     mapping(address => bool) public isCollateralAsset;
 
-    constructor (address governor_) {
+    constructor (address governor_, address loanManagerFactory_) {
         governor = governor_;
+        isFactory["LOAN_MANAGER"][loanManagerFactory_] = true;
     }
 
     function setGovernor(address governor_) external {
@@ -62,6 +65,14 @@ contract MockFactory {
         ( bool success, ) = msg.sender.call(abi.encodeWithSignature("setImplementation(address)", implementation));
 
         require(success);
+    }
+
+}
+
+contract MockLoanManagerFactory {
+
+    function isInstance(address) external pure returns (bool) {
+        return true;
     }
 
 }
@@ -117,11 +128,15 @@ contract MockFeeManager {
 
 contract MockLoanManager {
 
-    address public owner;
+    address public factory;
     address public poolManager;
 
-    constructor(address owner_, address poolManager_) {
-        owner       = owner_;
+    constructor() {
+        factory     = address(new MockLoanManagerFactory());
+        poolManager = address(new MockPoolManager(address(1)));
+    }
+
+    function __setPoolManager(address poolManager_) external {
         poolManager = poolManager_;
     }
 
@@ -156,11 +171,5 @@ contract RevertingERC20 {
     function transfer(address, uint256) external pure returns (bool) {
         revert();
     }
-
-}
-
-contract MockLender {
-
-    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external { }
 
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-interface IGlobalsLike {
+interface IMapleGlobalsLike {
 
     function governor() external view returns (address governor_);
 
@@ -22,6 +22,8 @@ interface IGlobalsLike {
 interface ILenderLike {
 
     function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external;
+
+    function factory() external view returns (address factory_);
 
 }
 
@@ -60,6 +62,8 @@ interface IMapleFeeManagerLike {
 }
 
 interface IMapleProxyFactoryLike {
+
+    function isInstance(address instance_) external view returns (bool isInstance_);
 
     function mapleGlobals() external view returns (address mapleGlobals_);
 

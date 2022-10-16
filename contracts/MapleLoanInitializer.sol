@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { IMapleLoanInitializer }                from "./interfaces/IMapleLoanInitializer.sol";
-import { IMapleLoanFeeManager }                 from "./interfaces/IMapleLoanFeeManager.sol";
-import { IGlobalsLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
+import { IMapleLoanInitializer } from "./interfaces/IMapleLoanInitializer.sol";
+import { IMapleLoanFeeManager }  from "./interfaces/IMapleLoanFeeManager.sol";
+
+import { IMapleGlobalsLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -102,9 +103,9 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
         address globals_ = IMapleProxyFactoryLike(msg.sender).mapleGlobals();
 
-        require((_borrower = borrower_) != address(0),                "MLI:I:ZERO_BORROWER");
-        require(IGlobalsLike(globals_).isBorrower(borrower_),         "MLI:I:INVALID_BORROWER");
-        require(IGlobalsLike(globals_).isCollateralAsset(assets_[0]), "MLI:I:INVALID_COLLATERAL_ASSET");
+        require((_borrower = borrower_) != address(0),                     "MLI:I:ZERO_BORROWER");
+        require(IMapleGlobalsLike(globals_).isBorrower(borrower_),         "MLI:I:INVALID_BORROWER");
+        require(IMapleGlobalsLike(globals_).isCollateralAsset(assets_[0]), "MLI:I:INVALID_COLLATERAL_ASSET");
 
         require((_feeManager = feeManager_) != address(0), "MLI:I:INVALID_MANAGER");
 

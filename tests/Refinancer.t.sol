@@ -14,8 +14,7 @@ import {
     MockFactory,
     MockFeeManager,
     MockLoanManager,
-    MockPoolManager,
-    MockLender
+    MockPoolManager
 } from "./mocks/Mocks.sol";
 
 // Helper contract with common functionality
@@ -33,7 +32,7 @@ contract RefinancerTestBase is TestUtils {
     MockERC20              token;
     MockFactory            factory;
     MockFeeManager         feeManager;
-    MockLender             lender;
+    MockLoanManager        lender;
     Refinancer             refinancer;
 
     address borrower = address(new Address());
@@ -41,8 +40,8 @@ contract RefinancerTestBase is TestUtils {
 
     function setUp() public virtual {
         feeManager = new MockFeeManager();
-        globals    = new MapleGlobalsMock(governor);
-        lender     = new MockLender();
+        lender     = new MockLoanManager();
+        globals    = new MapleGlobalsMock(governor, lender.factory());
         refinancer = new Refinancer();
 
         factory = new MockFactory(address(globals));
@@ -605,16 +604,16 @@ contract RefinancerInterestTests is TestUtils {
     MockERC20              token;
     MockFactory            factory;
     MockFeeManager         feeManager;
-    MockLender             lender;
+    MockLoanManager             lender;
     Refinancer             refinancer;
 
     address borrower = address(new Address());
     address governor = address(new Address());
 
     function setUp() external {
-        globals    = new MapleGlobalsMock(address(governor));
+        lender     = new MockLoanManager();
+        globals    = new MapleGlobalsMock(address(governor), lender.factory());
         feeManager = new MockFeeManager();
-        lender     = new MockLender();
         refinancer = new Refinancer();
 
         factory = new MockFactory(address(globals));
@@ -1116,13 +1115,16 @@ contract RefinancingFeesTerms is TestUtils {
     address governor = address(new Address());
 
     function setUp() public virtual {
-        globals     = new MapleGlobalsMock(governor);
+        loanManager = new MockLoanManager();
+
+        globals     = new MapleGlobalsMock(governor, loanManager.factory());
         poolManager = new MockPoolManager(address(POOL_DELEGATE));
         refinancer  = new Refinancer();
 
         factory     = new MockFactory(address(globals));
         feeManager  = new MapleLoanFeeManager(address(globals));
-        loanManager = new MockLoanManager(address(POOL_DELEGATE), address(poolManager));
+
+        loanManager.__setPoolManager(address(poolManager));  // Set so correct PD address is used.
 
         globals.setValidBorrower(borrower, true);
         globals.setMapleTreasury(TREASURY);

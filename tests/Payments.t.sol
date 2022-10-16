@@ -8,7 +8,7 @@ import { MapleProxyFactory }  from "../modules/maple-proxy-factory/contracts/Map
 import { MapleLoan }            from "../contracts/MapleLoan.sol";
 import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 
-import { MapleGlobalsMock, MockFeeManager, MockLender } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockFeeManager, MockLoanManager } from "./mocks/Mocks.sol";
 
 // TODO: Add fees
 contract MapleLoanPaymentsTestBase is TestUtils {
@@ -22,7 +22,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
     MockFeeManager       feeManager;
-    MockLender           lender;
+    MockLoanManager      lender;
 
     address borrower = address(new Address());
     address governor = address(new Address());
@@ -33,10 +33,10 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
         feeManager      = new MockFeeManager();
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
-        globals         = new MapleGlobalsMock(governor);
         implementation  = new MapleLoan();
         initializer     = new MapleLoanInitializer();
-        lender          = new MockLender();
+        lender          = new MockLoanManager();
+        globals         = new MapleGlobalsMock(governor, lender.factory());
 
         factory = new MapleProxyFactory(address(globals));
 
