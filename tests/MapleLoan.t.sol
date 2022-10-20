@@ -1170,6 +1170,307 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.drawableFunds(),                amount);
     }
 
+    /******************************************************************************************************************************/
+    /*** Pause Tests                                                                                                            ***/
+    /******************************************************************************************************************************/
+
+    function test_acceptBorrower_failWhenPaused() external {
+        // Set up
+        address newBorrower = address(new Address());
+        loan.__setPendingBorrower(newBorrower);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true);
+
+        vm.prank(address(newBorrower));
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.acceptBorrower();
+
+        // Success case
+        globals.setProtocolPaused(false);
+        
+        vm.prank(newBorrower);
+        loan.acceptBorrower();
+    }
+
+    function test_acceptLender_failWhenPaused() external {
+        // Set up
+        address newLendewr = address(new Address());
+        loan.__setPendingLender(newLendewr);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true);
+
+        vm.prank(address(newLendewr));
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.acceptLender();
+
+        // Success case
+        globals.setProtocolPaused(false);
+        
+        vm.prank(newLendewr);
+        loan.acceptLender();
+    }
+
+    function test_closeLoan_failWhenPaused() external {
+        // Set up
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setBorrower(address(borrower));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipal(amount);
+        loan.__setPrincipalRequested(amount);
+        loan.__setNextPaymentDueDate(block.timestamp + 1);
+
+        fundsAsset.mint(address(loan), amount);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.prank(borrower);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.closeLoan(uint256(0));
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(borrower);
+        loan.closeLoan(uint256(0));
+    }
+
+    function test_drawdown_failWhenPaused() external {
+        // Set up
+        MockERC20 fundsAsset      = new MockERC20("FA", "FA", 18);
+        MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
+
+        uint256 amount = 1_000_000;
+
+        loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setDrawableFunds(amount);
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipal(amount);
+        loan.__setPrincipalRequested(amount);
+
+        // Send amount to loan
+        fundsAsset.mint(address(loan), amount);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.prank(borrower);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.drawdownFunds(amount, borrower);
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(borrower);
+        loan.drawdownFunds(amount, borrower);
+    }
+
+    function test_makePayment_failWhenPaused() external {
+        // Set up
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        uint256 startingPrincipal = 1_000_000;
+
+        loan.__setEndingPrincipal(uint256(0));
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPaymentsRemaining(3);
+        loan.__setPrincipal(startingPrincipal);
+        loan.__setPrincipalRequested(startingPrincipal);
+
+        ( uint256 principal, uint256 interest, ) = loan.getNextPaymentBreakdown();
+        uint256 totalPayment = principal + interest;
+
+        fundsAsset.mint(address(loan), totalPayment);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.prank(borrower);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.makePayment(0);
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(borrower);
+        loan.makePayment(0);
+    }
+
+    function test_postCollateral_failWhenPaused() external {
+        // Set up
+        MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
+
+        loan.__setCollateralAsset(address(collateralAsset));
+
+        uint256 amount = 1_000_000;
+
+        collateralAsset.mint(address(loan), amount);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.postCollateral(0);
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        loan.postCollateral(0);
+    }
+
+    function test_proposeNewTerms_failWhenPaused() external {
+        // Set up
+        address refinancer = address(new EmptyContract());
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("increasePrincipal(uint256)", 1);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.prank(borrower);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.proposeNewTerms(refinancer, deadline, calls);
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(borrower);
+        loan.proposeNewTerms(refinancer, deadline, calls);
+    }
+
+    function test_rejectNewTerms_failWhenPaused() external {
+        // Set up
+        address refinancer = address(new EmptyContract());
+        uint256 deadline = block.timestamp + 10 days;
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("increasePrincipal(uint256)", 1);
+
+        loan.__setRefinanceCommitment(keccak256(abi.encode(refinancer, deadline, calls)));
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.prank(borrower);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.rejectNewTerms(refinancer, deadline, calls);
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(borrower);
+        loan.rejectNewTerms(refinancer, deadline, calls);
+    }
+
+    function test_removeCollateral_failWhenPaused() external {
+        // Set up
+        MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
+       
+        uint256 amount = 1_000_000;
+
+        loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setCollateral(amount);
+
+        collateralAsset.mint(address(loan), amount);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.prank(borrower);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.removeCollateral(amount, address(borrower));
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(borrower);
+        loan.removeCollateral(amount, address(borrower));
+    }
+
+    function test_returnFunds_failWhenPaused() external {
+        // Set up
+        MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
+
+        loan.__setFundsAsset(address(fundsAsset));
+
+        uint256 amount = 1_000_000;
+
+        fundsAsset.mint(address(loan), amount);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.returnFunds(0);
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        loan.returnFunds(0);
+    }
+
+    function test_setPendingBorrower_failWhenPaused() external {
+        // Set up
+        address newBorrower = address(new Address());
+
+        globals.setValidBorrower(newBorrower, true);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.prank(borrower);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.setPendingBorrower(newBorrower);
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(borrower);
+        loan.setPendingBorrower(newBorrower);
+    }
+
+    function test_skim_failWhenPaused() external {
+        // Set up
+        MockERC20 asset = new MockERC20("CA", "CA", 18);
+       
+        uint256 amount = 1_000_000;
+
+        asset.mint(address(loan), amount);
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true); 
+
+        vm.prank(borrower);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.skim(address(asset), address(this));
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(borrower);
+        loan.skim(address(asset), address(this));
+    }
+
+    function test_upgrade_failWhenPaused() external {
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true);
+
+        vm.prank((borrower));
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.upgrade(uint256(1), abi.encode(address(1)));
+
+        // Success case
+        globals.setProtocolPaused(false);
+        
+        vm.prank(borrower);
+        loan.upgrade(uint256(1), abi.encode(address(1)));
+    }
+
 }
 
 contract MapleLoanRoleTests is TestUtils {

@@ -8,6 +8,8 @@ contract MapleGlobalsMock {
     address public governor;
     address public mapleTreasury;
 
+    bool public protocolPaused;
+
     mapping(bytes32 => mapping(address => bool)) public isFactory;
 
     mapping(address => uint256) public platformOriginationFeeRate;
@@ -35,6 +37,10 @@ contract MapleGlobalsMock {
 
     function setPlatformOriginationFeeRate(address poolManager_, uint256 feeRate_) external {
         platformOriginationFeeRate[poolManager_] = feeRate_;
+    }
+
+    function setProtocolPaused(bool paused_) external {
+        protocolPaused = paused_;
     }
 
     function setValidBorrower(address borrower_, bool isValid_) external {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
@@ -63,6 +63,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
         loan.__setBorrower(borrower);
         loan.__setDrawableFunds(defaultAmounts[1]);
+        loan.__setFactory(address(factory));
         loan.__setLender(lender);
         loan.__setNextPaymentDueDate(start + 25 days);  // 5 days into a loan
         loan.__setPrincipal(defaultAmounts[1]);
@@ -581,19 +582,24 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
 
     uint256 constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
 
+    MapleGlobalsMock globals;
+    MapleLoanHarness loan;
     MockERC20        collateralAsset;
     MockERC20        fundsAsset;
-    MapleLoanHarness loan;
+    MockFactory      factory;
 
     address borrower = address(new Address());
 
     function setUp() external {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        globals         = new MapleGlobalsMock(address(0), address(0));
+        factory         = new MockFactory(address(globals));
         fundsAsset      = new MockERC20("Funds Asset", "FA", 0);
         loan            = new MapleLoanHarness();
 
         loan.__setBorrower(borrower);
         loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setFactory(address(factory));
         loan.__setFundsAsset(address(fundsAsset));
     }
 
@@ -1800,14 +1806,20 @@ contract MapleLoanLogic_PostCollateralTests is TestUtils {
     uint256 constant MAX_COLLATERAL = type(uint256).max - 1;
     uint256 constant MIN_COLLATERAL = 0;
 
+    MapleGlobalsMock globals;    
     MapleLoanHarness loan;
     MockERC20        collateralAsset;
+    MockFactory      factory;
+
 
     function setUp() external {
         loan            = new MapleLoanHarness();
         collateralAsset = new MockERC20("CollateralAsset", "CA", 0);
+        globals         = new MapleGlobalsMock(address(0), address(0));
+        factory         = new MockFactory(address(globals));
 
         loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setFactory(address(factory));
     }
 
     function test_postCollateral_invalidCollateralAsset() external {
@@ -1857,13 +1869,19 @@ contract MapleLoanLogic_PostCollateralTests is TestUtils {
 
 contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
 
+    MapleGlobalsMock globals; 
+    MockFactory      factory;
     MapleLoanHarness loan;
 
     address borrower = address(new Address());
 
     function setUp() external {
-        loan = new MapleLoanHarness();
+        globals = new MapleGlobalsMock(address(0), address(0));
+        factory = new MockFactory(address(globals));
+        loan    = new MapleLoanHarness();
+
         loan.__setBorrower(borrower);
+        loan.__setFactory(address(factory));
     }
 
     function test_proposeNewTerms(address refinancer_, uint256 deadline_, uint256 newCollateralRequired_, uint256 newEndingPrincipal_, uint256 newInterestRate_) external {
@@ -1896,16 +1914,21 @@ contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
 
 contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
 
+    MapleGlobalsMock globals; 
     MapleLoanHarness loan;
+    MockFactory      factory;
     Refinancer       refinancer;
 
     address borrower = address(new Address());
 
     function setUp() external {
+        globals    = new MapleGlobalsMock(address(0), address(0));
+        factory    = new MockFactory(address(globals));
         loan       = new MapleLoanHarness();
         refinancer = new Refinancer();
 
         loan.__setBorrower(borrower);
+        loan.__setFactory(address(factory));
     }
 
     function test_rejectNewTerms_commitmentMismatch_emptyCallsArray() external {
@@ -1984,6 +2007,8 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
     uint256 constant MAX_PRINCIPAL = type(uint256).max - 1;
     uint256 constant MIN_PRINCIPAL = 1;
 
+    MapleGlobalsMock globals; 
+    MockFactory      factory;
     MapleLoanHarness loan;
     MockERC20        collateralAsset;
 
@@ -1991,10 +2016,13 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
 
     function setUp() external {
         collateralAsset = new MockERC20("CollateralAsset", "CA", 0);
+        globals         = new MapleGlobalsMock(address(0), address(0));
+        factory         = new MockFactory(address(globals));
         loan            = new MapleLoanHarness();
 
         loan.__setBorrower(borrower);
         loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setFactory(address(factory));
         loan.__setPrincipalRequested(1);
     }
 
@@ -2199,12 +2227,16 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
     address lender;
 
+    MapleGlobalsMock globals; 
+    MockFactory      factory;
     MapleLoanHarness loan;
     MockERC20        collateralAsset;
     MockERC20        fundsAsset;
 
     function setUp() external {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        globals         = new MapleGlobalsMock(address(0), address(0));
+        factory         = new MockFactory(address(globals));
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 0);
         lender          = address(new MockLoanManager());
         loan            = new MapleLoanHarness();
@@ -2212,6 +2244,7 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
         loan.__setCollateral(1);
         loan.__setCollateralAsset(address(collateralAsset));
         loan.__setDrawableFunds(1);
+        loan.__setFactory(address(factory));
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setGracePeriod(10);
         loan.__setLender(lender);
@@ -2299,14 +2332,19 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
 contract MapleLoanLogic_ReturnFundsTests is TestUtils {
 
+    MapleGlobalsMock globals; 
+    MockFactory      factory;
     MapleLoanHarness internal loan;
     MockERC20        internal fundsAsset;
 
     function setUp() external {
+        globals    = new MapleGlobalsMock(address(0), address(0));
+        factory    = new MockFactory(address(globals));
         fundsAsset = new MockERC20("Funds Asset", "FA", 0);
         loan       = new MapleLoanHarness();
 
-        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setFactory(address(factory));
+        loan.__setFundsAsset(address(fundsAsset));  
     }
 
     function test_returnFunds(uint256 fundsToReturn_) external {
@@ -2385,20 +2423,25 @@ contract MapleLoanLogic_ScaledExponentTests is TestUtils {
 
 contract MapleLoanLogic_SkimTests is TestUtils {
 
+    MapleGlobalsMock globals;
     MapleLoanHarness loan;
     MockERC20        collateralAsset;
     MockERC20        fundsAsset;
+    MockFactory      factory;
 
     address user = address(new Address());
 
     function setUp() external {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 0);
+        globals         = new MapleGlobalsMock(address(0), address(0));
+        factory         = new MockFactory(address(globals));
         fundsAsset      = new MockERC20("Funds Asset", "FA", 0);
         loan            = new MapleLoanHarness();
 
         loan.__setCollateral(1);
         loan.__setCollateralAsset(address(collateralAsset));
         loan.__setDrawableFunds(1);
+        loan.__setFactory(address(factory));
         loan.__setFundsAsset(address(fundsAsset));
 
         collateralAsset.mint(address(loan), 1);

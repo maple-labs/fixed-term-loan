@@ -43,6 +43,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_drawableFunds >= drawableFundsBeforePayment, "ML:CANNOT_USE_DRAWABLE");
     }
 
+    // NOTE: The following functions already check for paused state in the poolManager/loanManager, therefore no need to check here.
+    // * acceptNewTerms
+    // * fundLoan
+    // * impairLoan
+    // * removeLoanImpairment
+    // * repossess
+    // * setPendingLender -> Not implemented
+    modifier whenProtocolNotPaused() {
+        require(!IMapleGlobalsLike(globals()).protocolPaused(), "L:PROTOCOL_PAUSED");
+        _;
+    }
+
     /*******************************************************************************************************************************/
     /*** Administrative Functions                                                                                                ***/
     /*******************************************************************************************************************************/
@@ -57,7 +69,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_setImplementation(newImplementation_), "ML:SI:FAILED");
     }
 
-    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
+    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override whenProtocolNotPaused {
         require(msg.sender == _borrower, "ML:U:NOT_BORROWER");
 
         emit Upgraded(toVersion_, arguments_);
@@ -69,7 +81,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Borrow Functions                                                                                                       ***/
     /******************************************************************************************************************************/
 
-    function acceptBorrower() external override {
+    function acceptBorrower() external override whenProtocolNotPaused {
         require(msg.sender == _pendingBorrower, "ML:AB:NOT_PENDING_BORROWER");
 
         _pendingBorrower = address(0);
@@ -77,7 +89,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(_borrower = msg.sender);
     }
 
-    function closeLoan(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+    function closeLoan(uint256 amount_) external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
@@ -111,7 +123,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsClaimed(principalAndInterest, _lender);
     }
 
-    function drawdownFunds(uint256 amount_, address destination_) external override returns (uint256 collateralPosted_) {
+    function drawdownFunds(uint256 amount_, address destination_) external override whenProtocolNotPaused returns (uint256 collateralPosted_) {
         require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
 
         emit FundsDrawnDown(amount_, destination_);
@@ -135,7 +147,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_isCollateralMaintained(),                                "ML:DF:INSUFFICIENT_COLLATERAL");
     }
 
-    function makePayment(uint256 amount_) external override limitDrawableUse returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+    function makePayment(uint256 amount_) external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
@@ -175,7 +187,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsClaimed(principalAndInterest, _lender);
     }
 
-    function postCollateral(uint256 amount_) public override returns (uint256 collateralPosted_) {
+    function postCollateral(uint256 amount_) public override whenProtocolNotPaused returns (uint256 collateralPosted_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(
@@ -188,7 +200,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit CollateralPosted(collateralPosted_);
     }
 
-    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_) {
         require(msg.sender == _borrower,      "ML:PNT:NOT_BORROWER");
         require(deadline_ >= block.timestamp, "ML:PNT:INVALID_DEADLINE");
 
@@ -202,7 +214,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeCollateral(uint256 amount_, address destination_) external override {
+    function removeCollateral(uint256 amount_, address destination_) external override whenProtocolNotPaused {
         require(msg.sender == _borrower, "ML:RC:NOT_BORROWER");
 
         emit CollateralRemoved(amount_, destination_);
@@ -213,7 +225,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_isCollateralMaintained(),                                     "ML:RC:INSUFFICIENT_COLLATERAL");
     }
 
-    function returnFunds(uint256 amount_) external override returns (uint256 fundsReturned_) {
+    function returnFunds(uint256 amount_) external override whenProtocolNotPaused returns (uint256 fundsReturned_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:RF:TRANSFER_FROM_FAILED");
@@ -223,7 +235,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsReturned(fundsReturned_);
     }
 
-    function setPendingBorrower(address pendingBorrower_) external override {
+    function setPendingBorrower(address pendingBorrower_) external override whenProtocolNotPaused {
         require(msg.sender == _borrower,                                   "ML:SPB:NOT_BORROWER");
         require(IMapleGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
@@ -234,7 +246,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Lend Functions                                                                                                         ***/
     /******************************************************************************************************************************/
 
-    function acceptLender() external override {
+    function acceptLender() external override whenProtocolNotPaused {
         require(msg.sender == _pendingLender, "ML:AL:NOT_PENDING_LENDER");
 
         _pendingLender = address(0);
@@ -409,7 +421,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Miscellaneous Functions                                                                                                ***/
     /******************************************************************************************************************************/
 
-    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
+    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_) {
         require((msg.sender == _borrower) || (msg.sender == _lender), "ML:RNT:NO_AUTH");
 
         require(
@@ -422,7 +434,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit NewTermsRejected(refinanceCommitment_, refinancer_, deadline_, calls_);
     }
 
-    function skim(address token_, address destination_) external override returns (uint256 skimmed_) {
+    function skim(address token_, address destination_) external override whenProtocolNotPaused returns (uint256 skimmed_) {
         emit Skimmed(token_, skimmed_ = getUnaccountedAmount(token_), destination_);
         require(ERC20Helper.transfer(token_, destination_, skimmed_), "ML:S:TRANSFER_FAILED");
     }
