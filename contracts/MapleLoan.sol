@@ -148,7 +148,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     /*** Lend Functions ***/
     /**********************/
 
-    function acceptLender() external override notAllowed {
+    function acceptLender() external override {
         require(msg.sender == _pendingLender, "ML:AL:NOT_PENDING_LENDER");
 
         _pendingLender = address(0);
@@ -217,7 +217,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         emit Repossessed(collateralRepossessed_, fundsRepossessed_, destination_);
     }
 
-    function setPendingLender(address pendingLender_) external override notAllowed {
+    function setPendingLender(address pendingLender_) external override {
         require(msg.sender == _lender, "ML:SPL:NOT_LENDER");
 
         emit PendingLenderSet(_pendingLender = pendingLender_);

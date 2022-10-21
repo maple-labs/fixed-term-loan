@@ -403,7 +403,7 @@ contract MapleLoanTests is TestUtils {
         loan.repossess(address(this));
     }
 
-    function testFail_setLender_acl() external {
+    function test_setLender_acl() external {
         try loan.setPendingLender(address(this)) {  assertTrue(false, "Non-lender was able to set lender"); } catch { }
 
         loan.__setLender(address(this));
@@ -411,7 +411,7 @@ contract MapleLoanTests is TestUtils {
         loan.setPendingLender(address(this));
     }
 
-    function testFail_acceptLender_acl() external {
+    function test_acceptLender_acl() external {
         loan.__setPendingLender(address(1));
 
         try loan.acceptLender() { assertTrue(false, "Non-pendingLender was able to set borrower"); } catch { }
