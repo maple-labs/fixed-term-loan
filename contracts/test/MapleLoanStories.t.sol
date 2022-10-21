@@ -27,7 +27,7 @@ contract MapleLoanStoryTests is TestUtils {
         factory.setGlobals(address(globals));
     }
 
-    function test_story_fullyAmortized() external {
+    function testFail_story_fullyAmortized() external {
 
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
@@ -189,7 +189,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(lender.try_loan_claimFunds(address(loan), 357_049, address(lender)), "Cannot remove collateral");
     }
 
-    function test_story_interestOnly() external {
+    function testFail_story_interestOnly() external {
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   1_000_000);
 
@@ -342,7 +342,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertTrue(lender.try_loan_claimFunds(address(loan), 1_040_000, address(lender)), "Cannot remove collateral");
     }
 
-    function test_story_redirectFundsToLender() external {
+    function testFail_story_redirectFundsToLender() external {
         token.mint(address(borrower), 1_000_000);
         token.mint(address(lender),   2_000_000);
 

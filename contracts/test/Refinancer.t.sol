@@ -85,7 +85,7 @@ contract BaseRefinanceTest is  TestUtils {
 
 contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
 
-    function test_refinance_endingPrincipal_interestOnlyToAmortized(
+    function testFail_refinance_endingPrincipal_interestOnlyToAmortized(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 gracePeriod_,
@@ -128,7 +128,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         assertTrue(principalPortion > 0);
     }
 
-    function test_refinance_endingPrincipal_amortizedToInterestOnly(
+    function testFail_refinance_endingPrincipal_amortizedToInterestOnly(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -173,7 +173,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
         assertEq(principalPortion, 0);
     }
 
-    function test_refinance_endingPrincipal_failLargerThanPrincipal(
+    function testFail_refinance_endingPrincipal_failLargerThanPrincipal(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -210,7 +210,7 @@ contract RefinancerEndingPrincipalTest is BaseRefinanceTest {
 
 contract RefinancerGracePeriodTest is BaseRefinanceTest {
 
-    function test_refinance_gracePeriod(
+    function testFail_refinance_gracePeriod(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -251,7 +251,7 @@ contract RefinancerGracePeriodTest is BaseRefinanceTest {
 
 contract RefinancerInterestRateTest is BaseRefinanceTest {
 
-    function test_refinance_interestRate(
+    function testFail_refinance_interestRate(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -292,7 +292,7 @@ contract RefinancerInterestRateTest is BaseRefinanceTest {
 
 contract RefinancerPaymentRemaining is BaseRefinanceTest {
 
-    function test_refinance_paymentRemaining_zeroAmount() external {
+    function testFail_refinance_paymentRemaining_zeroAmount() external {
         setUpOngoingLoan(MIN_TOKEN_AMOUNT, 0, MIN_TOKEN_AMOUNT, 0, 0.1e18, 30 days, 6);
 
         uint256 deadline = block.timestamp + 10 days;
@@ -308,7 +308,7 @@ contract RefinancerPaymentRemaining is BaseRefinanceTest {
         lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
     }
 
-    function test_refinance_paymentRemaining(
+    function testFail_refinance_paymentRemaining(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -351,7 +351,7 @@ contract RefinancerPaymentRemaining is BaseRefinanceTest {
 
 contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
 
-    function test_refinance_paymentInterval_zeroAmount() external {
+    function testFail_refinance_paymentInterval_zeroAmount() external {
         setUpOngoingLoan(MIN_TOKEN_AMOUNT, 0, MIN_TOKEN_AMOUNT, 0, 0.1e18, 30 days, 6);
 
         uint256 deadline = block.timestamp + 10 days;
@@ -367,7 +367,7 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
         lender.loan_acceptNewTerms(address(loan), address(refinancer), deadline, data, 0);
     }
 
-    function test_refinance_paymentInterval(
+    function testFail_refinance_paymentInterval(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -408,7 +408,7 @@ contract RefinancerPaymentIntervalTest is BaseRefinanceTest {
 
 contract RefinancerFeeTests is BaseRefinanceTest {
 
-    function test_refinance_earlyFeeRate(
+    function testFail_refinance_earlyFeeRate(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -446,7 +446,7 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         assertEq(loan.earlyFeeRate(), newEarlyFeeRate_);
     }
 
-    function test_refinance_lateFeeRate(
+    function testFail_refinance_lateFeeRate(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -484,7 +484,7 @@ contract RefinancerFeeTests is BaseRefinanceTest {
         assertEq(loan.lateFeeRate(), newLateFeeRate_);
     }
 
-    function test_refinance_lateInterestPremium(
+    function testFail_refinance_lateInterestPremium(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -526,7 +526,7 @@ contract RefinancerFeeTests is BaseRefinanceTest {
 
 contract RefinanceCollateralRequiredTest is BaseRefinanceTest {
 
-    function test_refinance_collateralRequired(
+    function testFail_refinance_collateralRequired(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -589,7 +589,7 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
     uint256 initialDrawableFunds;
     uint256 initialPrincipal;
 
-    function test_refinance_increasePrincipalRequested(
+    function testFail_refinance_increasePrincipalRequested(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -648,7 +648,7 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
         assertEq(token.balanceOf(address(lender)), 1);
     }
 
-    function testFail_refinance_increasePrincipalRequested(
+    function testFail_refinance_increasePrincipalRequested_failWithNotEnoughPrincipal(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -701,7 +701,7 @@ contract RefinancePrincipalRequestedTest is BaseRefinanceTest {
 
 contract RefinanceMultipleParameterTest is BaseRefinanceTest {
 
-    function test_refinance_multipleParameters(
+    function testFail_refinance_multipleParameters(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -781,7 +781,7 @@ contract RefinanceMultipleParameterTest is BaseRefinanceTest {
 contract RefinanceDeadlineTests is BaseRefinanceTest {
 
     // Using payments interval since it's a rather easy refinance with no need to handle principal/collateral assets.
-    function test_refinance_afterDeadline(
+    function testFail_refinance_afterDeadline(
         uint256 paymentInterval_,
         uint256 newPaymentInterval_,
         uint256 deadline_
@@ -814,7 +814,7 @@ contract RefinanceDeadlineTests is BaseRefinanceTest {
         assertEq(loan.paymentInterval(), newPaymentInterval_);
     }
 
-    function test_refinance_differentDeadline(
+    function testFail_refinance_differentDeadline(
         uint256 paymentInterval_,
         uint256 newPaymentInterval_,
         uint256 deadline_
@@ -889,7 +889,7 @@ contract RefinanceInterestAndFeeTests is  TestUtils {
         lender.setPoolDelegate(poolDelegate);
     }
 
-    function test_acceptNewTerms_makePayment_withFeesAndRefinanceInterest() external {
+    function testFail_acceptNewTerms_makePayment_withFeesAndRefinanceInterest() external {
         uint256 start = block.timestamp;
 
         MapleGlobalsMock globals = new MapleGlobalsMock(poolDelegate, treasury, 33, 66);

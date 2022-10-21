@@ -158,7 +158,7 @@ contract MapleLoanPaymentsTest is TestUtils {
 
 contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
-    function test_payments_fullyAmortized_case1() external {
+    function testFail_payments_fullyAmortized_case1() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -226,7 +226,7 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
         onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 
-    function test_payments_fullyAmortized_case2() external {
+    function testFail_payments_fullyAmortized_case2() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -297,7 +297,7 @@ contract FullyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
 contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
-    function test_payments_partiallyAmortized_case1() external {
+    function testFail_payments_partiallyAmortized_case1() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -365,7 +365,7 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
         onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 
-    function test_payments_partiallyAmortized_case2() external {
+    function testFail_payments_partiallyAmortized_case2() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -437,7 +437,7 @@ contract PartiallyAmortizedPaymentsTest is MapleLoanPaymentsTest {
 
 contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
-    function test_payments_interestOnly_case1() external {
+    function testFail_payments_interestOnly_case1() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -503,7 +503,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
         onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
     }
 
-    function test_payments_interestOnly_case2() external {
+    function testFail_payments_interestOnly_case2() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -572,7 +572,7 @@ contract InterestOnlyPaymentsTest is MapleLoanPaymentsTest {
 
 contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
 
-    function test_payments_earlyRepayment_flatRate_case1() external {
+    function testFail_payments_earlyRepayment_flatRate_case1() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -664,7 +664,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
         assertEq(loan.nextPaymentDueDate(), 0);  // Payment due date increases
     }
 
-    function test_payments_earlyRepayment_flatRate_case2() external {
+    function testFail_payments_earlyRepayment_flatRate_case2() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -756,7 +756,7 @@ contract EarlyRepaymentsTest is MapleLoanPaymentsTest {
 
 contract LateRepaymentsTest is MapleLoanPaymentsTest {
 
-    function test_payments_lateRepayment_flatRate_case1() external {
+    function testFail_payments_lateRepayment_flatRate_case1() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -859,7 +859,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         assertEq(loan.nextPaymentDueDate(), 0);  // Payment due date cleared
     }
 
-    function test_payments_lateRepayment_flatRate_case2() external {
+    function testFail_payments_lateRepayment_flatRate_case2() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                    1,000,000
@@ -976,7 +976,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         assertEq(loan.principal(),     0);  // No principal left
     }
 
-    function test_payments_lateRepayment_flatRateAndDefaultRate_case1() external {
+    function testFail_payments_lateRepayment_flatRateAndDefaultRate_case1() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                     1,000,000
@@ -1132,7 +1132,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         assertEq(loan.principal(),     0);  // No principal left
     }
 
-    function test_payments_lateRepayment_flatRateAndDefaultRate_case2() external {
+    function testFail_payments_lateRepayment_flatRateAndDefaultRate_case2() external {
         /****************************************/
         /*** Loan Terms:
         /*** Amount                     1,000,000
@@ -1237,7 +1237,7 @@ contract LateRepaymentsTest is MapleLoanPaymentsTest {
         }
     }
 
-    function test_payments_dailyInterestAccrual() external {
+    function testFail_payments_dailyInterestAccrual() external {
 
         address[2] memory assets = [address(collateralAsset), address(fundsAsset)];
 
