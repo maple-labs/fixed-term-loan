@@ -343,4 +343,10 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function getUnaccountedAmount(address asset_) external view returns (uint256 unaccountedAmount_);
 
+    /**
+     *  @dev    Return if the loan has been impaired.
+     *  @return isImpaired_ Is the loan impaired or not.
+     */
+     function isImpaired() external view returns (bool isImpaired_);
+
 }

@@ -646,7 +646,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _refinanceInterest;
     }
 
-    function isImpaired() public view returns (bool isImpaired_) {
+    function isImpaired() public view override returns (bool isImpaired_) {
         return _originalNextPaymentDueDate != uint256(0);
     }
 
