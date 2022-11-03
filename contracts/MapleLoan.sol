@@ -33,7 +33,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
     }
 
     function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
-        require(msg.sender == _borrower || msg.sender == IMapleGlobalsLike(_mapleGlobals()).globalAdmin(), "ML:U:NOT_BORROWER");
+        require(msg.sender == IMapleGlobalsLike(_mapleGlobals()).globalAdmin(), "ML:U:NOT_ADMIN");
 
         emit Upgraded(toVersion_, arguments_);
 
