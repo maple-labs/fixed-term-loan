@@ -452,23 +452,7 @@ contract MapleLoanTests is TestUtils {
         assertEq(otherAsset.balanceOf(address(2)),    1);
     }
 
-    function test_upgrade_acl() external {
-        MockFactory factory = new MockFactory();
-
-        loan.__setFactory(address(factory));
-
-        address newImplementation = address(new ManipulatableMapleLoan());
-
-        try loan.upgrade(1, abi.encode(newImplementation)) { assertTrue(false, "Non-borrower was able to set implementation"); } catch { }
-
-        loan.__setBorrower(address(this));
-
-        loan.upgrade(1, abi.encode(newImplementation));
-
-        assertEq(loan.implementation(), newImplementation);
-    }
-
-    function test_upgrade_acl_GlobalsAdmin() external {
+    function test_upgrade_acl_globalsAdmin() external {
         MockFactory factory = new MockFactory();
 
         factory.setGlobals(address(globals));
