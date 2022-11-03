@@ -438,12 +438,15 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setFactory(address(factory));
 
+        address migrationAdmin    = address(new Address());
         address newImplementation = address(new MapleLoanHarness());
 
-        vm.expectRevert("ML:U:NOT_BORROWER");
+        globals.setMigrationAdmin(migrationAdmin);
+
+        vm.expectRevert("ML:U:NOT_MIGRATION_ADM");
         loan.upgrade(1, abi.encode(newImplementation));
 
-        vm.prank(borrower);
+        vm.prank(migrationAdmin);
         loan.upgrade(1, abi.encode(newImplementation));
 
         assertEq(loan.implementation(), newImplementation);
@@ -1465,9 +1468,12 @@ contract MapleLoanTests is TestUtils {
         loan.upgrade(uint256(1), abi.encode(address(1)));
 
         // Success case
+        address migrationAdmin = address(new Address());
+
         globals.setProtocolPaused(false);
+        globals.setMigrationAdmin(migrationAdmin);
         
-        vm.prank(borrower);
+        vm.prank(migrationAdmin);
         loan.upgrade(uint256(1), abi.encode(address(1)));
     }
 

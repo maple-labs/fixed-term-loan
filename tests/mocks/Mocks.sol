@@ -7,6 +7,7 @@ contract MapleGlobalsMock {
 
     address public governor;
     address public mapleTreasury;
+    address public migrationAdmin;
 
     bool public protocolPaused;
 
@@ -29,6 +30,10 @@ contract MapleGlobalsMock {
 
     function setMapleTreasury(address mapleTreasury_) external {
         mapleTreasury = mapleTreasury_;
+    }
+
+    function setMigrationAdmin(address migrationAdmin_) external {
+        migrationAdmin = migrationAdmin_;
     }
 
     function setPlatformServiceFeeRate(address poolManager_, uint256 feeRate_) external {

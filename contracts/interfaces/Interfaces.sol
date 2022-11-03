@@ -13,6 +13,8 @@ interface IMapleGlobalsLike {
 
     function mapleTreasury() external view returns (address governor_);
 
+    function migrationAdmin() external view returns (address migrationAdmin_);
+
     function platformOriginationFeeRate(address pool_) external view returns (uint256 platformOriginationFeeRate_);
 
     function platformServiceFeeRate(address pool_) external view returns (uint256 platformFee_);
