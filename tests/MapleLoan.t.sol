@@ -438,15 +438,15 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setFactory(address(factory));
 
-        address migrationAdmin    = address(new Address());
+        address securityAdmin    = address(new Address());
         address newImplementation = address(new MapleLoanHarness());
 
-        globals.setMigrationAdmin(migrationAdmin);
+        globals.setSecurityAdmin(securityAdmin);
 
-        vm.expectRevert("ML:U:NOT_MIGRATION_ADM");
+        vm.expectRevert("ML:U:NOT_SECURITY_ADMIN");
         loan.upgrade(1, abi.encode(newImplementation));
 
-        vm.prank(migrationAdmin);
+        vm.prank(securityAdmin);
         loan.upgrade(1, abi.encode(newImplementation));
 
         assertEq(loan.implementation(), newImplementation);
@@ -1191,7 +1191,7 @@ contract MapleLoanTests is TestUtils {
 
         // Success case
         globals.setProtocolPaused(false);
-        
+
         vm.prank(newBorrower);
         loan.acceptBorrower();
     }
@@ -1210,7 +1210,7 @@ contract MapleLoanTests is TestUtils {
 
         // Success case
         globals.setProtocolPaused(false);
-        
+
         vm.prank(newLendewr);
         loan.acceptLender();
     }
@@ -1230,7 +1230,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(loan), amount);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
@@ -1260,7 +1260,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(loan), amount);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
@@ -1291,7 +1291,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(loan), totalPayment);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
@@ -1315,7 +1315,7 @@ contract MapleLoanTests is TestUtils {
         collateralAsset.mint(address(loan), amount);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.expectRevert("L:PROTOCOL_PAUSED");
         loan.postCollateral(0);
@@ -1334,7 +1334,7 @@ contract MapleLoanTests is TestUtils {
         calls[0] = abi.encodeWithSignature("increasePrincipal(uint256)", 1);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
@@ -1357,7 +1357,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setRefinanceCommitment(keccak256(abi.encode(refinancer, deadline, calls)));
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
@@ -1373,7 +1373,7 @@ contract MapleLoanTests is TestUtils {
     function test_removeCollateral_failWhenPaused() external {
         // Set up
         MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
-       
+
         uint256 amount = 1_000_000;
 
         loan.__setCollateralAsset(address(collateralAsset));
@@ -1382,7 +1382,7 @@ contract MapleLoanTests is TestUtils {
         collateralAsset.mint(address(loan), amount);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
@@ -1406,7 +1406,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(loan), amount);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.expectRevert("L:PROTOCOL_PAUSED");
         loan.returnFunds(0);
@@ -1424,7 +1424,7 @@ contract MapleLoanTests is TestUtils {
         globals.setValidBorrower(newBorrower, true);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
@@ -1440,13 +1440,13 @@ contract MapleLoanTests is TestUtils {
     function test_skim_failWhenPaused() external {
         // Set up
         MockERC20 asset = new MockERC20("CA", "CA", 18);
-       
+
         uint256 amount = 1_000_000;
 
         asset.mint(address(loan), amount);
 
         // Trigger pause and  assert failure
-        globals.setProtocolPaused(true); 
+        globals.setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
@@ -1468,12 +1468,12 @@ contract MapleLoanTests is TestUtils {
         loan.upgrade(uint256(1), abi.encode(address(1)));
 
         // Success case
-        address migrationAdmin = address(new Address());
+        address securityAdmin = address(new Address());
 
         globals.setProtocolPaused(false);
-        globals.setMigrationAdmin(migrationAdmin);
-        
-        vm.prank(migrationAdmin);
+        globals.setSecurityAdmin(securityAdmin);
+
+        vm.prank(securityAdmin);
         loan.upgrade(uint256(1), abi.encode(address(1)));
     }
 
