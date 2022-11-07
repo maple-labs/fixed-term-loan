@@ -106,8 +106,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     }
 
     function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external override {
-        uint256 platformServiceFeeRate_ = IMapleGlobalsLike(globals).platformServiceFeeRate(_getPoolManager(msg.sender));
-        uint256 platformServiceFee_     = principalRequested_ * platformServiceFeeRate_ * paymentInterval_ / 365 days / HUNDRED_PERCENT;
+        uint256 platformServiceFee_ = getPlatformServiceFeeForPeriod(msg.sender, principalRequested_, paymentInterval_);
 
         platformServiceFee[msg.sender] = platformServiceFee_;
 
