@@ -182,7 +182,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
 
-        ILenderLike(_lender).claim(principal_, interest_, previousPaymentDueDate_, _nextPaymentDueDate);
+        ILenderLike(_lender).claim(principal_, interest_, previousPaymentDueDate_, nextPaymentDueDate_);
 
         emit FundsClaimed(principalAndInterest, _lender);
     }
