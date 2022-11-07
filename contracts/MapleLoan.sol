@@ -697,7 +697,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     {
         // Where (collateral / outstandingPrincipal) should be greater or equal to (collateralRequired / principalRequested).
         // NOTE: principalRequested_ cannot be 0, which is reasonable, since it means this was never a loan.
-        return principal_ <= drawableFunds_ ? uint256(0) : (collateralRequired_ * (principal_ - drawableFunds_)) / principalRequested_;
+        return principal_ <= drawableFunds_ ? uint256(0) : (collateralRequired_ * (principal_ - drawableFunds_) + principalRequested_ - 1) / principalRequested_;
     }
 
     /// @dev Returns principal and interest portions of a payment instalment, given generic, stateless loan parameters.

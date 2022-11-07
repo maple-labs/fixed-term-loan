@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanHarnesses.sol";
@@ -501,8 +501,8 @@ contract MapleLoanLogic_CollateralMaintainedTests is TestUtils {
         uint256 outstandingPrincipal = principal_ > drawableFunds_ ? principal_ - drawableFunds_ : 0;
 
         bool shouldBeMaintained =
-            outstandingPrincipal == 0 ||                                                          // No collateral needed (since no outstanding principal), thus maintained.
-            collateral_ >= ((collateralRequired_ * outstandingPrincipal) / principalRequested_);  // collateral_ / collateralRequired_ >= outstandingPrincipal / principalRequested_.
+            outstandingPrincipal == 0 ||                                                                                      // No collateral needed (since no outstanding principal), thus maintained.
+            collateral_ >= (((collateralRequired_ * outstandingPrincipal) + principalRequested_ - 1) / principalRequested_);  // collateral_ / collateralRequired_ >= outstandingPrincipal / principalRequested_.
 
         assertTrue(loan.__isCollateralMaintained() == shouldBeMaintained);
     }
@@ -571,9 +571,17 @@ contract MapleLoanLogic_CollateralMaintainedTests is TestUtils {
         loan.__setPrincipal(600 ether);
         loan.__setPrincipalRequested(1000 ether - 20 wei);
 
-        assertEq(loan.__getCollateralRequiredFor(loan.principal(), loan.drawableFunds(), loan.principalRequested(), loan.collateralRequired()), 50 ether + 1 wei);
+        assertEq(loan.__getCollateralRequiredFor(loan.principal(), loan.drawableFunds(), loan.principalRequested(), loan.collateralRequired()), 50 ether + 2 wei);
 
         assertTrue(!loan.__isCollateralMaintained());
+    }
+
+    function test_isCollateralMaintained_roundUp() external {
+        loan.__setCollateralRequired(100 ether);
+        loan.__setPrincipal(500 ether + 1);
+        loan.__setPrincipalRequested(1000 ether);
+
+        assertEq(loan.__getCollateralRequiredFor(loan.principal(), loan.drawableFunds(), loan.principalRequested(), loan.collateralRequired()), 50 ether + 1);
     }
 
 }
@@ -2192,7 +2200,7 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
     }
 
     function test_removeCollateral_cannotRemovePartialAmountWithEncumbrances(uint256 collateral_, uint256 collateralRemoved_) external {
-        collateral_        = constrictToRange(collateral_,        2, type(uint256).max);
+        collateral_        = constrictToRange(collateral_,        2, type(uint256).max - 1);
         collateralRemoved_ = constrictToRange(collateralRemoved_, 1, collateral_ - 1);
 
         loan.__setPrincipal(1);

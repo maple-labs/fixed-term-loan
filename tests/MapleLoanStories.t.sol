@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
@@ -109,10 +109,10 @@ contract MapleLoanStoryTests is TestUtils {
 
         // Remove some collateral
         vm.expectRevert("ML:RC:INSUFFICIENT_COLLATERAL");
-        loan.removeCollateral(145_547, borrower);
         loan.removeCollateral(145_546, borrower);
+        loan.removeCollateral(145_545, borrower);
 
-        assertEq(loan.collateral(), 154_454, "Different collateral");
+        assertEq(loan.collateral(), 154_455, "Different collateral");
 
         // Check details for upcoming payment #4
         ( principalPortion, interestPortion, ) = loan.getNextPaymentBreakdown();
@@ -140,7 +140,7 @@ contract MapleLoanStoryTests is TestUtils {
         loan.removeCollateral(95_470, borrower);
         loan.removeCollateral(95_469, borrower);
 
-        assertEq(loan.collateral(), 58_985, "Different collateral");
+        assertEq(loan.collateral(), 58_986, "Different collateral");
 
         // Check details for upcoming payment #5
         ( principalPortion, interestPortion, ) = loan.getNextPaymentBreakdown();
@@ -180,9 +180,8 @@ contract MapleLoanStoryTests is TestUtils {
         loan.drawdownFunds(150_000, borrower);
 
         vm.expectRevert(ARITHMETIC_ERROR);
+        loan.removeCollateral(58_987, borrower);
         loan.removeCollateral(58_986, borrower);
-
-        loan.removeCollateral(58_985, borrower);
 
         assertEq(loan.collateral(), 0, "Different collateral");
     }
