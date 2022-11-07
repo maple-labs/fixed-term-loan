@@ -452,11 +452,14 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function getClosingPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        uint256 paymentsRemaining_  = _paymentsRemaining;
-        uint256 delegateServiceFee_ = IMapleLoanFeeManager(_feeManager).delegateServiceFee(address(this)) * paymentsRemaining_;
-        uint256 platformServiceFee_ = IMapleLoanFeeManager(_feeManager).platformServiceFee(address(this)) * paymentsRemaining_;
+        (
+          uint256 delegateServiceFee_,
+          uint256 delegateRefinanceFee_,
+          uint256 platformServiceFee_,
+          uint256 platformRefinanceFee_
+        ) = IMapleLoanFeeManager(_feeManager).getServiceFeeBreakdown(address(this), _paymentsRemaining);
 
-        fees_ = delegateServiceFee_ + platformServiceFee_;
+        fees_ = delegateServiceFee_ + platformServiceFee_ + delegateRefinanceFee_ + platformRefinanceFee_;
 
         // Compute interest and include any uncaptured interest from refinance.
         interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
