@@ -90,7 +90,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function closeLoan(uint256 amount_) external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
+        // The amount specified is an optional amount to be transferred from the caller, as a convenience for EOAs.
         // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
         require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
 
