@@ -372,7 +372,7 @@ contract MapleLoanTests is TestUtils {
         loan.acceptNewTerms(mockRefinancer, deadline, calls, uint256(0));
     }
 
-    function testFail_claimFunds_acl() external assertFailureWhenPaused {
+    function test_claimFunds_acl() external assertFailureWhenPaused {
         MockERC20 fundsAsset = new MockERC20("Funds Asset", "FA", 18);
 
         fundsAsset.mint(address(loan), 200_000);

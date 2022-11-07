@@ -178,7 +178,7 @@ contract MapleLoan is IMapleLoan, MapleLoanInternals {
         }
     }
 
-    function claimFunds(uint256 amount_, address destination_) external override whenProtocolNotPaused notAllowed {
+    function claimFunds(uint256 amount_, address destination_) external override whenProtocolNotPaused {
         require(msg.sender == _lender, "ML:CF:NOT_LENDER");
 
         emit FundsClaimed(amount_, destination_);
