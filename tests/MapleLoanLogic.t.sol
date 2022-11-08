@@ -868,6 +868,16 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         loan.fundLoan(lender);
     }
 
+    function test_fundLoan_approveFail() external {
+        loan.__setFundsAsset(address(new RevertingERC20()));
+        loan.__setNextPaymentDueDate(0);
+        loan.__setPaymentsRemaining(1);
+        loan.__setPrincipalRequested(1);
+
+        vm.expectRevert("ML:FL:APPROVE_FAIL");
+        loan.fundLoan(address(lender));
+    }
+
 }
 
 contract MapleLoanLogic_GetCollateralRequiredForTests is TestUtils {

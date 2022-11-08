@@ -179,6 +179,10 @@ contract RevertingERC20 {
         balanceOf[to_] += value_;
     }
 
+    function approve(address, uint256) external returns (bool) {
+        revert();
+    }
+
     function transfer(address, uint256) external pure returns (bool) {
         revert();
     }

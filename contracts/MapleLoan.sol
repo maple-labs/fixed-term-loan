@@ -329,7 +329,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 paymentInterval_    = _paymentInterval;
         uint256 principalRequested_ = _principalRequested;
 
-        IERC20(fundsAsset_).approve(_feeManager, type(uint256).max);
+        require(ERC20Helper.approve(fundsAsset_, _feeManager, type(uint256).max), "ML:FL:APPROVE_FAIL");
 
         // Saves the platform service fee rate for future payments.
         IMapleLoanFeeManager(_feeManager).updatePlatformServiceFee(principalRequested_, paymentInterval_);
