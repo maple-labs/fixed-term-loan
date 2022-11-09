@@ -1505,8 +1505,9 @@ contract MapleLoanRoleTests is TestUtils {
         uint256[4] memory rates       = [uint256(0.12e18), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        globals.setValidBorrower(borrower, true);
+        globals.setValidBorrower(borrower,              true);
         globals.setValidCollateralAsset(address(token), true);
+        globals.setValidPoolAsset(address(token),       true);
 
         vm.prank(address(factory));
         loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);

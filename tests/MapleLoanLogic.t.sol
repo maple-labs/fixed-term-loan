@@ -52,8 +52,9 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9)];
         defaultFees        = [uint256(0), uint256(0)];
 
-        globals.setValidBorrower(defaultBorrower, true);
+        globals.setValidBorrower(defaultBorrower,                 true);
         globals.setValidCollateralAsset(address(collateralAsset), true);
+        globals.setValidPoolAsset(address(fundsAsset),            true);
 
         vm.startPrank(address(factory));
         loan = new ConstructableMapleLoan(address(factory), defaultBorrower, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees);
@@ -936,8 +937,9 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
         defaultAssets      = [address(token1), address(token2)];
         defaultTermDetails = [uint256(1), uint256(20 days), uint256(3)];
 
-        globals.setValidBorrower(defaultBorrower, true);
+        globals.setValidBorrower(defaultBorrower,        true);
         globals.setValidCollateralAsset(address(token1), true);
+        globals.setValidPoolAsset(address(token2),       true);
     }
 
     function test_getClosingPaymentBreakdown(uint256 principal_, uint256 closingRate_, uint256 refinanceInterest_) external {
@@ -1475,8 +1477,9 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
         defaultFees        = [uint256(0), uint256(0)];
 
-        globals.setValidBorrower(defaultBorrower, true);
+        globals.setValidBorrower(defaultBorrower,        true);
         globals.setValidCollateralAsset(address(token1), true);
+        globals.setValidPoolAsset(address(token2),       true);
     }
 
     function test_initialize() external {
@@ -1525,6 +1528,28 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         vm.expectRevert("MLI:I:INVALID_ENDING_PRINCIPAL");
         vm.startPrank(address(factory));
         new ConstructableMapleLoan(address(factory), defaultBorrower, address(feeManager), defaultAssets, defaultTermDetails, amounts, defaultRates, defaultFees);
+    }
+
+    function test_initialize_invalidPaymentInterval() external {
+        uint256[3] memory termDetails = defaultTermDetails;
+
+        termDetails[1] = 0;
+
+        // Call initialize(), expecting to revert with correct error message.
+        vm.expectRevert("MLI:I:INVALID_PAYMENT_INTERVAL");
+        vm.startPrank(address(factory));
+        new ConstructableMapleLoan(address(factory), defaultBorrower, address(feeManager), defaultAssets, termDetails, defaultAmounts, defaultRates, defaultFees);
+    }
+
+    function test_initialize_invalidPaymentsRemaining() external {
+        uint256[3] memory termDetails = defaultTermDetails;
+
+        termDetails[2] = 0;
+
+        // Call initialize(), expecting to revert with correct error message.
+        vm.expectRevert("MLI:I:INVALID_PAYMENTS_REMAINING");
+        vm.startPrank(address(factory));
+        new ConstructableMapleLoan(address(factory), defaultBorrower, address(feeManager), defaultAssets, termDetails, defaultAmounts, defaultRates, defaultFees);
     }
 
     function test_initialize_zeroBorrower() external {

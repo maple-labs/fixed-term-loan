@@ -45,8 +45,10 @@ contract RefinancerTestBase is TestUtils {
         refinancer = new Refinancer();
 
         factory = new MockFactory(address(globals));
+        token   = new MockERC20("Test", "TST", 0);
 
-        globals.setValidBorrower(borrower, true);
+        globals.setValidBorrower(borrower,        true);
+        globals.setValidPoolAsset(address(token), true);
     }
 
     function setUpOngoingLoan(
@@ -60,7 +62,6 @@ contract RefinancerTestBase is TestUtils {
     )
         internal
     {
-        token = new MockERC20("Test", "TST", 0);
 
         globals.setValidCollateralAsset(address(token), true);
 
@@ -617,8 +618,10 @@ contract RefinancerInterestTests is TestUtils {
         refinancer = new Refinancer();
 
         factory = new MockFactory(address(globals));
+        token   = new MockERC20("Test", "TST", 0);
 
-        globals.setValidBorrower(borrower, true);
+        globals.setValidBorrower(borrower,        true);
+        globals.setValidPoolAsset(address(token), true);
     }
 
     function test_acceptNewTerms_makePayment_withRefinanceInterest() external {
@@ -701,8 +704,6 @@ contract RefinancerInterestTests is TestUtils {
     )
         internal
     {
-        token = new MockERC20("Test", "TST", 0);
-
         globals.setValidCollateralAsset(address(token), true);
 
         address[2] memory assets      = [address(token), address(token)];
@@ -1121,12 +1122,14 @@ contract RefinancingFeesTerms is TestUtils {
         poolManager = new MockPoolManager(address(POOL_DELEGATE));
         refinancer  = new Refinancer();
 
-        factory     = new MockFactory(address(globals));
-        feeManager  = new MapleLoanFeeManager(address(globals));
+        factory    = new MockFactory(address(globals));
+        feeManager = new MapleLoanFeeManager(address(globals));
+        token      = new MockERC20("Test", "TST", 0);
 
         loanManager.__setPoolManager(address(poolManager));  // Set so correct PD address is used.
 
-        globals.setValidBorrower(borrower, true);
+        globals.setValidBorrower(borrower,        true);
+        globals.setValidPoolAsset(address(token), true);
         globals.setMapleTreasury(TREASURY);
     }
 
@@ -1141,7 +1144,6 @@ contract RefinancingFeesTerms is TestUtils {
     )
         internal
     {
-        token = new MockERC20("Test", "TST", 0);
 
         MockERC20 collateralToken = new MockERC20("Collateral", "COL", 0);
 

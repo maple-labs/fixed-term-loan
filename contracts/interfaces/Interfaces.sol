@@ -11,6 +11,8 @@ interface IMapleGlobalsLike {
 
     function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_);
 
+    function isPoolAsset(address poolAsset_) external view returns (bool isValid_);
+
     function mapleTreasury() external view returns (address governor_);
 
     function platformOriginationFeeRate(address pool_) external view returns (uint256 platformOriginationFeeRate_);

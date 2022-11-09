@@ -18,6 +18,7 @@ contract MapleGlobalsMock {
 
     mapping(address => bool) public isBorrower;
     mapping(address => bool) public isCollateralAsset;
+    mapping(address => bool) public isPoolAsset;
 
     constructor (address governor_, address loanManagerFactory_) {
         governor = governor_;
@@ -54,6 +55,10 @@ contract MapleGlobalsMock {
 
     function setValidCollateralAsset(address collateralAsset_, bool isValid_) external {
         isCollateralAsset[collateralAsset_] = isValid_;
+    }
+
+    function setValidPoolAsset(address poolAsset_, bool isValid_) external {
+        isPoolAsset[poolAsset_] = isValid_;
     }
 
 }
