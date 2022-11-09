@@ -1304,6 +1304,23 @@ contract MapleLoanTests is TestUtils {
         loan.makePayment(0);
     }
 
+    function test_migrate_failWhenPaused() external {
+        address migratorMock = address(new EmptyContract());
+
+        // Trigger pause and  assert failure
+        globals.setProtocolPaused(true);
+
+        vm.prank(address(factoryMock));
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.migrate(migratorMock, "");
+
+        // Success case
+        globals.setProtocolPaused(false);
+
+        vm.prank(address(factoryMock));
+        loan.migrate(migratorMock, "");
+    }
+
     function test_postCollateral_failWhenPaused() external {
         // Set up
         MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);
@@ -1457,24 +1474,6 @@ contract MapleLoanTests is TestUtils {
 
         vm.prank(borrower);
         loan.skim(address(asset), address(this));
-    }
-
-    function test_upgrade_failWhenPaused() external {
-        // Trigger pause and  assert failure
-        globals.setProtocolPaused(true);
-
-        vm.prank((borrower));
-        vm.expectRevert("L:PROTOCOL_PAUSED");
-        loan.upgrade(uint256(1), abi.encode(address(1)));
-
-        // Success case
-        address securityAdmin = address(new Address());
-
-        globals.setProtocolPaused(false);
-        globals.setSecurityAdmin(securityAdmin);
-
-        vm.prank(securityAdmin);
-        loan.upgrade(uint256(1), abi.encode(address(1)));
     }
 
 }

@@ -59,7 +59,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Administrative Functions                                                                                                ***/
     /*******************************************************************************************************************************/
 
-    function migrate(address migrator_, bytes calldata arguments_) external override {
+    function migrate(address migrator_, bytes calldata arguments_) external override whenProtocolNotPaused {
         require(msg.sender == _factory(),        "ML:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "ML:M:FAILED");
     }
@@ -69,7 +69,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_setImplementation(newImplementation_), "ML:SI:FAILED");
     }
 
-    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override whenProtocolNotPaused {
+    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
         require(msg.sender == IMapleGlobalsLike(globals()).securityAdmin(), "ML:U:NOT_SECURITY_ADMIN");
 
         emit Upgraded(toVersion_, arguments_);
