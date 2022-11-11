@@ -1304,23 +1304,6 @@ contract MapleLoanTests is TestUtils {
         loan.makePayment(0);
     }
 
-    function test_migrate_failWhenPaused() external {
-        address migratorMock = address(new EmptyContract());
-
-        // Trigger pause and  assert failure
-        globals.setProtocolPaused(true);
-
-        vm.prank(address(factoryMock));
-        vm.expectRevert("L:PROTOCOL_PAUSED");
-        loan.migrate(migratorMock, "");
-
-        // Success case
-        globals.setProtocolPaused(false);
-
-        vm.prank(address(factoryMock));
-        loan.migrate(migratorMock, "");
-    }
-
     function test_postCollateral_failWhenPaused() external {
         // Set up
         MockERC20 collateralAsset = new MockERC20("CA", "CA", 18);

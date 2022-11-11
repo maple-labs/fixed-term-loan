@@ -59,7 +59,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Administrative Functions                                                                                                ***/
     /*******************************************************************************************************************************/
 
-    function migrate(address migrator_, bytes calldata arguments_) external override whenProtocolNotPaused {
+    function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "ML:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "ML:M:FAILED");
     }
