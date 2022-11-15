@@ -841,9 +841,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Calculates the number of full days late in seconds (will always be multiples of 86,400).
         // Rounds up and is inclusive so that if a payment is 1s late or 24h0m0s late it is 1 full day late.
         // 24h0m1s late would be two full days late.
-        // (((86400n - 0n - 1n) / 86400n) + 1n) * 86400n = 86400n
-        // (((86401n - 0n - 1n) / 86400n) + 1n) * 86400n = 172800n
-        uint256 fullDaysLate = (((currentTime_ - nextPaymentDueDate_ - 1) / 1 days) + 1) * 1 days;
+        // ((86400n - 0n + (86400n - 1n)) / 86400n) * 86400n = 86400n
+        // ((86401n - 0n + (86400n - 1n)) / 86400n) * 86400n = 172800n
+        uint256 fullDaysLate = ((currentTime_ - nextPaymentDueDate_ + (1 days - 1)) / 1 days) * 1 days;
 
         lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate);
         lateInterest_ += (lateFeeRate_ * principal_) / SCALED_ONE;
