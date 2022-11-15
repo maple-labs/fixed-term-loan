@@ -363,10 +363,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function repossess(address destination_) external override returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
         require(msg.sender == _lender, "ML:R:NOT_LENDER");
 
-        uint256 nextPaymentDueDateCache = _nextPaymentDueDate;
+        uint256 nextPaymentDueDate_ = _nextPaymentDueDate;
 
         require(
-            nextPaymentDueDateCache != uint256(0) && (block.timestamp > nextPaymentDueDateCache + _gracePeriod),
+            nextPaymentDueDate_ != uint256(0) && (block.timestamp > nextPaymentDueDate_ + _gracePeriod),
             "ML:R:NOT_IN_DEFAULT"
         );
 
@@ -376,21 +376,21 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _collateral     = uint256(0);
         _drawableFunds  = uint256(0);
 
-        address collateralAssetCache = _collateralAsset;
+        address collateralAsset_ = _collateralAsset;
 
         // Either there is no collateral to repossess, or the transfer of the collateral succeeds.
         require(
-            (collateralRepossessed_ = getUnaccountedAmount(collateralAssetCache)) == uint256(0) ||
-            ERC20Helper.transfer(collateralAssetCache, destination_, collateralRepossessed_),
+            (collateralRepossessed_ = getUnaccountedAmount(collateralAsset_)) == uint256(0) ||
+            ERC20Helper.transfer(collateralAsset_, destination_, collateralRepossessed_),
             "ML:R:C_TRANSFER_FAILED"
         );
 
-        address fundsAssetCache = _fundsAsset;
+        address fundsAsset_ = _fundsAsset;
 
         // Either there are no funds to repossess, or the transfer of the funds succeeds.
         require(
-            (fundsRepossessed_ = getUnaccountedAmount(fundsAssetCache)) == uint256(0) ||
-            ERC20Helper.transfer(fundsAssetCache, destination_, fundsRepossessed_),
+            (fundsRepossessed_ = getUnaccountedAmount(fundsAsset_)) == uint256(0) ||
+            ERC20Helper.transfer(fundsAsset_, destination_, fundsRepossessed_),
             "ML:R:F_TRANSFER_FAILED"
         );
 
