@@ -100,17 +100,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         _handleImpairment();
 
-        ( principal_, interest_, fees_ ) = getClosingPaymentBreakdown();
+        ( principal_, interest_, ) = getClosingPaymentBreakdown();
 
         _refinanceInterest = uint256(0);
 
         uint256 principalAndInterest = principal_ + interest_;
 
-        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, _paymentsRemaining);
-
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
         _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
+
+        fees_ = _handleServiceFeePayment(_paymentsRemaining);
 
         _clearLoanAccounting();
 
@@ -154,17 +154,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         _handleImpairment();
 
-        ( principal_, interest_, fees_ ) = getNextPaymentBreakdown();
+        ( principal_, interest_, ) = getNextPaymentBreakdown();
 
         _refinanceInterest = uint256(0);
 
         uint256 principalAndInterest = principal_ + interest_;
 
-        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, 1);
-
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
         _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
+
+        fees_ = _handleServiceFeePayment(1);
 
         uint256 paymentsRemaining_      = _paymentsRemaining;
         uint256 previousPaymentDueDate_ = _nextPaymentDueDate;
@@ -857,6 +857,20 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /// @dev Returns refinance commitment given refinance parameters.
     function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal pure returns (bytes32 refinanceCommitment_) {
         return keccak256(abi.encode(refinancer_, deadline_, calls_));
+    }
+
+    function _handleServiceFeePayment(uint256 numberOfPayments_) internal returns (uint256 fees_) {
+        uint256 balanceBeforeServiceFees_ = IERC20(_fundsAsset).balanceOf(address(this));
+
+        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, numberOfPayments_);
+
+        uint256 balanceAfterServiceFees_ = IERC20(_fundsAsset).balanceOf(address(this));
+
+        if (balanceBeforeServiceFees_ > balanceAfterServiceFees_) {
+            _drawableFunds -= (fees_ = balanceBeforeServiceFees_ - balanceAfterServiceFees_);
+        } else {
+            _drawableFunds += balanceAfterServiceFees_ - balanceBeforeServiceFees_;
+        }
     }
 
     function _handleImpairment() internal {

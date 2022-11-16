@@ -270,7 +270,7 @@ contract RefinancerEndingPrincipalTests is RefinancerTestBase {
         // Current ending principal is requested amount
         assertEq(loan.endingPrincipal(), loan.principalRequested());
 
-        ( uint256 principalPortion , ,  ) = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion , , ) = loan.getNextPaymentBreakdown();
 
         assertEq(principalPortion, 0);
 
@@ -650,7 +650,7 @@ contract RefinancerInterestTests is TestUtils {
         vm.warp(loan.nextPaymentDueDate());
 
         // Check details for upcoming payment #1
-        ( , uint256 interestPortion,  ) = loan.getNextPaymentBreakdown();
+        ( , uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
 
         assertEq(token.balanceOf(address(lender)), 0);
 

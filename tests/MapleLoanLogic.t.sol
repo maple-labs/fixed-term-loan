@@ -473,6 +473,56 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         assertEq(loan.paymentsRemaining(),  0);
     }
 
+    function test_closeLoan_amountSmallerThanFees() external {
+        setupLoan(address(loan), 1_000_000, 2, 365 days, 0, 0);
+
+        feeManager.__setDelegateServiceFee(100);
+        feeManager.__setPlatformServiceFee(100);
+        feeManager.__setServiceFeesToPay(200);
+
+        ( uint256 principal, uint256 interest, uint256 fees ) = loan.getClosingPaymentBreakdown();
+
+        uint256 payment = principal + interest + fees;
+
+        vm.prank(address(loan));
+        fundsAsset.approve(address(feeManager), type(uint256).max);
+
+        fundsAsset.mint(borrower, payment);
+
+        vm.startPrank(borrower);
+        loan.drawdownFunds(loan.drawableFunds(), borrower);
+        fundsAsset.approve(address(loan), payment);
+        loan.returnFunds(payment - (fees / 2));
+        ( principal, interest, ) = loan.closeLoan(fees / 2);
+
+        assertEq(loan.drawableFunds(), 0);
+    }
+
+    function test_closeLoan_noAmount() external {
+        setupLoan(address(loan), 1_000_000, 2, 365 days, 0, 0);
+
+        feeManager.__setDelegateServiceFee(100);
+        feeManager.__setPlatformServiceFee(100);
+        feeManager.__setServiceFeesToPay(200);
+
+        ( uint256 principal, uint256 interest, uint256 fees ) = loan.getClosingPaymentBreakdown();
+
+        uint256 payment = principal + interest + fees;
+
+        vm.prank(address(loan));
+        fundsAsset.approve(address(feeManager), type(uint256).max);
+
+        fundsAsset.mint(borrower, payment);
+
+        vm.startPrank(borrower);
+        loan.drawdownFunds(loan.drawableFunds(), borrower);
+        fundsAsset.approve(address(loan), payment);
+        loan.returnFunds(payment);
+        ( principal, interest, ) = loan.closeLoan(0);
+
+        assertEq(loan.drawableFunds(), 0);
+    }
+
 }
 
 contract MapleLoanLogic_CollateralMaintainedTests is TestUtils {
@@ -1642,7 +1692,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(loan.principal(),          principalRequested_);
         assertEq(loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
 
-        ( uint256 principal, uint256 interest,  ) = loan.getNextPaymentBreakdown();
+        ( uint256 principal, uint256 interest, ) = loan.getNextPaymentBreakdown();
 
         uint256 expectedPayment = principal + interest;
 
@@ -1842,6 +1892,56 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(loan.refinanceInterest(),  0);
     }
 
+    function test_makePayment_amountSmallerThanFees() external {
+        setupLoan(address(loan), 1_000_000, 2, 365 days, 0, 0);
+
+        feeManager.__setDelegateServiceFee(100);
+        feeManager.__setPlatformServiceFee(100);
+        feeManager.__setServiceFeesToPay(200);
+
+        ( uint256 principal, uint256 interest, uint256 fees ) = loan.getNextPaymentBreakdown();
+
+        uint256 payment = principal + interest + fees;
+
+        vm.prank(address(loan));
+        fundsAsset.approve(address(feeManager), type(uint256).max);
+
+        fundsAsset.mint(borrower, payment);
+
+        vm.startPrank(borrower);
+        loan.drawdownFunds(loan.drawableFunds(), borrower);
+        fundsAsset.approve(address(loan), payment);
+        loan.returnFunds(payment - (fees / 2));
+        ( principal, interest, ) = loan.makePayment(fees / 2);
+
+        assertEq(loan.drawableFunds(), 0);
+    }
+
+    function test_makePayment_noAmount() external {
+        setupLoan(address(loan), 1_000_000, 2, 365 days, 0, 0);
+
+        feeManager.__setDelegateServiceFee(100);
+        feeManager.__setPlatformServiceFee(100);
+        feeManager.__setServiceFeesToPay(200);
+
+        ( uint256 principal, uint256 interest, uint256 fees ) = loan.getNextPaymentBreakdown();
+
+        uint256 payment = principal + interest + fees;
+
+        vm.prank(address(loan));
+        fundsAsset.approve(address(feeManager), type(uint256).max);
+
+        fundsAsset.mint(borrower, payment);
+
+        vm.startPrank(borrower);
+        loan.drawdownFunds(loan.drawableFunds(), borrower);
+        fundsAsset.approve(address(loan), payment);
+        loan.returnFunds(payment);
+        ( principal, interest, ) = loan.makePayment(0);
+
+        assertEq(loan.drawableFunds(), 0);
+    }
+
 }
 
 contract MapleLoanLogic_PostCollateralTests is TestUtils {
@@ -1849,7 +1949,7 @@ contract MapleLoanLogic_PostCollateralTests is TestUtils {
     uint256 constant MAX_COLLATERAL = type(uint256).max - 1;
     uint256 constant MIN_COLLATERAL = 0;
 
-    MapleGlobalsMock globals;    
+    MapleGlobalsMock globals;
     MapleLoanHarness loan;
     MockERC20        collateralAsset;
     MockFactory      factory;
@@ -1912,7 +2012,7 @@ contract MapleLoanLogic_PostCollateralTests is TestUtils {
 
 contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
 
-    MapleGlobalsMock globals; 
+    MapleGlobalsMock globals;
     MockFactory      factory;
     MapleLoanHarness loan;
 
@@ -1957,7 +2057,7 @@ contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
 
 contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
 
-    MapleGlobalsMock globals; 
+    MapleGlobalsMock globals;
     MapleLoanHarness loan;
     MockFactory      factory;
     Refinancer       refinancer;
@@ -2050,7 +2150,7 @@ contract MapleLoanLogic_RemoveCollateralTests is TestUtils {
     uint256 constant MAX_PRINCIPAL = type(uint256).max - 1;
     uint256 constant MIN_PRINCIPAL = 1;
 
-    MapleGlobalsMock globals; 
+    MapleGlobalsMock globals;
     MockFactory      factory;
     MapleLoanHarness loan;
     MockERC20        collateralAsset;
@@ -2270,7 +2370,7 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
     address lender;
 
-    MapleGlobalsMock globals; 
+    MapleGlobalsMock globals;
     MockFactory      factory;
     MapleLoanHarness loan;
     MockERC20        collateralAsset;
@@ -2375,7 +2475,7 @@ contract MapleLoanLogic_RepossessTests is TestUtils {
 
 contract MapleLoanLogic_ReturnFundsTests is TestUtils {
 
-    MapleGlobalsMock globals; 
+    MapleGlobalsMock globals;
     MockFactory      factory;
     MapleLoanHarness internal loan;
     MockERC20        internal fundsAsset;
@@ -2387,7 +2487,7 @@ contract MapleLoanLogic_ReturnFundsTests is TestUtils {
         loan       = new MapleLoanHarness();
 
         loan.__setFactory(address(factory));
-        loan.__setFundsAsset(address(fundsAsset));  
+        loan.__setFundsAsset(address(fundsAsset));
     }
 
     function test_returnFunds(uint256 fundsToReturn_) external {

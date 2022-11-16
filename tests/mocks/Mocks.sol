@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.7;
 
+import { IERC20 } from "../../modules/erc20/contracts/interfaces/IERC20.sol";
+
 import { IMapleLoanFactory } from "../../contracts/interfaces/IMapleLoanFactory.sol";
 
 contract MapleGlobalsMock {
@@ -95,37 +97,57 @@ contract MockLoanManagerFactory {
 
 contract MockFeeManager {
 
+    uint256 internal _delegateServiceFee;
+    uint256 internal _platformServiceFee;
+    uint256 internal _delegateRefinanceFee;
+    uint256 internal _platformRefinanceFee;
+    uint256 internal _serviceFeesToPay;
+
     function payOriginationFees(address asset_, uint256 principalRequested_) external returns (uint256 feePaid_) { }
 
-    function payServiceFees(address asset_, uint256 paymentsRemaining_) external returns (uint256 feePaid_) { }
+    function payServiceFees(address asset_, uint256 paymentsRemaining_) external returns (uint256 feePaid_) {
+        if (_serviceFeesToPay == 0) return 0;
+
+        IERC20(asset_).transferFrom(msg.sender, address(this), feePaid_ = _serviceFeesToPay);
+    }
 
     function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external { }
 
-    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external {}
+    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external { }
 
-    function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external  {}
+    function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external { }
 
     /**********************/
     /*** View Functions ***/
     /**********************/
 
-    function delegateServiceFee(address) public pure returns (uint256 platformServiceFee_) {
-        return 0;
+    function delegateServiceFee(address) public view returns (uint256 delegateServiceFee_) {
+        delegateServiceFee_ = _delegateServiceFee;
     }
 
-    function platformServiceFee(address) public pure returns (uint256 platformServiceFee_) {
-        return 0;
+    function platformServiceFee(address) public view returns (uint256 platformServiceFee_) {
+        platformServiceFee_ = _platformServiceFee;
+    }
+
+    function delegateRefinanceFee(address) public view returns (uint256 delegateRefinanceFee_) {
+        delegateRefinanceFee_ = _delegateRefinanceFee;
+    }
+
+    function platformRefinanceFee(address) public view returns (uint256 platformRefinanceFee_) {
+        platformRefinanceFee_ = _platformRefinanceFee;
     }
 
     function getServiceFeesForPeriod(address, uint256) external pure returns (uint256 serviceFee_) {
+        // TODO
         return 0;
     }
 
     function getServiceFees(address, uint256) external pure returns (uint256 serviceFees_) {
+        // TODO
         return 0;
     }
 
-    function getServiceFeeBreakdown(address, uint256) external pure
+    function getServiceFeeBreakdown(address, uint256) external view
         returns (
             uint256 delegateServiceFee_,
             uint256 delegateRefinanceFee_,
@@ -133,11 +155,30 @@ contract MockFeeManager {
             uint256 platformRefinanceFee_
         )
     {
-        // TODO: Make settable values
-        delegateServiceFee_   = 0;
-        platformServiceFee_   = 0;
-        delegateRefinanceFee_ = 0;
-        platformRefinanceFee_ = 0;
+        delegateServiceFee_   = _delegateServiceFee;
+        platformServiceFee_   = _platformServiceFee;
+        delegateRefinanceFee_ = _delegateRefinanceFee;
+        platformRefinanceFee_ = _platformRefinanceFee;
+    }
+
+    function __setDelegateServiceFee(uint256 delegateServiceFee_) external {
+        _delegateServiceFee = delegateServiceFee_;
+    }
+
+    function __setPlatformServiceFee(uint256 platformServiceFee_) external {
+        _platformServiceFee = platformServiceFee_;
+    }
+
+    function __setDelegateRefinanceFee(uint256 delegateRefinanceFee_) external {
+        _delegateRefinanceFee = delegateRefinanceFee_;
+    }
+
+    function __setPlatformRefinanceFee(uint256 platformRefinanceFee_) external {
+        _platformRefinanceFee = platformRefinanceFee_;
+    }
+
+    function __setServiceFeesToPay(uint256 serviceFeesToPay_) external {
+        _serviceFeesToPay = serviceFeesToPay_;
     }
 
 }
