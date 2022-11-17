@@ -1459,6 +1459,29 @@ contract MapleLoanTests is TestUtils {
         loan.skim(address(asset), address(this));
     }
 
+    function test_upgrade_failWhenPaused() external {
+         MockFactory factory = new MockFactory(address(globals));
+
+        loan.__setFactory(address(factory));
+
+        address securityAdmin     = address(new Address());
+        address newImplementation = address(new MapleLoanHarness());
+
+        globals.setSecurityAdmin(securityAdmin);
+        globals.setProtocolPaused(true);
+
+        vm.prank(securityAdmin);
+        vm.expectRevert("L:PROTOCOL_PAUSED");
+        loan.upgrade(1, abi.encode(newImplementation));
+
+        globals.setProtocolPaused(false);
+
+        vm.prank(securityAdmin);
+        loan.upgrade(1, abi.encode(newImplementation));
+
+        assertEq(loan.implementation(), newImplementation);
+    }
+
 }
 
 contract MapleLoanRoleTests is TestUtils {

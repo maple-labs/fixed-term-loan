@@ -69,7 +69,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_setImplementation(newImplementation_), "ML:SI:FAILED");
     }
 
-    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override {
+    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override whenProtocolNotPaused {
         require(msg.sender == IMapleGlobalsLike(globals()).securityAdmin(), "ML:U:NOT_SECURITY_ADMIN");
 
         emit Upgraded(toVersion_, arguments_);
