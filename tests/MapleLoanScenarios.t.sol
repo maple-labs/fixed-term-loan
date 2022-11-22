@@ -9,7 +9,7 @@ import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
 import { MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager } from "./mocks/Mocks.sol";
 
 // TODO: Add fees
-contract MapleLoanStoryTests is TestUtils {
+contract MapleLoanScenariosTests is TestUtils {
 
     MapleGlobalsMock globals;
     MockERC20        token;
@@ -33,7 +33,7 @@ contract MapleLoanStoryTests is TestUtils {
         globals.setValidPoolAsset(address(token),       true);
     }
 
-    function test_story_fullyAmortized() external {
+    function test_scenario_fullyAmortized() external {
         token.mint(borrower,        1_000_000);
         token.mint(address(lender), 1_000_000);
 
@@ -187,7 +187,7 @@ contract MapleLoanStoryTests is TestUtils {
         assertEq(loan.collateral(), 0, "Different collateral");
     }
 
-    function test_story_interestOnly() external {
+    function test_scenario_interestOnly() external {
         token.mint(borrower,        1_000_000);
         token.mint(address(lender), 1_000_000);
 

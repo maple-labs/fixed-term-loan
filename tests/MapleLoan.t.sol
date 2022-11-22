@@ -259,7 +259,7 @@ contract MapleLoanTests is TestUtils {
         vm.prank(borrower);
         bytes32 refinanceCommitment = loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
-        assertEq(refinanceCommitment, bytes32(0xb1a0103ed081b2a53ee9a14438808f7c8ec6fae3fb454378555ecf243be22723));
+        assertEq(refinanceCommitment, bytes32(0x26478c38be89f84468d7528127656a3342aabe17eb79f47f93c2848beb573afb));
     }
 
     function test_proposeNewTerms_acl() external {

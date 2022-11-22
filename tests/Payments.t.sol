@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 import { MapleProxyFactory }  from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
 import { MapleLoan }            from "../contracts/MapleLoan.sol";
+import { MapleLoanFeeManager }  from "../contracts/MapleLoanFeeManager.sol";
 import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 
-import { MapleGlobalsMock, MockFeeManager, MockLoanManager } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
 
-// TODO: Add fees
 contract MapleLoanPaymentsTestBase is TestUtils {
 
     uint256 start;
@@ -21,26 +21,37 @@ contract MapleLoanPaymentsTestBase is TestUtils {
     MapleLoanInitializer initializer;
     MockERC20            collateralAsset;
     MockERC20            fundsAsset;
-    MockFeeManager       feeManager;
+    MapleLoanFeeManager  feeManager;
     MockLoanManager      lender;
+    MockPoolManager      poolManager;
 
-    address borrower = address(new Address());
-    address governor = address(new Address());
+    address borrower     = address(new Address());
+    address governor     = address(new Address());
+    address poolDelegate = address(new Address());
+    address treasury     = address(new Address());
 
     function setUp() external {
         start = block.timestamp;
 
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
-        feeManager      = new MockFeeManager();
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
-        implementation  = new MapleLoan();
-        initializer     = new MapleLoanInitializer();
         lender          = new MockLoanManager();
         globals         = new MapleGlobalsMock(governor, lender.factory());
+        feeManager      = new MapleLoanFeeManager(address(globals));
+        implementation  = new MapleLoan();
+        initializer     = new MapleLoanInitializer();
+        poolManager     = new MockPoolManager(address(poolDelegate));
+
+        lender.__setPoolManager(address(poolManager));
 
         factory = new MapleProxyFactory(address(globals));
 
-        globals.setValidBorrower(borrower,                        true);
+        globals.setMapleTreasury(treasury);
+        globals.setValidBorrower(borrower, true);
+
+        globals.setPlatformServiceFeeRate(address(poolManager),     0.1e6);
+        globals.setPlatformOriginationFeeRate(address(poolManager), 0.01e6);
+
         globals.setValidCollateralAsset(address(collateralAsset), true);
         globals.setValidPoolAsset(address(fundsAsset),            true);
 
@@ -61,7 +72,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
     {
         collateralAsset.mint(borrower, amounts[0]);
         fundsAsset.mint(address(lender), amounts[1]);
-        fundsAsset.mint(borrower, amounts[1]);         // Mint more than enough for borrower to make payments
+        fundsAsset.mint(borrower, amounts[1]);  // Mint more than enough for borrower to make payments
 
         bytes memory arguments = initializer.encodeArguments(borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
@@ -77,9 +88,11 @@ contract MapleLoanPaymentsTestBase is TestUtils {
 
         // Transfer and post collateral and drawdown
         vm.startPrank(borrower);
+
         collateralAsset.transfer(address(loan), amounts[0]);
         loan.postCollateral(0);
-        loan.drawdownFunds(amounts[1], borrower);
+        loan.drawdownFunds(loan.drawableFunds(), borrower);
+
         vm.stopPrank();
     }
 
@@ -89,31 +102,52 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         uint256 interestPortion,
         uint256 principalRemaining,
         uint256 total,
+        uint256 delegateServiceFee,
+        uint256 platformServiceFee,
         uint256 paymentsMade
     )
         internal returns (uint256 paymentAmount)
     {
-        ( uint256 actualPrincipalPortion, uint256 actualInterestPortion, ) = loan.getNextPaymentBreakdown();
+        // Stack too deep
+        {
+            ( uint256 actualPrincipalPortion, uint256 actualInterestPortion, uint256 actualFeePortion ) = loan.getNextPaymentBreakdown();
 
-        paymentAmount = actualPrincipalPortion + actualInterestPortion;
+            paymentAmount = actualPrincipalPortion + actualInterestPortion + actualFeePortion;
 
-        assertIgnoringDecimals(paymentAmount, total, 13);  // Constant payment amounts
+            assertWithinDiff(actualPrincipalPortion + actualInterestPortion, total, 2);  // Constant payment amounts
 
-        // Check payment amounts against provided values
-        // Five decimals of precision used (six provided with rounding)
-        assertIgnoringDecimals(principalPortion, actualPrincipalPortion, 13);
-        assertIgnoringDecimals(interestPortion,  actualInterestPortion,  13);
+            // Check payment amounts against provided values
+            // Five decimals of precision used (six provided with rounding)
+            assertWithinDiff(principalPortion, actualPrincipalPortion, 1);
+            assertWithinDiff(interestPortion,  actualInterestPortion,  1);
 
-        // Warp to when payment is due and make payment
-        vm.warp(loan.nextPaymentDueDate());
-        vm.startPrank(borrower);
-        fundsAsset.transfer(address(loan), paymentAmount);
-        loan.makePayment(0);
-        vm.stopPrank();
+            assertWithinDiff(delegateServiceFee + platformServiceFee, actualFeePortion, 2);
+        }
+
+        // Stack too deep
+        {
+            uint256 delegateBalanceBefore = fundsAsset.balanceOf(poolDelegate);
+            uint256 treasuryBalanceBefore = fundsAsset.balanceOf(treasury);
+
+            ( uint256 delegateServiceFeeGetter, , uint256 platformServiceFeeGetter, ) = MapleLoanFeeManager(loan.feeManager()).getServiceFeeBreakdown(address(loan), 1);
+
+            // Warp to when payment is due and make payment
+            vm.warp(loan.nextPaymentDueDate());
+            vm.startPrank(borrower);
+            fundsAsset.transfer(address(loan), paymentAmount);
+            loan.makePayment(0);
+            vm.stopPrank();
+
+            // Check Service Fees correctly sent to Pool Delegate and Treasury
+            assertEq(fundsAsset.balanceOf(poolDelegate), delegateBalanceBefore + delegateServiceFeeGetter);
+            assertEq(fundsAsset.balanceOf(poolDelegate), delegateBalanceBefore + delegateServiceFee);
+            assertEq(fundsAsset.balanceOf(treasury),     treasuryBalanceBefore + platformServiceFeeGetter);
+            assertEq(fundsAsset.balanceOf(treasury),     treasuryBalanceBefore + platformServiceFee);
+        }
 
         assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
 
-        assertIgnoringDecimals(loan.principal(),  principalRemaining, 13);  // Principal decreasing in accordance with provided values
+        assertWithinDiff(loan.principal(), principalRemaining, 2);  // Principal decreasing in accordance with provided values
 
         uint256 paymentsRemaining = 6 - paymentsMade;
 
@@ -132,6 +166,8 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         uint256[6] memory interestPortions,
         uint256[6] memory principalRemaining,
         uint256[6] memory totals,
+        uint256 delegateServiceFee,
+        uint256 platformServiceFee,
         uint256 grandTotal
     )
         internal
@@ -151,14 +187,17 @@ contract MapleLoanPaymentsTestBase is TestUtils {
                 interestPortions[i],
                 principalRemaining[i],
                 totals[i],
+                delegateServiceFee,
+                platformServiceFee,
                 i + 1
-            );
+            ) - delegateServiceFee - platformServiceFee;
 
-            assertEq(fundsAsset.balanceOf(address(lender)), grandTotalPaid);  // Balance increasing by amount paid exactly
+            // Balance increasing by amount paid exactly minus fees as they are sent to their respective addresses
+            assertWithinDiff(fundsAsset.balanceOf(address(lender)), grandTotalPaid, 10);
         }
 
         assertEq(loan.principal(), 0);
-        assertIgnoringDecimals(grandTotalPaid, grandTotal, 13);
+        assertWithinDiff(grandTotalPaid, grandTotal, 10);
     }
 
 }
@@ -186,37 +225,57 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(800_000e6)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for closing loan
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[3] memory onTimeTotals = [
-            uint256(43_138.893875 ether),
-            uint256(43_138.893875 ether),
-            uint256(43_138.893875 ether)
+            uint256(43_138.893875e6),
+            uint256(43_138.893875e6),
+            uint256(43_138.893875e6)
         ];
 
         uint256[3] memory onTimePrincipalPortions = [
-            uint256(32_453.962368 ether),
-            uint256(32_800.730733 ether),
-            uint256(33_151.204295 ether)
+            uint256(32_453.962368e6),
+            uint256(32_800.730733e6),
+            uint256(33_151.204295e6)
         ];
 
         uint256[3] memory onTimeInterestPortions = [
-            uint256(10_684.931507 ether),
-            uint256(10_338.163142 ether),
-            uint256( 9_987.689581 ether)
+            uint256(10_684.931507e6),
+            uint256(10_338.163142e6),
+            uint256( 9_987.689581e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 30 / 365 = 8219.178082 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fees 8219.178082 + 300e18 = 8_519.178082e18 per payment
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 30 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 8_219.178082e6);
 
         uint256[3] memory onTimePrincipalRemaining = [
-            uint256(967_546.037632 ether),
-            uint256(934_745.306898 ether),
-            uint256(901_594.102603 ether)
+            uint256(967_546.037632e6),
+            uint256(934_745.306898e6),
+            uint256(901_594.102603e6)
         ];
 
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
+
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
+
+        uint256 platformOriginationFee = 1_000_000e6 * 0.01e6 * uint256(6 * 30 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 4_931.506849e6);
+
+        // // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(4_931.506849e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
 
         uint256 grandTotalPaid;
 
@@ -228,6 +287,8 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
                 onTimeInterestPortions[i],
                 onTimePrincipalRemaining[i],
                 onTimeTotals[i],
+                delegateServiceFee,
+                platformServiceFee,
                 i + 1
             );
         }
@@ -236,22 +297,37 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
         vm.warp(block.timestamp + 23 days);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion, ) = loan.getClosingPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, uint256 feePortion ) = loan.getClosingPaymentBreakdown();
 
-        uint256 paymentAmount = principalPortion + interestPortion;
+        uint256 paymentAmount = principalPortion + interestPortion + feePortion;
 
-        assertIgnoringDecimals(paymentAmount, uint256(919_625.984655 ether), 13);  // Constant payment amounts
+        assertEq(principalPortion + interestPortion, uint256(919_625.984654e6));  // Constant payment a);
 
         // Check payment amounts against provided values
         // Five decimals of precision used (six provided with rounding)
-        assertIgnoringDecimals(principalPortion, uint256(901_594.102603 ether), 13);
-        assertIgnoringDecimals(interestPortion,  uint256(18_031.882052 ether),  13);
+        assertEq(principalPortion, uint256(901_594.102602e6));
+        assertEq(interestPortion,  uint256( 18_031.882052e6));
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 30 / 365 = 8219.178082 per payment
+        // Delegate service fee 300e18 per payment
+        // Platform service fee + delegate service fee = 25_557.534246e18  for remaining 3 payments to close loan
+        platformServiceFee = (1_000_000e6 * uint256(0.1e18) * 30 days / 365 days / 1e18) * 3;  // Three payments
+        delegateServiceFee = 300e6 * 3;  // Three payments
+
+        assertEq(platformServiceFee, 24_657.534246e6);
+        assertEq(feePortion,         25_557.534246e6);
+
+        uint256 treasuryBalBefore = fundsAsset.balanceOf(treasury);
+        uint256 delegateBalBefore = fundsAsset.balanceOf(poolDelegate);
 
         // Make payment
         vm.startPrank(borrower);
         fundsAsset.transfer(address(loan), paymentAmount);
         loan.closeLoan(0);
         vm.stopPrank();
+
+        assertEq(fundsAsset.balanceOf(treasury),     treasuryBalBefore + platformServiceFee);
+        assertEq(fundsAsset.balanceOf(poolDelegate), delegateBalBefore + delegateServiceFee);
 
         assertEq(loan.drawableFunds(),      0);  // No extra funds left in contract
         assertEq(loan.principal(),          0);  // No principal left
@@ -280,37 +356,57 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(0)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0.02e18), uint256(0), uint256(0)];  // 2% flat rate for closing loan
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[2] memory onTimeTotals = [
-            uint256(169_796.942404 ether),
-            uint256(169_796.942404 ether)
+            uint256(169_796.942404e6),
+            uint256(169_796.942404e6)
         ];
 
         uint256[2] memory onTimePrincipalPortions = [
-            uint256(164_454.476651 ether),
-            uint256(165_333.069060 ether)
+            uint256(164_454.476651e6),
+            uint256(165_333.069060e6)
         ];
 
         uint256[2] memory onTimeInterestPortions = [
-            uint256(5_342.465753 ether),
-            uint256(4_463.873344 ether)
+            uint256(5_342.465753e6),
+            uint256(4_463.873344e6)
         ];
 
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 15 / 365 = 4109.589041e18 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fee per payment 4109.589041e18 + 300e18 = 4_409.589041e18
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 15 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 4_109.589041e6);
+
         uint256[2] memory onTimePrincipalRemaining = [
-            uint256(835_545.523349 ether),
-            uint256(670_212.454289 ether)
+            uint256(835_545.523349e6),
+            uint256(670_212.454289e6)
         ];
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
 
+        uint256 platformOriginationFee = 0.01e6 * 1_000_000e6 * uint256(90 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 2_465.753424e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(2_465.753424e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
+
         uint256 grandTotalPaid;
 
-        // Make first three on time payments
+        // Make first two on time payments
         for (uint256 i = 0; i < 2; i++) {
             grandTotalPaid += assertOnTimePayment(
                 loan,
@@ -318,6 +414,8 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
                 onTimeInterestPortions[i],
                 onTimePrincipalRemaining[i],
                 onTimeTotals[i],
+                delegateServiceFee,
+                platformServiceFee,
                 i + 1
             );
         }
@@ -326,16 +424,29 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
         vm.warp(block.timestamp + 14 days);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion, ) = loan.getClosingPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, uint256 feePortion) = loan.getClosingPaymentBreakdown();
 
-        uint256 paymentAmount = principalPortion + interestPortion;
+        uint256 paymentAmount = principalPortion + interestPortion + feePortion;
 
-        assertIgnoringDecimals(paymentAmount, uint256(683_616.703375 ether), 13);  // Constant payment amounts
+        assertEq(principalPortion + interestPortion, uint256(683_616.703373e6));  // Constant payment a)
 
         // Check payment amounts against provided values
         // Five decimals of precision used (six provided with rounding)
-        assertIgnoringDecimals(principalPortion, uint256(670_212.454289 ether), 13);
-        assertIgnoringDecimals(interestPortion,  uint256(13_404.249086 ether),  13);
+        assertEq(principalPortion, uint256(670_212.454288e6));
+        assertEq(interestPortion,  uint256( 13_404.249085e6));
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 15 / 365 = 4109.589041e18 per payment
+        // Delegate service fee 300e18 per payment
+        // Platform service fee + delegate service fee = 17_638.356164e18  for remaining 4 payments to close loan
+        platformServiceFee = (1_000_000e6 * uint256(0.1e18) * 15 days / 365 days / 1e18) * 4;
+        delegateServiceFee = 300e6 * 4;  // Four payments
+
+        assertEq(platformServiceFee, 16_438.356164e6);
+
+        assertEq(feePortion, uint256(17_638.356164e6));
+
+        uint256 treasuryBalBefore = fundsAsset.balanceOf(treasury);
+        uint256 delegateBalBefore = fundsAsset.balanceOf(poolDelegate);
 
         // Make payment
         vm.startPrank(borrower);
@@ -343,10 +454,11 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
         loan.closeLoan(0);
         vm.stopPrank();
 
-        assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
+        assertEq(fundsAsset.balanceOf(treasury),     treasuryBalBefore + platformServiceFee);
+        assertEq(fundsAsset.balanceOf(poolDelegate), delegateBalBefore + delegateServiceFee);
 
-        assertEq(loan.principal(), 0);  // No principal left
-
+        assertEq(loan.drawableFunds(),      0);  // No extra funds left in contract
+        assertEq(loan.principal(),          0);  // No principal left
         assertEq(loan.paymentsRemaining(),  0);  // Payments remaining increases
         assertEq(loan.nextPaymentDueDate(), 0);  // Payment due date increases
     }
@@ -376,53 +488,83 @@ contract FullyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(0)];
 
         uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[6] memory totals = [
-            uint256(171_493.890825 ether),
-            uint256(171_493.890825 ether),
-            uint256(171_493.890825 ether),
-            uint256(171_493.890825 ether),
-            uint256(171_493.890825 ether),
-            uint256(171_493.890825 ether)
+            uint256(171_493.890825e6),
+            uint256(171_493.890825e6),
+            uint256(171_493.890825e6),
+            uint256(171_493.890825e6),
+            uint256(171_493.890825e6),
+            uint256(171_493.890825e6)
         ];
 
         uint256[6] memory principalPortions = [
-            uint256(163_274.712742 ether),
-            uint256(164_616.696683 ether),
-            uint256(165_969.710628 ether),
-            uint256(167_333.845236 ether),
-            uint256(168_709.191909 ether),
-            uint256(170_095.842802 ether)
+            uint256(163_274.712742e6),
+            uint256(164_616.696683e6),
+            uint256(165_969.710628e6),
+            uint256(167_333.845236e6),
+            uint256(168_709.191909e6),
+            uint256(170_095.842802e6)
         ];
 
         uint256[6] memory interestPortions = [
-            uint256(8_219.178082 ether),
-            uint256(6_877.194142 ether),
-            uint256(5_524.180197 ether),
-            uint256(4_160.045589 ether),
-            uint256(2_784.698915 ether),
-            uint256(1_398.048023 ether)
+            uint256(8_219.178082e6),
+            uint256(6_877.194142e6),
+            uint256(5_524.180197e6),
+            uint256(4_160.045589e6),
+            uint256(2_784.698915e6),
+            uint256(1_398.048023e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 30 / 365 = 8219.178082 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fees 8219.178082 + 300e18 = 8_519.178082e18 per payment
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 30 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 8_219.178082e6);
 
         uint256[6] memory principalRemaining = [
-            uint256(836_725.287258 ether),
-            uint256(672_108.590575 ether),
-            uint256(506_138.879947 ether),
-            uint256(338_805.034711 ether),
-            uint256(170_095.842802 ether),
-            uint256(      0.000000 ether)
+            uint256(836_725.287258e6),
+            uint256(672_108.590575e6),
+            uint256(506_138.879947e6),
+            uint256(338_805.034711e6),
+            uint256(170_095.842802e6),
+            uint256(      0.000000e6)
         ];
 
-        uint256 grandTotal = 1_028_963.344948 ether;
+        uint256 grandTotal = 1_028_963.344948e6;
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
 
-        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        uint256 platformOriginationFee = 1_000_000e6 * 0.01e6 * uint256(6 * 30 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 4_931.506849e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(4_931.506849e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));  // 500e18 in loan);
+
+        onTimePaymentsTest(
+            loan,
+            amounts,
+            principalPortions,
+            interestPortions,
+            principalRemaining,
+            totals,
+            delegateServiceFee,
+            platformServiceFee,
+            grandTotal
+        );
     }
 
     function test_payments_fullyAmortized_case2() external {
@@ -446,54 +588,85 @@ contract FullyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(0)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(0)];
 
         uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[6] memory totals = [
-            uint256(170_280.971987 ether),
-            uint256(170_280.971987 ether),
-            uint256(170_280.971987 ether),
-            uint256(170_280.971987 ether),
-            uint256(170_280.971987 ether),
-            uint256(170_280.971987 ether)
+            uint256(170_280.971987e6),
+            uint256(170_280.971987e6),
+            uint256(170_280.971987e6),
+            uint256(170_280.971987e6),
+            uint256(170_280.971987e6),
+            uint256(170_280.971987e6)
         ];
 
         uint256[6] memory principalPortions = [
-            uint256(164_116.588425 ether),
-            uint256(165_128.266025 ether),
-            uint256(166_146.179994 ether),
-            uint256(167_170.368775 ether),
-            uint256(168_200.871048 ether),
-            uint256(169_237.725733 ether)
+            uint256(164_116.588425e6),
+            uint256(165_128.266025e6),
+            uint256(166_146.179994e6),
+            uint256(167_170.368775e6),
+            uint256(168_200.871048e6),
+            uint256(169_237.725733e6)
         ];
 
         uint256[6] memory interestPortions = [
-            uint256(6_164.383562 ether),
-            uint256(5_152.705962 ether),
-            uint256(4_134.791993 ether),
-            uint256(3_110.603212 ether),
-            uint256(2_080.100939 ether),
-            uint256(1_043.246255 ether)
+            uint256(6_164.383562e6),
+            uint256(5_152.705962e6),
+            uint256(4_134.791993e6),
+            uint256(3_110.603212e6),
+            uint256(2_080.100939e6),
+            uint256(1_043.246255e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 15 / 365 = 4109.589041e18 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fee per payment 4109.589041e18 + 300e18 = 4_409.589041e18
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 15 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 4_109.589041e6);
 
         uint256[6] memory principalRemaining = [
-            uint256(835_883.411575 ether),
-            uint256(670_755.145549 ether),
-            uint256(504_608.965555 ether),
-            uint256(337_438.596781 ether),
-            uint256(169_237.725733 ether),
-            uint256(      0.000000 ether)
+            uint256(835_883.411575e6),
+            uint256(670_755.145549e6),
+            uint256(504_608.965555e6),
+            uint256(337_438.596781e6),
+            uint256(169_237.725733e6),
+            uint256(      0.000000e6)
         ];
 
-        uint256 grandTotal = 1_021_685.831922 ether;
+        uint256 grandTotal = 1_021_685.831922e6;
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
 
-        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        uint256 platformOriginationFee = 0.01e6 * 1_000_000e6 * uint256(90 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 2_465.753424e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(2_465.753424e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
+
+        onTimePaymentsTest(
+            loan,
+            amounts,
+            principalPortions,
+            interestPortions,
+            principalRemaining,
+            totals,
+            delegateServiceFee,
+            platformServiceFee,
+            grandTotal
+        );
     }
+
 }
 
 contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
@@ -517,53 +690,83 @@ contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(1_000_000e6)];
 
         uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[6] memory totals = [
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(1_008_219.178082 ether)
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(1_008_219.178082e6)
         ];
 
         uint256[6] memory principalPortions = [
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(1_000_000.000000 ether)
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(1_000_000.000000e6)
         ];
 
         uint256[6] memory interestPortions = [
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether)
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 30 / 365 = 8219.178082 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fees 8219.178082 + 300e18 = 8_519.178082e18 per payment
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 30 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 8_219.178082e6);
 
         uint256[6] memory principalRemaining = [
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(        0.000000 ether)
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(        0.000000e6)
         ];
 
-        uint256 grandTotal = 1_049_315.068493 ether;
+        uint256 grandTotal = 1_049_315.068493e6;
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
 
-        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        uint256 platformOriginationFee = 1_000_000e6 * 0.01e6 * uint256(6 * 30 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 4_931.506849e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(4_931.506849e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
+
+        onTimePaymentsTest(
+            loan,
+            amounts,
+            principalPortions,
+            interestPortions,
+            principalRemaining,
+            totals,
+            delegateServiceFee,
+            platformServiceFee,
+            grandTotal
+        );
     }
 
     function test_payments_interestOnly_case2() external {
@@ -585,54 +788,85 @@ contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(1_000_000e6)];
 
         uint256[4] memory rates = [uint256(0.15e18), uint256(0), uint256(0), uint256(0)];
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[6] memory totals = [
-            uint256(    6_164.383562 ether),
-            uint256(    6_164.383562 ether),
-            uint256(    6_164.383562 ether),
-            uint256(    6_164.383562 ether),
-            uint256(    6_164.383562 ether),
-            uint256(1_006_164.383562 ether)
+            uint256(    6_164.383562e6),
+            uint256(    6_164.383562e6),
+            uint256(    6_164.383562e6),
+            uint256(    6_164.383562e6),
+            uint256(    6_164.383562e6),
+            uint256(1_006_164.383562e6)
         ];
 
         uint256[6] memory principalPortions = [
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(1_000_000.000000 ether)
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(1_000_000.000000e6)
         ];
 
         uint256[6] memory interestPortions = [
-            uint256(6_164.383562 ether),
-            uint256(6_164.383562 ether),
-            uint256(6_164.383562 ether),
-            uint256(6_164.383562 ether),
-            uint256(6_164.383562 ether),
-            uint256(6_164.383562 ether)
+            uint256(6_164.383562e6),
+            uint256(6_164.383562e6),
+            uint256(6_164.383562e6),
+            uint256(6_164.383562e6),
+            uint256(6_164.383562e6),
+            uint256(6_164.383562e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 15 / 365 = 4109.589041e18 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fee per payment 4109.589041e18 + 300e18 = 4_409.589041e18
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 15 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 4_109.589041e6);
 
         uint256[6] memory principalRemaining = [
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(        0.000000 ether)
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(        0.000000e6)
         ];
 
-        uint256 grandTotal = 1_036_986.3013699 ether;
+        uint256 grandTotal = 1_036_986.301369e6;
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
 
-        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        uint256 platformOriginationFee = 0.01e6 * 1_000_000e6 * uint256(90 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 2_465.753424e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(2_465.753424e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
+
+        onTimePaymentsTest(
+            loan,
+            amounts,
+            principalPortions,
+            interestPortions,
+            principalRemaining,
+            totals,
+            delegateServiceFee,
+            platformServiceFee,
+            grandTotal
+        );
     }
+
 }
 
 contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
@@ -658,45 +892,65 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(350_000e6)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0)];  // 5% Late fee flat rate on principal
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[5] memory onTimeTotals = [
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether)
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6)
         ];
 
         uint256[5] memory onTimePrincipalPortions = [
-            uint256(106_895.409823 ether),
-            uint256(107_466.494889 ether),
-            uint256(108_040.630958 ether),
-            uint256(108_617.834329 ether),
-            uint256(109_198.121389 ether)
+            uint256(106_895.409823e6),
+            uint256(107_466.494889e6),
+            uint256(108_040.630958e6),
+            uint256(108_617.834329e6),
+            uint256(109_198.121389e6)
         ];
 
         uint256[5] memory onTimeInterestPortions = [
-            uint256(5_342.465753 ether),
-            uint256(4_771.380687 ether),
-            uint256(4_197.244619 ether),
-            uint256(3_620.041248 ether),
-            uint256(3_039.754188 ether)
+            uint256(5_342.465753e6),
+            uint256(4_771.380687e6),
+            uint256(4_197.244619e6),
+            uint256(3_620.041248e6),
+            uint256(3_039.754188e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 15 / 365 = 4109.589041e18 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fee per payment 4109.589041e18 + 300e18 = 4_409.589041e18
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 15 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 4_109.589041e6);
 
         uint256[5] memory onTimePrincipalRemaining = [
-            uint256(893_104.590177 ether),
-            uint256(785_638.095288 ether),
-            uint256(677_597.464330 ether),
-            uint256(568_979.630001 ether),
-            uint256(459_781.508613 ether)
+            uint256(893_104.590177e6),
+            uint256(785_638.095288e6),
+            uint256(677_597.464330e6),
+            uint256(568_979.630001e6),
+            uint256(459_781.508613e6)
         ];
 
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
+
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
+
+        uint256 platformOriginationFee = 0.01e6 * 1_000_000e6 * uint256(90 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 2_465.753424e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(2_465.753424e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
 
         uint256 grandTotalPaid;
 
@@ -708,6 +962,8 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
                 onTimeInterestPortions[i],
                 onTimePrincipalRemaining[i],
                 onTimeTotals[i],
+                delegateServiceFee,
+                platformServiceFee,
                 i + 1
             );
         }
@@ -716,19 +972,25 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
         vm.warp(block.timestamp + 15 days + 1 seconds);
 
         // Get amounts for the remaining loan payments
-        ( uint256 principalPortion, uint256 interestPortion, )  = loan.getNextPaymentBreakdown();
+        ( uint256 principalPortion, uint256 interestPortion, uint256 feePortion )  = loan.getNextPaymentBreakdown();
 
-        uint256 lateInterest = loan.principal() * 1300 * uint256(1 days) / 365 days / 10_000;  // Add one day of late payment (one second = one day of late interest)
-        uint256 lateFee      = 22_989.075431 ether;
+        uint256 paymentAmount = principalPortion + interestPortion + feePortion;
 
-        uint256 paymentAmount = principalPortion + interestPortion;
+        {
+            uint256 lateInterest = loan.principal() * 1300 * uint256(1 days) / 365 days / 10_000;  // Add one day of late payment (one second = one day of late interest)
+            uint256 lateFee      = 22_989.075431e6;
 
-        assertIgnoringDecimals(paymentAmount, uint256(485_226.951007 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
+            assertWithinDiff(principalPortion + interestPortion, uint256(485_226.951007e6) + lateInterest, 2);  // Late interest wasn't accounted for in);
 
-        // Check payment amounts against provided values
-        // Five decimals of precision used (six provided with rounding)
-        assertIgnoringDecimals(principalPortion, uint256(459_781.508613 ether),                          13);
-        assertIgnoringDecimals(interestPortion,  uint256(  2_456.366964 ether) + lateInterest + lateFee, 13);  // Note: This was 2,292.609166 + 163.757798 from sheet, also late interest wasn't accounted for
+            // Check payment amounts against provided values
+            // Five decimals of precision used (six provided with rounding)
+            assertWithinDiff(principalPortion, uint256(459_781.508613e6),                          1);
+            assertWithinDiff(interestPortion,  uint256(  2_456.366964e6) + lateInterest + lateFee, 3);  // Note: This was 2,292.609166 + 163.757798 from sheet, also late interest wasn't accounted for
+            assertWithinDiff(feePortion,       uint256(  4_409.589041e6),                          1);
+        }
+
+        uint256 delegateBeforeBal = fundsAsset.balanceOf(poolDelegate);
+        uint256 treasuryBeforeBal = fundsAsset.balanceOf(treasury);
 
         // Make payment
         vm.startPrank(borrower);
@@ -736,10 +998,11 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
         loan.makePayment(0);
         vm.stopPrank();
 
-        assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
+        assertEq(fundsAsset.balanceOf(treasury),     treasuryBeforeBal + platformServiceFee);
+        assertEq(fundsAsset.balanceOf(poolDelegate), delegateBeforeBal + delegateServiceFee);
 
-        assertEq(loan.principal(), 0);  // No principal left
-
+        assertEq(loan.drawableFunds(),      0);  // No extra funds left in contract
+        assertEq(loan.principal(),          0);  // No principal left
         assertEq(loan.paymentsRemaining(),  0);  // Payments remaining cleared
         assertEq(loan.nextPaymentDueDate(), 0);  // Payment due date cleared
     }
@@ -765,46 +1028,66 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(1_000_000e6)];
 
         uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0.05e18), uint256(0)]; // 5% Late fee flat rate on principal
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         // Payments 1, 2, 4, 5, 6
         uint256[5] memory onTimeTotals = [
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(1_008_219.178082 ether)
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(1_008_219.178082e6)
         ];
 
         uint256[5] memory onTimePrincipalPortions = [
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(1_000_000.000000 ether)
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(1_000_000.000000e6)
         ];
 
         uint256[5] memory onTimeInterestPortions = [
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether)
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 30 / 365 = 8219.178082 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fees 8219.178082 + 300e18 = 8_519.178082e18 per payment
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 30 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 8_219.178082e6);
 
         uint256[5] memory onTimePrincipalRemaining = [
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(        0.000000 ether)
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(        0.000000e6)
         ];
 
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
+
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
+
+        uint256 platformOriginationFee = 1_000_000e6 * 0.01e6 * uint256(6 * 30 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 4_931.506849e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(4_931.506849e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
 
         uint256 grandTotalPaid;
 
@@ -816,6 +1099,8 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
                 onTimeInterestPortions[i],
                 onTimePrincipalRemaining[i],
                 onTimeTotals[i],
+                delegateServiceFee,
+                platformServiceFee,
                 i + 1
             );
         }
@@ -825,19 +1110,20 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             vm.warp(block.timestamp + 30 days + 2 hours);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, uint256 feePortion ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1000 * uint256(1 days) / 365 days / 10_000;  // Add two hours of late interest (which is 1 day of default interest).
-            uint256 lateFee      = uint256(50_000.000000 ether);
+            uint256 lateFee      = uint256(50_000.000000e6);
 
-            uint256 paymentAmount = principalPortion + interestPortion;
+            uint256 paymentAmount = principalPortion + interestPortion + feePortion;
 
-            assertIgnoringDecimals(paymentAmount, uint256(58_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet.
+            assertWithinDiff(principalPortion + interestPortion, uint256(58_219.178082e6) + lateInterest, 2);  // Late interest wasn't accounted for in sheet.
 
             // Check payment amounts against provided values
             // Five decimals of precision used (six provided with rounding)
-            assertIgnoringDecimals(principalPortion, uint256(     0.000000 ether),                          13);
-            assertIgnoringDecimals(interestPortion,  uint256( 8_219.178082 ether) + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for.
+            assertWithinDiff(principalPortion, uint256(    0.000000e6),                          0);
+            assertWithinDiff(interestPortion,  uint256(8_219.178082e6) + lateInterest + lateFee, 3);  // Note: Late interest wasn't accounted for.
+            assertWithinDiff(feePortion,       uint256(8_519.178082e6),                          0);
 
             // Make payment
             vm.startPrank(borrower);
@@ -857,12 +1143,16 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
                 onTimeInterestPortions[i],
                 onTimePrincipalRemaining[i],
                 onTimeTotals[i],
+                delegateServiceFee,
+                platformServiceFee,
                 i + 2
             );
         }
 
-        assertEq(loan.drawableFunds(), 0);  // No extra funds left in contract
-        assertEq(loan.principal(),     0);  // No principal left
+        assertEq(loan.drawableFunds(),      0);  // No extra funds left in contract
+        assertEq(loan.principal(),          0);  // No principal left
+        assertEq(loan.paymentsRemaining(),  0);  // Payments remaining cleared
+        assertEq(loan.nextPaymentDueDate(), 0);  // Payment due date cleared
     }
 
     function test_payments_lateRepayment_flatRateAndDefaultRate_case1() external {
@@ -887,50 +1177,69 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(350_000e6)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0.05e18), uint256(0.05e18)];  // 5% Late fee flat rate on principal, 5% premium
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         // All payment amounts under normal amortization schedule in sheet
         uint256[6] memory onTimeTotals = [
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(462_237.875576 ether)
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(462_237.875576e6)
         ];
 
         uint256[6] memory onTimePrincipalPortions = [
-            uint256(106_895.409823 ether),
-            uint256(107_466.494889 ether),
-            uint256(108_040.630958 ether),
-            uint256(108_617.834329 ether),
-            uint256(109_198.121389 ether),
-            uint256(459_781.508613 ether)
+            uint256(106_895.409823e6),
+            uint256(107_466.494889e6),
+            uint256(108_040.630958e6),
+            uint256(108_617.834329e6),
+            uint256(109_198.121389e6),
+            uint256(459_781.508613e6)
         ];
 
         uint256[6] memory onTimeInterestPortions = [
-            uint256(5_342.465753 ether),
-            uint256(4_771.380687 ether),
-            uint256(4_197.244619 ether),
-            uint256(3_620.041248 ether),
-            uint256(3_039.754188 ether),
-            uint256(2_456.366964 ether)
+            uint256(5_342.465753e6),
+            uint256(4_771.380687e6),
+            uint256(4_197.244619e6),
+            uint256(3_620.041248e6),
+            uint256(3_039.754188e6),
+            uint256(2_456.366964e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 15 / 365 = 4109.589041e18 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fee per payment 4109.589041e18 + 300e18 = 4_409.589041e18
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 15 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 4_109.589041e6);
 
         uint256[6] memory onTimePrincipalRemaining = [
-            uint256(893_104.590177 ether),
-            uint256(785_638.095288 ether),
-            uint256(677_597.464330 ether),
-            uint256(568_979.630001 ether),
-            uint256(459_781.508613 ether),
-            uint256(0.000000       ether)
+            uint256(893_104.590177e6),
+            uint256(785_638.095288e6),
+            uint256(677_597.464330e6),
+            uint256(568_979.630001e6),
+            uint256(459_781.508613e6),
+            uint256(      0.000000e6)
         ];
 
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
+
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
+
+        // Platform origination fee formula
+        assertEq(0.01e6 * 1_000_000e6 * uint256(90 days) / 365 days / 1e6, 2_465.753424e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(2_465.753424e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
 
         uint256 grandTotalPaid;
 
@@ -941,6 +1250,8 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             onTimeInterestPortions[0],
             onTimePrincipalRemaining[0],
             onTimeTotals[0],
+            delegateServiceFee,
+            platformServiceFee,
             1
         );
 
@@ -952,21 +1263,22 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             vm.warp(block.timestamp + 31 days);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, uint256 feePortion ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1800 * uint256(16 days) / 365 days / 10_000;  // Add sixteen days of late interest
             uint256 lateFee      = loan.principal() * 500 / 10_000;
 
-            assertIgnoringDecimals(lateInterest, 7046.962245 ether, 13);
+            assertEq(lateInterest, 7046.962245e6);
 
-            uint256 paymentAmount = principalPortion + interestPortion;
+            uint256 paymentAmount = principalPortion + interestPortion + feePortion;
 
-            assertIgnoringDecimals(paymentAmount, uint256(163_940.067331 ether), 13);
+            assertWithinDiff(principalPortion + interestPortion, uint256(163_940.067331e6), 2);
 
             // Check payment amounts against provided values
             // Five decimals of precision used (six provided with rounding)
-            assertIgnoringDecimals(principalPortion, onTimePrincipalPortions[1],                         13);  // Principal should be in accordance with schedule always
-            assertIgnoringDecimals(interestPortion,  onTimeInterestPortions[1] + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for
+            assertWithinDiff(principalPortion, onTimePrincipalPortions[1],                         1);  // Principal should be in accordance with schedule always
+            assertWithinDiff(interestPortion,  onTimeInterestPortions[1] + lateInterest + lateFee, 3);  // Note: Late interest wasn't accounted for
+            assertWithinDiff(feePortion,       delegateServiceFee + platformServiceFee,            2);
 
             // Make payment
             vm.startPrank(borrower);
@@ -985,21 +1297,22 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             // Same timestamp - Day 46, due date is day 45
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, uint256 feePortion ) = loan.getNextPaymentBreakdown();
 
             uint256 lateInterest = loan.principal() * 1800 * uint256(1 days) / 365 days / 10_000;  // Add one day of late interest
             uint256 lateFee      = loan.principal() * 500 / 10_000;
 
-            assertIgnoringDecimals(lateInterest, 387.437964 ether, 13);
+            assertEq(lateInterest, 387.437964e6);
 
-            uint256 paymentAmount = principalPortion + interestPortion;
+            uint256 paymentAmount = principalPortion + interestPortion + feePortion;
 
-            assertIgnoringDecimals(paymentAmount, uint256(151_907.218305 ether), 13);
+            assertWithinDiff(principalPortion + interestPortion, uint256(151_907.218305e6), 2);
 
             // Check payment amounts against provided values
             // Five decimals of precision used (six provided with rounding)
-            assertIgnoringDecimals(principalPortion, onTimePrincipalPortions[2],                         13);  // Principal should be in accordance with schedule always
-            assertIgnoringDecimals(interestPortion,  onTimeInterestPortions[2] + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for
+            assertWithinDiff(principalPortion, onTimePrincipalPortions[2],                         1);  // Principal should be in accordance with schedule always
+            assertWithinDiff(interestPortion,  onTimeInterestPortions[2] + lateInterest + lateFee, 3);  // Note: Late interest wasn't accounted for
+            assertWithinDiff(feePortion,       delegateServiceFee + platformServiceFee,            2);
 
             // Make payment
             vm.startPrank(borrower);
@@ -1019,6 +1332,8 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
                 onTimeInterestPortions[i],
                 onTimePrincipalRemaining[i],
                 onTimeTotals[i],
+                delegateServiceFee,
+                platformServiceFee,
                 i + 1
             );
         }
@@ -1049,46 +1364,66 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(1_000_000e6)];
 
         uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         // Payments 2, 3, 4, 5, 6
         uint256[5] memory onTimeTotals = [
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(    8_219.178082 ether),
-            uint256(1_008_219.178082 ether)
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(    8_219.178082e6),
+            uint256(1_008_219.178082e6)
         ];
 
         uint256[5] memory onTimePrincipalPortions = [
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(        0.000000 ether),
-            uint256(1_000_000.000000 ether)
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(        0.000000e6),
+            uint256(1_000_000.000000e6)
         ];
 
         uint256[5] memory onTimeInterestPortions = [
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether),
-            uint256(8_219.178082 ether)
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6),
+            uint256(8_219.178082e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 30 / 365 = 8219.178082 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fees 8219.178082 + 300e18 = 8_519.178082e18 per payment
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 30 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 8_219.178082e6);
 
         uint256[5] memory onTimePrincipalRemaining = [
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(1_000_000.000000 ether),
-            uint256(        0.000000 ether)
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(1_000_000.000000e6),
+            uint256(        0.000000e6)
         ];
 
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
+
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
+
+        uint256 platformOriginationFee = 1_000_000e6 * 0.01e6 * uint256(6 * 30 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 4_931.506849e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(4_931.506849e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
 
         uint256 grandTotalPaid;
 
@@ -1097,21 +1432,22 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             vm.warp(block.timestamp + 32 days);
 
             // Get amounts for the remaining loan payments
-            ( uint256 principalPortion, uint256 interestPortion, ) = loan.getNextPaymentBreakdown();
+            ( uint256 principalPortion, uint256 interestPortion, uint256 feePortion ) = loan.getNextPaymentBreakdown();
 
 
             uint256 lateInterest = loan.principal() * 1500 * uint256(2 days) / 365 days / 10_000;  // Add two days of late interest (15%)
             uint256 lateFee      = loan.principal() * 0.02e18 / 10 ** 18;
-            assertIgnoringDecimals(lateInterest, 821.917808 ether, 13);
+            assertEq(lateInterest, 821.917808e6);
 
-            uint256 paymentAmount = principalPortion + interestPortion;
+            uint256 paymentAmount = principalPortion + interestPortion + feePortion;
 
-            assertIgnoringDecimals(paymentAmount, uint256(28_219.178082 ether) + lateInterest, 12);  // Late interest wasn't accounted for in sheet
+            assertWithinDiff(principalPortion + interestPortion, uint256(28_219.178082e6) + lateInterest, 2);  // Late interest wasn't accounted for in sheet
 
             // Check payment amounts against provided values
             // Five decimals of precision used (six provided with rounding)
-            assertIgnoringDecimals(principalPortion, uint256(     0.000000 ether),                13);
-            assertIgnoringDecimals(interestPortion,  uint256( 8_219.178082 ether) + lateInterest + lateFee, 13);  // Note: Late interest wasn't accounted for
+            assertWithinDiff(principalPortion, uint256(    0.000000e6),                          0);
+            assertWithinDiff(interestPortion,  uint256(8_219.178082e6) + lateInterest + lateFee, 3);  // Note: Late interest wasn't accounted for
+            assertWithinDiff(feePortion,       uint256(8_519.178082e6),                          0);
 
             // Make payment
             vm.startPrank(borrower);
@@ -1131,6 +1467,8 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
                 onTimeInterestPortions[i],
                 onTimePrincipalRemaining[i],
                 onTimeTotals[i],
+                delegateServiceFee,
+                platformServiceFee,
                 i + 2 // Starting on second payment
             );
         }
@@ -1146,7 +1484,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(1_000_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(1_000_000e6)];
 
         uint256[4] memory rates = [uint256(0.10e18), uint256(0), uint256(0.02e18), uint256(0.05e18)];  // 2% Late fee rate on principal
 
@@ -1161,20 +1499,21 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
         ( , uint256 interestPortion1 , ) = loan.getNextPaymentBreakdown();
 
         // Warp to day 31 (one day late exactly)
-        vm.warp(start  + 31 days);
+        vm.warp(start + 31 days);
 
         ( , uint256 interestPortion2 , ) = loan.getNextPaymentBreakdown();
 
         assertEq(interestPortion1, interestPortion2);  // Same entire day
 
         // Warp one more second (one day plus one second late)
-        vm.warp(start  + 31 days + 1 seconds);
+        vm.warp(start + 31 days + 1 seconds);
 
         // Get amounts for the remaining loan payments
         ( , uint256 interestPortion3 , ) = loan.getNextPaymentBreakdown();
 
         assertTrue(interestPortion3 > interestPortion1);  // Default interest gets updated on the day
     }
+
 }
 
 contract PartiallyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
@@ -1200,53 +1539,83 @@ contract PartiallyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(800_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(800_000e6)];
 
         uint256[4] memory rates = [uint256(0.1e18), uint256(0), uint256(0), uint256(0)];
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[6] memory totals = [
-            uint256( 40_874.120631 ether),
-            uint256( 40_874.120631 ether),
-            uint256( 40_874.120631 ether),
-            uint256( 40_874.120631 ether),
-            uint256( 40_874.120631 ether),
-            uint256(840_874.120631 ether)
+            uint256( 40_874.120631e6),
+            uint256( 40_874.120631e6),
+            uint256( 40_874.120631e6),
+            uint256( 40_874.120631e6),
+            uint256( 40_874.120631e6),
+            uint256(840_874.120631e6)
         ];
 
         uint256[6] memory principalPortions = [
-            uint256( 32_654.942548 ether),
-            uint256( 32_923.339337 ether),
-            uint256( 33_193.942126 ether),
-            uint256( 33_466.769047 ether),
-            uint256( 33_741.838382 ether),
-            uint256(834_019.168560 ether)
+            uint256( 32_654.942548e6),
+            uint256( 32_923.339337e6),
+            uint256( 33_193.942126e6),
+            uint256( 33_466.769047e6),
+            uint256( 33_741.838382e6),
+            uint256(834_019.168560e6)
         ];
 
         uint256[6] memory interestPortions = [
-            uint256(8_219.178082 ether),
-            uint256(7_950.781294 ether),
-            uint256(7_680.178505 ether),
-            uint256(7_407.351583 ether),
-            uint256(7_132.282249 ether),
-            uint256(6_854.952070 ether)
+            uint256(8_219.178082e6),
+            uint256(7_950.781294e6),
+            uint256(7_680.178505e6),
+            uint256(7_407.351583e6),
+            uint256(7_132.282249e6),
+            uint256(6_854.952070e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 30 / 365 = 8219.178082 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fees 8219.178082 + 300e18 = 8_519.178082e18 per payment
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 30 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 8_219.178082e6);
 
         uint256[6] memory principalRemaining = [
-            uint256(967_345.057452 ether),
-            uint256(934_421.718115 ether),
-            uint256(901_227.775989 ether),
-            uint256(867_761.006942 ether),
-            uint256(834_019.168560 ether),
-            uint256(      0.000000 ether)
+            uint256(967_345.057452e6),
+            uint256(934_421.718115e6),
+            uint256(901_227.775989e6),
+            uint256(867_761.006942e6),
+            uint256(834_019.168560e6),
+            uint256(      0.000000e6)
         ];
 
-        uint256 grandTotal = 1_045_244.723784 ether;
+        uint256 grandTotal = 1_045_244.723784e6;
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
 
-        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        uint256 platformOriginationFee = 1_000_000e6 * 0.01e6 * uint256(6 * 30 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 4_931.506849e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(4_931.506849e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
+
+        onTimePaymentsTest(
+            loan,
+            amounts,
+            principalPortions,
+            interestPortions,
+            principalRemaining,
+            totals,
+            delegateServiceFee,
+            platformServiceFee,
+            grandTotal
+        );
     }
 
     function test_payments_partiallyAmortized_case2() external {
@@ -1270,53 +1639,84 @@ contract PartiallyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
             uint256(6)
         ];
 
-        uint256[3] memory amounts = [uint256(300_000 ether), uint256(1_000_000 ether), uint256(350_000 ether)];
+        uint256[3] memory amounts = [uint256(300_000e6), uint256(1_000_000e6), uint256(350_000e6)];
 
         uint256[4] memory rates = [uint256(0.13e18), uint256(0), uint256(0), uint256(0)];
 
-        uint256[2] memory fees = [uint256(0), uint256(0)];
+        uint256[2] memory fees = [uint256(500e6), uint256(300e6)];
 
         uint256[6] memory totals = [
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(112_237.875576 ether),
-            uint256(462_237.875576 ether)
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(112_237.875576e6),
+            uint256(462_237.875576e6)
         ];
 
 
         uint256[6] memory principalPortions = [
-            uint256(106_895.409823 ether),
-            uint256(107_466.494889 ether),
-            uint256(108_040.630958 ether),
-            uint256(108_617.834329 ether),
-            uint256(109_198.121389 ether),
-            uint256(459_781.508613 ether)
+            uint256(106_895.409823e6),
+            uint256(107_466.494889e6),
+            uint256(108_040.630958e6),
+            uint256(108_617.834329e6),
+            uint256(109_198.121389e6),
+            uint256(459_781.508613e6)
         ];
 
         uint256[6] memory interestPortions = [
-            uint256(5_342.465753 ether),
-            uint256(4_771.380687 ether),
-            uint256(4_197.244619 ether),
-            uint256(3_620.041248 ether),
-            uint256(3_039.754188 ether),
-            uint256(2_456.366964 ether)
+            uint256(5_342.465753e6),
+            uint256(4_771.380687e6),
+            uint256(4_197.244619e6),
+            uint256(3_620.041248e6),
+            uint256(3_039.754188e6),
+            uint256(2_456.366964e6)
         ];
+
+        // Platform service fee principalRequested * fee rate * interval / 365 days = 1_000_000 * 0.1 * 15 / 365 = 4109.589041e18 per payment
+        // Delegate service fee 300e18 per payment
+        // Total fee per payment 4109.589041e18 + 300e18 = 4_409.589041e18
+        uint256 platformServiceFee = 1_000_000e6 * uint256(0.1e18) * 15 days / 365 days / 1e18;
+        uint256 delegateServiceFee = 300e6;  // Part of terms
+
+        assertEq(platformServiceFee, 4_109.589041e6);
 
         uint256[6] memory principalRemaining = [
-            uint256(893_104.590177 ether),
-            uint256(785_638.095288 ether),
-            uint256(677_597.464330 ether),
-            uint256(568_979.630001 ether),
-            uint256(459_781.508613 ether),
-            uint256(      0.000000 ether)
+            uint256(893_104.590177e6),
+            uint256(785_638.095288e6),
+            uint256(677_597.464330e6),
+            uint256(568_979.630001e6),
+            uint256(459_781.508613e6),
+            uint256(      0.000000e6)
         ];
 
-        uint256 grandTotal = 1_023_427.253459 ether;
+        uint256 grandTotal = 1_023_427.253459e6;
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     0);
+        assertEq(fundsAsset.balanceOf(poolDelegate), 0);
 
         MapleLoan loan = createLoanFundAndDrawdown(assets, termDetails, amounts, rates, fees);
 
-        onTimePaymentsTest(loan, amounts, principalPortions, interestPortions, principalRemaining, totals, grandTotal);
+        uint256 platformOriginationFee = 0.01e6 * 1_000_000e6 * uint256(90 days) / 365 days / 1e6;
+
+        assertEq(platformOriginationFee, 2_465.753424e6);
+
+        // Assert the origination fee
+        assertEq(fundsAsset.balanceOf(treasury),     uint256(2_465.753424e6));
+        assertEq(fundsAsset.balanceOf(poolDelegate), uint256(500e6));
+
+        onTimePaymentsTest(
+            loan,
+            amounts,
+            principalPortions,
+            interestPortions,
+            principalRemaining,
+            totals,
+            delegateServiceFee,
+            platformServiceFee,
+            grandTotal
+        );
     }
+
 }
