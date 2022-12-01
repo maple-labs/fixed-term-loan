@@ -373,8 +373,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _clearLoanAccounting();
 
         // Uniquely in `_repossess`, stop accounting for all funds so that they can be swept.
-        _collateral     = uint256(0);
-        _drawableFunds  = uint256(0);
+        _collateral    = uint256(0);
+        _drawableFunds = uint256(0);
 
         address collateralAsset_ = _collateralAsset;
 
