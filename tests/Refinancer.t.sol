@@ -103,8 +103,6 @@ contract RefinancerTestBase is TestUtils {
 
 }
 
-// TODO: Add permissioning testing for propose and accept terms functions
-
 contract RefinancerCollateralRequiredTests is RefinancerTestBase {
 
     function test_refinance_collateralRequired(

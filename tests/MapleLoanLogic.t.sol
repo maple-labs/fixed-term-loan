@@ -757,8 +757,6 @@ contract MapleLoanLogic_DrawdownFundsTests is TestUtils {
         assertEq(fundsAsset.balanceOf(borrower),      principalRequested_);
     }
 
-    // TODO: see if there is a way to make the transfer fail in drawdown due to lack of funds
-
     function test_drawdownFunds_collateralNotMaintained(uint256 collateralRequired_, uint256 principalRequested_, uint256 collateral_) external {
         // Must have non-zero collateral and principal amounts to cause failure
         collateralRequired_ = constrictToRange(collateralRequired_, 1, MAX_TOKEN_AMOUNT);
