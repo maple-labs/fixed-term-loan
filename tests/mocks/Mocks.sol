@@ -138,12 +138,10 @@ contract MockFeeManager {
     }
 
     function getServiceFeesForPeriod(address, uint256) external pure returns (uint256 serviceFee_) {
-        // TODO
         return 0;
     }
 
     function getServiceFees(address, uint256) external pure returns (uint256 serviceFees_) {
-        // TODO
         return 0;
     }
 

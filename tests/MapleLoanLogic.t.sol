@@ -1072,8 +1072,6 @@ contract MapleLoanLogic_GetInstallmentTests is TestUtils {
         assertEq(interestAmount_,  2739726027397260000000000000);
     }
 
-    // TODO: test where `raisedRate <= SCALED_ONE`?
-
 }
 
 contract MapleLoanLogic_GetInterestTests is TestUtils {
