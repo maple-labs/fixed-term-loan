@@ -10,24 +10,25 @@ import { EmptyContract, MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanM
 
 contract MapleLoanTests is TestUtils {
 
-    MapleGlobalsMock globals;
-    MapleLoanHarness loan;
-    MockFactory      factoryMock;
-    MockFeeManager   feeManager;
+    MapleGlobalsMock internal globals;
+    MapleLoanHarness internal loan;
+    MockFactory      internal factoryMock;
+    MockFeeManager   internal feeManager;
 
-    address borrower = address(new Address());
-    address governor = address(new Address());
-    address user     = address(new Address());
+    address internal borrower = address(new Address());
+    address internal governor = address(new Address());
+    address internal user     = address(new Address());
 
-    address lender;
+    address internal lender;
 
-    bool locked;  // Helper state variable to avoid infinite loops when using the modifier.
+    bool internal locked;  // Helper state variable to avoid infinite loops when using the modifier.
 
     function setUp() external {
         feeManager = new MockFeeManager();
         lender     = address(new MockLoanManager());
-        globals    = new MapleGlobalsMock(governor, MockLoanManager(lender).factory());
         loan       = new MapleLoanHarness();
+
+        globals = new MapleGlobalsMock(governor, MockLoanManager(lender).factory());
 
         factoryMock = new MockFactory(address(globals));
 
@@ -210,9 +211,9 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.excessCollateral(), 1_200_000);
     }
 
-    /******************************************************************************************************************************/
-    /*** Access Control Tests                                                                                                   ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Access Control Tests                                                                                                           ***/
+    /**************************************************************************************************************************************/
 
     function test_migrate_acl() external {
         address mockMigrator = address(new EmptyContract());
@@ -452,9 +453,9 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.implementation(), newImplementation);
     }
 
-    /******************************************************************************************************************************/
-    /*** Loan Transfer-Related Tests                                                                                            ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Loan Transfer-Related Tests                                                                                                    ***/
+    /**************************************************************************************************************************************/
 
     function test_acceptNewTerms() external {
         MockERC20 fundsAsset = new MockERC20("FA", "FA", 18);
@@ -872,7 +873,8 @@ contract MapleLoanTests is TestUtils {
         loan.closeLoan(0);
         vm.stopPrank();
 
-        // This should succeed since the borrower can use drawableFunds, and there is already unaccounted amount thanks to the previous user transfer.
+        // This should succeed since the borrower can use drawableFunds,
+        // and there is already unaccounted amount thanks to the previous user transfer.
         vm.prank(borrower);
         loan.closeLoan(0);
     }
@@ -1080,7 +1082,8 @@ contract MapleLoanTests is TestUtils {
         loan.makePayment(0);
         vm.stopPrank();
 
-        // This should succeed since the borrower can use drawableFunds, and there is already unaccounted amount thanks to the previous user transfer.
+        // This should succeed since the borrower can use drawableFunds,
+        // and there is already unaccounted amount thanks to the previous user transfer.
         vm.prank(borrower);
         loan.makePayment(0);
     }
@@ -1173,9 +1176,9 @@ contract MapleLoanTests is TestUtils {
         assertEq(loan.drawableFunds(),                amount);
     }
 
-    /******************************************************************************************************************************/
-    /*** Pause Tests                                                                                                            ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Pause Tests                                                                                                                    ***/
+    /**************************************************************************************************************************************/
 
     function test_acceptBorrower_failWhenPaused() external {
         // Set up
@@ -1198,20 +1201,20 @@ contract MapleLoanTests is TestUtils {
 
     function test_acceptLender_failWhenPaused() external {
         // Set up
-        address newLendewr = address(new Address());
-        loan.__setPendingLender(newLendewr);
+        address newLender = address(new Address());
+        loan.__setPendingLender(newLender);
 
         // Trigger pause and  assert failure
         globals.setProtocolPaused(true);
 
-        vm.prank(address(newLendewr));
+        vm.prank(address(newLender));
         vm.expectRevert("L:PROTOCOL_PAUSED");
         loan.acceptLender();
 
         // Success case
         globals.setProtocolPaused(false);
 
-        vm.prank(newLendewr);
+        vm.prank(newLender);
         loan.acceptLender();
     }
 

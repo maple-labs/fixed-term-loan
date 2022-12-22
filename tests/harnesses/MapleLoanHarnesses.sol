@@ -6,25 +6,25 @@ import { MapleLoanInitializer } from "../../contracts/MapleLoanInitializer.sol";
 
 contract MapleLoanHarness is MapleLoan {
 
-    /******************************************************************************************************************************/
-    /*** Mutating Functions                                                                                                     ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Mutating Functions                                                                                                             ***/
+    /**************************************************************************************************************************************/
 
     function __clearLoanAccounting() external {
         _clearLoanAccounting();
     }
 
-    /******************************************************************************************************************************/
-    /*** View Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** View Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     function __isCollateralMaintained() external view returns (bool isMaintained_) {
         isMaintained_ = _isCollateralMaintained();
     }
 
-    /******************************************************************************************************************************/
-    /*** State Setters                                                                                                          ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** State Setters                                                                                                                  ***/
+    /**************************************************************************************************************************************/
 
     function __setBorrower(address borrower_) external {
         _borrower = borrower_;
@@ -126,9 +126,9 @@ contract MapleLoanHarness is MapleLoan {
         _refinanceInterest = refinanceInterest_;
     }
 
-    /******************************************************************************************************************************/
-    /*** Pure Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Pure Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     function __getCollateralRequiredFor(
         uint256 principal_,
@@ -150,7 +150,10 @@ contract MapleLoanHarness is MapleLoan {
     )
         external pure returns (uint256 principalAmount_, uint256 interestAmount_)
     {
-        ( principalAmount_, interestAmount_ ) = _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
+        (
+            principalAmount_,
+            interestAmount_
+        ) = _getInstallment(principal_, endingPrincipal_, interestRate_, paymentInterval_, totalPayments_);
     }
 
     function __getInterest(uint256 principal_, uint256 interestRate_, uint256 interval_) external pure returns (uint256 interest_) {
@@ -196,7 +199,9 @@ contract MapleLoanHarness is MapleLoan {
         periodicInterestRate_ = _getPeriodicInterestRate(interestRate_, interval_);
     }
 
-    function __getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external pure returns (bytes32 refinanceCommitment_) {
+    function __getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external pure returns (bytes32 refinanceCommitment_)
+    {
         refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_);
     }
 
@@ -222,7 +227,10 @@ contract ConstructableMapleLoan is MapleLoanHarness {
 
         MapleLoanInitializer initializer = new MapleLoanInitializer();
 
-        _delegateCall(address(initializer), initializer.encodeArguments(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_));
+        _delegateCall(
+            address(initializer),
+            initializer.encodeArguments(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_)
+        );
     }
 
     function _delegateCall(address account_, bytes memory data_) internal {

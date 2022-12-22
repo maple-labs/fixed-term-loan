@@ -51,4 +51,5 @@ abstract contract MapleLoanStorage {
 
     // Triggered defaults
     uint256 internal _originalNextPaymentDueDate;  // Stores the original `nextPaymentDueDate` in order to allow triggered defaults to be reverted.
+
 }

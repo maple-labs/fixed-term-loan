@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Address, TestUtils, console } from "../modules/contract-test-utils/contracts/test.sol";
+import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
 import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
@@ -11,14 +11,14 @@ import { MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager } from "
 // TODO: Add fees
 contract MapleLoanScenariosTests is TestUtils {
 
-    MapleGlobalsMock globals;
-    MockERC20        token;
-    MockFactory      factory;
-    MockFeeManager   feeManager;
-    MockLoanManager  lender;
+    MapleGlobalsMock internal globals;
+    MockERC20        internal token;
+    MockFactory      internal factory;
+    MockFeeManager   internal feeManager;
+    MockLoanManager  internal lender;
 
-    address borrower = address(new Address());
-    address governor = address(new Address());
+    address internal borrower = address(new Address());
+    address internal governor = address(new Address());
 
     function setUp() external {
         feeManager = new MockFeeManager();
@@ -44,7 +44,16 @@ contract MapleLoanScenariosTests is TestUtils {
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(
+            address(factory),
+            borrower,
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
 
         // Fund via a 1M transfer
         vm.startPrank(address(lender));

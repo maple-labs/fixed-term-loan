@@ -6,6 +6,8 @@
 [foundry]: https://getfoundry.sh/
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
+## Overview
+
 This repo contains a set of contracts to facilitate on-chain Loans between Maple Finance Pools and institutional borrowers. These contracts contain logic to:
 1. Deploy new Loans.
 2. Perform Loan funding.
@@ -18,28 +20,36 @@ This repo contains a set of contracts to facilitate on-chain Loans between Maple
 9. Upgrade Loan logic using upgradeability patterns.
 
 ## Dependencies/Inheritance
-The `MapleLoan` contract is deployed using the `MapleProxyFactory` (v1.0.0), which can be found in the `/modules` directory or on GitHub [here](https://github.com/maple-labs/maple-proxy-factory).
 
-`MapleProxyFactory` inherits from the generic `ProxyFactory` contract which can be found [here](https://github.com/maple-labs/proxy-factory).
+Contracts in this repo inherit and import code from:
+- [`maple-labs/erc20`](https://github.com/maple-labs/erc20)
+- [`maple-labs/erc20-helper`](https://github.com/maple-labs/erc20-helper)
+- [`maple-labs/maple-proxy-factory`](https://github.com/maple-labs/maple-proxy-factory)
+
+Contracts inherit and import code in the following ways:
+- `MapleLoan` and `MapleLoanFeeManager` use `IERC20` and `ERC20Helper` for token interactions.
+- `MapleLoan` inherits `MapleProxiedInternals` for proxy logic.
+- `MapleLoanFactory` inherits `MapleProxyFactory` for proxy deployment and management.
+
+Versions of dependencies can be checked with `git submodule status`.
 
 ## Setup
+
+This project was built using [Foundry](https://book.getfoundry.sh/). Refer to installation instructions [here](https://github.com/foundry-rs/foundry#installation).
+
 ```sh
 git clone git@github.com:maple-labs/loan.git
 cd loan
 forge install
 ```
+
 ## Running Tests
 - To run all tests: `forge test`
 - To run specific tests: `forge test --match <test_name>`
 
 `./scripts/test.sh` is used to enable Foundry profile usage with the `-p` flag. Profiles are used to specify the number of fuzz runs.
 
-This project was built using [Foundry](https://github.com/gakonst/Foundry).
-
-## Technical Documentation
-For more in-depth technical documentation about these contracts, please refer to the GitHub [wiki](https://github.com/maple-labs/maple-core-v2/wiki).
-
-## Security
+## Audit Reports
 
 | Auditor | Report Link |
 |---|---|
@@ -65,4 +75,3 @@ For all technical documentation related to the currently deployed Maple protocol
 <p align="center">
   <img src="https://user-images.githubusercontent.com/44272939/196706799-fe96d294-f700-41e7-a65f-2d754d0a6eac.gif" height="100" />
 </p>
-

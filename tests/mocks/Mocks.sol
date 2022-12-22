@@ -3,8 +3,6 @@ pragma solidity 0.8.7;
 
 import { IERC20 } from "../../modules/erc20/contracts/interfaces/IERC20.sol";
 
-import { IMapleLoanFactory } from "../../contracts/interfaces/IMapleLoanFactory.sol";
-
 contract MapleGlobalsMock {
 
     address public governor;
@@ -39,12 +37,12 @@ contract MapleGlobalsMock {
         securityAdmin = securityAdmin_;
     }
 
-    function setPlatformServiceFeeRate(address poolManager_, uint256 feeRate_) external {
-        platformServiceFeeRate[poolManager_] = feeRate_;
-    }
-
     function setPlatformOriginationFeeRate(address poolManager_, uint256 feeRate_) external {
         platformOriginationFeeRate[poolManager_] = feeRate_;
+    }
+
+    function setPlatformServiceFeeRate(address poolManager_, uint256 feeRate_) external {
+        platformServiceFeeRate[poolManager_] = feeRate_;
     }
 
     function setProtocolPaused(bool paused_) external {
@@ -117,28 +115,24 @@ contract MockFeeManager {
 
     function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external { }
 
-    /**********************/
-    /*** View Functions ***/
-    /**********************/
-
-    function delegateServiceFee(address) public view returns (uint256 delegateServiceFee_) {
-        delegateServiceFee_ = _delegateServiceFee;
-    }
-
-    function platformServiceFee(address) public view returns (uint256 platformServiceFee_) {
-        platformServiceFee_ = _platformServiceFee;
-    }
+    /**************************************************************************************************************************************/
+    /*** View Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     function delegateRefinanceFee(address) public view returns (uint256 delegateRefinanceFee_) {
         delegateRefinanceFee_ = _delegateRefinanceFee;
+    }
+
+    function delegateServiceFee(address) public view returns (uint256 delegateServiceFee_) {
+        delegateServiceFee_ = _delegateServiceFee;
     }
 
     function platformRefinanceFee(address) public view returns (uint256 platformRefinanceFee_) {
         platformRefinanceFee_ = _platformRefinanceFee;
     }
 
-    function getServiceFeesForPeriod(address, uint256) external pure returns (uint256 serviceFee_) {
-        return 0;
+    function platformServiceFee(address) public view returns (uint256 platformServiceFee_) {
+        platformServiceFee_ = _platformServiceFee;
     }
 
     function getServiceFees(address, uint256) external pure returns (uint256 serviceFees_) {
@@ -159,12 +153,12 @@ contract MockFeeManager {
         platformRefinanceFee_ = _platformRefinanceFee;
     }
 
-    function __setDelegateServiceFee(uint256 delegateServiceFee_) external {
-        _delegateServiceFee = delegateServiceFee_;
+    function getServiceFeesForPeriod(address, uint256) external pure returns (uint256 serviceFee_) {
+        return 0;
     }
 
-    function __setPlatformServiceFee(uint256 platformServiceFee_) external {
-        _platformServiceFee = platformServiceFee_;
+    function __setDelegateServiceFee(uint256 delegateServiceFee_) external {
+        _delegateServiceFee = delegateServiceFee_;
     }
 
     function __setDelegateRefinanceFee(uint256 delegateRefinanceFee_) external {
@@ -173,6 +167,10 @@ contract MockFeeManager {
 
     function __setPlatformRefinanceFee(uint256 platformRefinanceFee_) external {
         _platformRefinanceFee = platformRefinanceFee_;
+    }
+
+    function __setPlatformServiceFee(uint256 platformServiceFee_) external {
+        _platformServiceFee = platformServiceFee_;
     }
 
     function __setServiceFeesToPay(uint256 serviceFeesToPay_) external {

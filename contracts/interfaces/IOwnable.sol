@@ -5,16 +5,21 @@ pragma solidity 0.8.7;
 interface IOwnable {
 
     /**
+     *  @dev   Ownership of the contact has been transferred.
+     *  @param owner_ The address that accepted ownership of the contract.
+     */
+    event OwnershipAccepted(address indexed owner_);
+
+    /**
      *  @dev   Ownership of the contact has been transferred and is pending acceptance.
      *  @param account_ The address that can accept ownership.
      */
     event OwnershipTransferPending(address indexed account_);
 
     /**
-     *  @dev   Ownership of the contact has been transferred.
-     *  @param owner_ The address that accepted ownership of the contract.
+     *  @dev Accept the ownership of the contract.
      */
-    event OwnershipAccepted(address indexed owner_);
+    function acceptOwnership() external;
 
     /**
      *  @dev The owner of the contract.
@@ -31,10 +36,5 @@ interface IOwnable {
      *  @param account_ The address to transfer ownership of the contract to.
      */
     function transferOwnership(address account_) external;
-
-    /**
-     *  @dev Accept the ownership of the contract.
-     */
-    function acceptOwnership() external;
 
 }

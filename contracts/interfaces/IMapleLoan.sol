@@ -8,9 +8,9 @@ import { IMapleLoanEvents } from "./IMapleLoanEvents.sol";
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
 interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
-    /******************************************************************************************************************************/
-    /*** State Variables                                                                                                        ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** State Variables                                                                                                                ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev The borrower of the loan, responsible for repayments.
@@ -45,7 +45,8 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function drawableFunds() external view returns (uint256 drawableFunds_);
 
     /**
-     *  @dev The portion of principal to not be paid down as part of payment installments, which would need to be paid back upon final payment.
+     *  @dev The portion of principal to not be paid down as part of payment installments,
+     *       which would need to be paid back upon final payment.
      *       If endingPrincipal = principal, loan is interest-only.
      */
     function endingPrincipal() external view returns (uint256 endingPrincipal_);
@@ -145,9 +146,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function refinanceInterest() external view returns (uint256 refinanceInterest_);
 
-    /******************************************************************************************************************************/
-    /*** State Changing Functions                                                                                               ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** State Changing Functions                                                                                                       ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev Accept the borrower role, must be called by pendingBorrower.
@@ -166,7 +167,8 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @param  calls_               The encoded arguments to be passed to refinancer.
      *  @return refinanceCommitment_ The hash of the accepted refinance agreement.
      */
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external returns (bytes32 refinanceCommitment_);
 
     /**
      *  @dev    Repay all principal and interest and close a loan.
@@ -218,7 +220,8 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @param  calls_               The encoded arguments to be passed to refinancer.
      *  @return refinanceCommitment_ The hash of the proposed refinance agreement.
      */
-    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external returns (bytes32 refinanceCommitment_);
 
     /**
      *  @dev    Nullify the current proposed terms.
@@ -227,7 +230,8 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @param  calls_               The encoded arguments to be passed to refinancer.
      *  @return refinanceCommitment_ The hash of the rejected refinance agreement.
      */
-    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external returns (bytes32 refinanceCommitment_);
+    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external returns (bytes32 refinanceCommitment_);
 
     /**
      *  @dev   Remove collateral from the loan (opposite of posting collateral).
@@ -283,9 +287,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function impairLoan() external;
 
-    /******************************************************************************************************************************/
-    /*** View Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** View Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     /**
      *  @dev    Returns the excess collateral that can be removed.
@@ -327,7 +331,8 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *                      [0] Delegate fees.
      *                      [1] Platform fees.
      */
-    function getNextPaymentDetailedBreakdown() external view returns (uint256 principal_, uint256[3] memory interest_, uint256[2] memory fees_);
+    function getNextPaymentDetailedBreakdown()
+        external view returns (uint256 principal_, uint256[3] memory interest_, uint256[2] memory fees_);
 
     /**
      *  @dev    Get the extra interest that will be charged according to loan terms before refinance, based on a given timestamp.

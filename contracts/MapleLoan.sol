@@ -55,9 +55,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _;
     }
 
-    /*******************************************************************************************************************************/
-    /*** Administrative Functions                                                                                                ***/
-    /*******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Administrative Functions                                                                                                       ***/
+    /**************************************************************************************************************************************/
 
     function migrate(address migrator_, bytes calldata arguments_) external override {
         require(msg.sender == _factory(),        "ML:M:NOT_FACTORY");
@@ -77,9 +77,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         IMapleProxyFactory(_factory()).upgradeInstance(toVersion_, arguments_);
     }
 
-    /******************************************************************************************************************************/
-    /*** Borrow Functions                                                                                                       ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Borrow Functions                                                                                                               ***/
+    /**************************************************************************************************************************************/
 
     function acceptBorrower() external override whenProtocolNotPaused {
         require(msg.sender == _pendingBorrower, "ML:AB:NOT_PENDING_BORROWER");
@@ -89,10 +89,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(_borrower = msg.sender);
     }
 
-    function closeLoan(uint256 amount_) external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+    function closeLoan(uint256 amount_)
+        external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_)
+    {
         // The amount specified is an optional amount to be transferred from the caller, as a convenience for EOAs.
         // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
-        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:CL:TRANSFER_FROM_FAILED");
+        require(
+            amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_),
+            "ML:CL:TRANSFER_FROM_FAILED"
+        );
 
         uint256 paymentDueDate_ = _nextPaymentDueDate;
 
@@ -123,7 +128,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsClaimed(principalAndInterest, _lender);
     }
 
-    function drawdownFunds(uint256 amount_, address destination_) external override whenProtocolNotPaused returns (uint256 collateralPosted_) {
+    function drawdownFunds(uint256 amount_, address destination_)
+        external override whenProtocolNotPaused returns (uint256 collateralPosted_)
+    {
         require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
 
         emit FundsDrawnDown(amount_, destination_);
@@ -147,10 +154,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_isCollateralMaintained(),                                "ML:DF:INSUFFICIENT_COLLATERAL");
     }
 
-    function makePayment(uint256 amount_) external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_) {
+    function makePayment(uint256 amount_)
+        external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_)
+    {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
-        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:MP:TRANSFER_FROM_FAILED");
+        require(
+            amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_),
+            "ML:MP:TRANSFER_FROM_FAILED"
+        );
 
         _handleImpairment();
 
@@ -200,7 +212,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit CollateralPosted(collateralPosted_);
     }
 
-    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_) {
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
+    {
         require(msg.sender == _borrower,      "ML:PNT:NOT_BORROWER");
         require(deadline_ >= block.timestamp, "ML:PNT:INVALID_DEADLINE");
 
@@ -228,7 +242,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function returnFunds(uint256 amount_) external override whenProtocolNotPaused returns (uint256 fundsReturned_) {
         // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
         // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
-        require(amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_), "ML:RF:TRANSFER_FROM_FAILED");
+        require(
+            amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_),
+            "ML:RF:TRANSFER_FROM_FAILED"
+        );
 
         _drawableFunds += (fundsReturned_ = getUnaccountedAmount(_fundsAsset));
 
@@ -242,9 +259,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
     }
 
-    /******************************************************************************************************************************/
-    /*** Lend Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Lend Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     function acceptLender() external override whenProtocolNotPaused {
         require(msg.sender == _pendingLender, "ML:AL:NOT_PENDING_LENDER");
@@ -254,7 +271,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit LenderAccepted(_lender = msg.sender);
     }
 
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override returns (bytes32 refinanceCommitment_) {
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external override returns (bytes32 refinanceCommitment_)
+    {
         require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
 
         // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
@@ -271,9 +290,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 nextPaymentDueDate_        = _nextPaymentDueDate;
         uint256 previousPrincipalRequested = _principalRequested;
 
-        uint256 timeSinceLastDueDate_ = block.timestamp + paymentInterval_ < nextPaymentDueDate_ ? 0 : block.timestamp - (nextPaymentDueDate_ - paymentInterval_);
+        uint256 timeSinceLastDueDate_ = block.timestamp + paymentInterval_ < nextPaymentDueDate_
+            ? 0
+            : block.timestamp - (nextPaymentDueDate_ - paymentInterval_);
 
-        // Not ideal for checks-effects-interactions, but the feeManager is a trusted contract and it's needed to save the fee before refinance.
+        // Not ideal for checks-effects-interactions,
+        // but the feeManager is a trusted contract and it's needed to save the fee before refinance.
         IMapleLoanFeeManager feeManager_ = IMapleLoanFeeManager(_feeManager);
         feeManager_.updateRefinanceServiceFees(previousPrincipalRequested, timeSinceLastDueDate_);
 
@@ -322,7 +344,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(IMapleGlobalsLike(globals()).isFactory("LOAN_MANAGER", loanManagerFactory_), "ML:FL:INVALID_FACTORY");
         require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),             "ML:FL:INVALID_INSTANCE");
 
-        // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
+        // Can only fund loan if there are payments remaining (as defined by the initialization)
+        // and no payment is due yet (as set by a funding).
         require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
 
         address fundsAsset_         = _fundsAsset;
@@ -417,11 +440,13 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _originalNextPaymentDueDate = originalNextPaymentDueDate_;  // Store the existing payment due date to enable reversion.
     }
 
-    /******************************************************************************************************************************/
-    /*** Miscellaneous Functions                                                                                                ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Miscellaneous Functions                                                                                                        ***/
+    /**************************************************************************************************************************************/
 
-    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_) external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_) {
+    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
+    {
         require((msg.sender == _borrower) || (msg.sender == _lender), "ML:RNT:NO_AUTH");
 
         require(
@@ -439,9 +464,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(ERC20Helper.transfer(token_, destination_, skimmed_), "ML:S:TRANSFER_FAILED");
     }
 
-    /******************************************************************************************************************************/
-    /*** View Functions                                                                                                         ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** View Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
 
     function getAdditionalCollateralRequiredFor(uint256 drawdown_) public view override returns (uint256 collateral_) {
         // Determine the collateral needed in the contract for a reduced drawable funds amount.
@@ -466,11 +491,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function getNextPaymentDetailedBreakdown()
-        public view override returns (
-            uint256 principal_,
-            uint256[3] memory interest_,
-            uint256[2] memory fees_
-        )
+        public view override returns (uint256 principal_, uint256[3] memory interest_, uint256[2] memory fees_)
     {
         ( principal_, interest_, fees_ )
             = _getPaymentBreakdown(
@@ -526,9 +547,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             - (asset_ == _fundsAsset      ? _drawableFunds : uint256(0));  // `_drawableFunds` is `_fundsAsset` accounted for.
     }
 
-    /******************************************************************************************************************************/
-    /*** State View Functions                                                                                                   ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** State View Functions                                                                                                           ***/
+    /**************************************************************************************************************************************/
 
     function borrower() external view override returns (address borrower_) {
         return _borrower;
@@ -653,9 +674,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _originalNextPaymentDueDate != uint256(0);
     }
 
-    /******************************************************************************************************************************/
-    /*** Internal General Functions                                                                                             ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Internal General Functions                                                                                                     ***/
+    /**************************************************************************************************************************************/
 
     /// @dev Clears all state variables to end a loan, but keep borrower and lender withdrawal functionality intact.
     function _clearLoanAccounting() internal {
@@ -676,18 +697,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _originalNextPaymentDueDate = uint256(0);
     }
 
-    /******************************************************************************************************************************/
-    /*** Internal View Functions                                                                                                ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Internal View Functions                                                                                                        ***/
+    /**************************************************************************************************************************************/
 
     /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
     function _isCollateralMaintained() internal view returns (bool isMaintained_) {
         return _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
-    /******************************************************************************************************************************/
-    /*** Internal Pure Functions                                                                                                ***/
-    /******************************************************************************************************************************/
+    /**************************************************************************************************************************************/
+    /*** Internal Pure Functions                                                                                                        ***/
+    /**************************************************************************************************************************************/
 
     /// @dev Returns the total collateral to be posted for some drawn down (outstanding) principal and overall collateral ratio requirement.
     function _getCollateralRequiredFor(
@@ -700,11 +721,19 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     {
         // Where (collateral / outstandingPrincipal) should be greater or equal to (collateralRequired / principalRequested).
         // NOTE: principalRequested_ cannot be 0, which is reasonable, since it means this was never a loan.
-        return principal_ <= drawableFunds_ ? uint256(0) : (collateralRequired_ * (principal_ - drawableFunds_) + principalRequested_ - 1) / principalRequested_;
+        return principal_ <= drawableFunds_
+            ? uint256(0)
+            : (collateralRequired_ * (principal_ - drawableFunds_) + principalRequested_ - 1) / principalRequested_;
     }
 
     /// @dev Returns principal and interest portions of a payment instalment, given generic, stateless loan parameters.
-    function _getInstallment(uint256 principal_, uint256 endingPrincipal_, uint256 interestRate_, uint256 paymentInterval_, uint256 totalPayments_)
+    function _getInstallment(
+        uint256 principal_,
+        uint256 endingPrincipal_,
+        uint256 interestRate_,
+        uint256 paymentInterval_,
+        uint256 totalPayments_
+    )
         internal pure returns (uint256 principalAmount_, uint256 interestAmount_)
     {
         /*************************************************************************************************\
@@ -725,7 +754,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 periodicRate = _getPeriodicInterestRate(interestRate_, paymentInterval_);
         uint256 raisedRate   = _scaledExponent(SCALED_ONE + periodicRate, totalPayments_, SCALED_ONE);
 
-        // NOTE: If a lack of precision in `_scaledExponent` results in a `raisedRate` smaller than one, assume it to be one and simplify the equation.
+        // NOTE: If a lack of precision in `_scaledExponent` results in a `raisedRate` smaller than one,
+        //       assume it to be one and simplify the equation.
         if (raisedRate <= SCALED_ONE) return ((principal_ - endingPrincipal_) / totalPayments_, uint256(0));
 
         uint256 total = ((((principal_ * raisedRate) / SCALED_ONE) - endingPrincipal_) * periodicRate) / (raisedRate - SCALED_ONE);
@@ -855,7 +885,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     /// @dev Returns refinance commitment given refinance parameters.
-    function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_) internal pure returns (bytes32 refinanceCommitment_) {
+    function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        internal pure returns (bytes32 refinanceCommitment_)
+    {
         return keccak256(abi.encode(refinancer_, deadline_, calls_));
     }
 

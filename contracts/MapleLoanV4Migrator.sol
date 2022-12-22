@@ -21,7 +21,8 @@ contract MapleLoanV4Migrator is IMapleLoanV4Migrator, MapleLoanStorage {
 
     fallback() external {
 
-        // Taking the feeManager_ address as argument for now, but ideally this would be hardcoded in the debtLocker migrator registered in the factory
+        // Taking the feeManager_ address as argument for now
+        // but ideally this would be hardcoded in the debtLocker migrator registered in the factory.
         ( address feeManager_ ) = decodeArguments(msg.data);
 
         _feeManager = feeManager_;

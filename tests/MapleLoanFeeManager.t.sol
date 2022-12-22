@@ -3,32 +3,31 @@ pragma solidity 0.8.7;
 
 import { Address, TestUtils } from "../modules/contract-test-utils/contracts/test.sol";
 import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { IMapleProxyFactory } from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
-
-import { MapleGlobalsMock, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
 
 import { MapleLoan }            from "../contracts/MapleLoan.sol";
 import { MapleLoanFactory }     from "../contracts/MapleLoanFactory.sol";
 import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 import { MapleLoanFeeManager }  from "../contracts/MapleLoanFeeManager.sol";
 
+import { MapleGlobalsMock, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
+
 contract FeeManagerBase is TestUtils {
 
-    address BORROWER = address(new Address());
-    address GOVERNOR = address(new Address());
-    address PD       = address(new Address());
-    address TREASURY = address(new Address());
+    address internal BORROWER = address(new Address());
+    address internal GOVERNOR = address(new Address());
+    address internal PD       = address(new Address());
+    address internal TREASURY = address(new Address());
 
-    address implementation;
-    address initializer;
+    address internal implementation;
+    address internal initializer;
 
-    MapleGlobalsMock    globals;
-    MapleLoanFactory    factory;
-    MapleLoanFeeManager feeManager;
-    MockERC20           collateralAsset;
-    MockERC20           fundsAsset;
-    MockLoanManager     loanManager;
-    MockPoolManager     poolManager;
+    MapleGlobalsMock    internal globals;
+    MapleLoanFactory    internal factory;
+    MapleLoanFeeManager internal feeManager;
+    MockERC20           internal collateralAsset;
+    MockERC20           internal fundsAsset;
+    MockLoanManager     internal loanManager;
+    MockPoolManager     internal poolManager;
 
     address[2] internal defaultAssets;
     uint256[3] internal defaultTermDetails;
@@ -81,7 +80,15 @@ contract FeeManagerBase is TestUtils {
         internal returns (address loan_)
     {
         loan_ = factory.createInstance({
-            arguments_: MapleLoanInitializer(initializer).encodeArguments(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_),
+            arguments_: MapleLoanInitializer(initializer).encodeArguments(
+                borrower_,
+                feeManager_,
+                assets_,
+                termDetails_,
+                amounts_,
+                rates_,
+                fees_
+            ),
             salt_:      keccak256(abi.encodePacked(salt_))
         });
     }
@@ -107,7 +114,9 @@ contract PayClosingFeesTests is FeeManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
+        loan = MapleLoan(
+            _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
+        );
 
         globals.setPlatformServiceFeeRate(address(poolManager), 3000);  // 0.3%
 
@@ -135,13 +144,13 @@ contract PayClosingFeesTests is FeeManagerBase {
 
         assertEq(fundsAsset.balanceOf(BORROWER),             1_022_250e18);  // 1m + 20k + 2.25k + = 1_022_250
         assertEq(fundsAsset.balanceOf(address(loanManager)), 0);
-        assertEq(fundsAsset.balanceOf(PD),                   50_000e18);  // Origination fees
+        assertEq(fundsAsset.balanceOf(PD),                   50_000e18);     // Origination fees
         assertEq(fundsAsset.balanceOf(TREASURY),             0);
 
         loan.closeLoan(1_022_250e18);
 
         assertEq(fundsAsset.balanceOf(BORROWER),             0);
-        assertEq(fundsAsset.balanceOf(address(loanManager)), 1_020_000e18);  // Principal + interest
+        assertEq(fundsAsset.balanceOf(address(loanManager)), 1_020_000e18);          // Principal + interest
         assertEq(fundsAsset.balanceOf(PD),                   50_000e18 + 1_500e18);
         assertEq(fundsAsset.balanceOf(TREASURY),             750e18);
     }
@@ -157,7 +166,9 @@ contract PayOriginationFeesTests is FeeManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
+        loan = MapleLoan(
+            _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
+        );
 
         globals.setPlatformOriginationFeeRate(address(poolManager), 3000);  // 0.3%
     }
@@ -215,7 +226,9 @@ contract PayServiceFeesTests is FeeManagerBase {
     function setUp() public override {
         super.setUp();
 
-        loan = MapleLoan(_createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt"));
+        loan = MapleLoan(
+            _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
+        );
 
         globals.setPlatformServiceFeeRate(address(poolManager), platformServiceFeeRate);
 
@@ -274,8 +287,27 @@ contract PayServiceFeesTests is FeeManagerBase {
 contract UpdatePlatformServiceFeeTests is FeeManagerBase {
 
     function test_updatePlatformServiceFee() external {
-        address loan1 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
-        address loan2 = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt2");
+        address loan1 = _createLoan(
+            BORROWER,
+            address(feeManager),
+            defaultAssets,
+            defaultTermDetails,
+            defaultAmounts,
+            defaultRates,
+            defaultFees,
+            "salt1"
+        );
+
+        address loan2 = _createLoan(
+            BORROWER,
+            address(feeManager),
+            defaultAssets,
+            defaultTermDetails,
+            defaultAmounts,
+            defaultRates,
+            defaultFees,
+            "salt2"
+        );
 
         _fundLoan(loan1, address(loanManager), 1_000_000e18);
         _fundLoan(loan2, address(loanManager), 1_000_000e18);
@@ -327,8 +359,17 @@ contract FeeManager_Getters is FeeManagerBase {
 
     function test_getDelegateServiceFeesForPeriod() external {
         defaultTermDetails = [uint256(10 days), uint256(10 days), uint256(3)];
-        address loan1      = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
 
+        address loan1 = _createLoan(
+            BORROWER,
+            address(feeManager),
+            defaultAssets,
+            defaultTermDetails,
+            defaultAmounts,
+            defaultRates,
+            defaultFees,
+            "salt1"
+        );
 
         vm.prank(loan1);
         feeManager.updateDelegateFeeTerms(50_000e18, 1000e18);
@@ -345,7 +386,17 @@ contract FeeManager_Getters is FeeManagerBase {
 
     function test_getPlatformServiceFeeForPeriod() external {
         defaultTermDetails = [uint256(10 days), uint256(365 days), uint256(3)];
-        address loan1      = _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt1");
+
+        address loan1 = _createLoan(
+            BORROWER,
+            address(feeManager),
+            defaultAssets,
+            defaultTermDetails,
+            defaultAmounts,
+            defaultRates,
+            defaultFees,
+            "salt1"
+        );
 
         _fundLoan(loan1, address(loanManager), 1_000_000e18);
 

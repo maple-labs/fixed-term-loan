@@ -47,8 +47,17 @@ contract MapleLoanFactoryTest is TestUtils {
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), address(feeManager), assets, termDetails, amounts, rates, fees);
-        bytes32 salt           = keccak256(abi.encodePacked("salt"));
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        bytes32 salt = keccak256(abi.encodePacked("salt"));
 
         globals.setValidPoolAsset(address(1), false);
         vm.expectRevert("MPF:CI:FAILED");
@@ -65,8 +74,17 @@ contract MapleLoanFactoryTest is TestUtils {
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), address(feeManager), assets, termDetails, amounts, rates, fees);
-        bytes32 salt           = keccak256(abi.encodePacked("salt"));
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        bytes32 salt = keccak256(abi.encodePacked("salt"));
 
         globals.setValidCollateralAsset(address(1), false);
         vm.expectRevert("MPF:CI:FAILED");
@@ -83,8 +101,17 @@ contract MapleLoanFactoryTest is TestUtils {
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), address(feeManager), assets, termDetails, amounts, rates, fees);
-        bytes32 salt           = keccak256(abi.encodePacked("salt"));
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        bytes32 salt = keccak256(abi.encodePacked("salt"));
 
         factory.createInstance(arguments, salt);
 
@@ -99,7 +126,15 @@ contract MapleLoanFactoryTest is TestUtils {
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(address(1), address(feeManager), assets, termDetails, amounts, rates, fees);
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
 
         address loan = factory.createInstance(arguments, salt_);
 

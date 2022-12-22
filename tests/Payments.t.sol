@@ -13,22 +13,22 @@ import { MapleGlobalsMock, MockLoanManager, MockPoolManager } from "./mocks/Mock
 
 contract MapleLoanPaymentsTestBase is TestUtils {
 
-    uint256 start;
+    uint256 internal start;
 
-    MapleGlobalsMock     globals;
-    MapleLoan            implementation;
-    MapleProxyFactory    factory;
-    MapleLoanInitializer initializer;
-    MockERC20            collateralAsset;
-    MockERC20            fundsAsset;
-    MapleLoanFeeManager  feeManager;
-    MockLoanManager      lender;
-    MockPoolManager      poolManager;
+    MapleGlobalsMock     internal globals;
+    MapleLoan            internal implementation;
+    MapleLoanFeeManager  internal feeManager;
+    MapleLoanInitializer internal initializer;
+    MapleProxyFactory    internal factory;
+    MockERC20            internal collateralAsset;
+    MockERC20            internal fundsAsset;
+    MockLoanManager      internal lender;
+    MockPoolManager      internal poolManager;
 
-    address borrower     = address(new Address());
-    address governor     = address(new Address());
-    address poolDelegate = address(new Address());
-    address treasury     = address(new Address());
+    address internal borrower     = address(new Address());
+    address internal governor     = address(new Address());
+    address internal poolDelegate = address(new Address());
+    address internal treasury     = address(new Address());
 
     function setUp() external {
         start = block.timestamp;
@@ -36,11 +36,13 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
         fundsAsset      = new MockERC20("Funds Asset",      "FA", 18);
         lender          = new MockLoanManager();
-        globals         = new MapleGlobalsMock(governor, lender.factory());
-        feeManager      = new MapleLoanFeeManager(address(globals));
         implementation  = new MapleLoan();
         initializer     = new MapleLoanInitializer();
         poolManager     = new MockPoolManager(address(poolDelegate));
+
+        globals = new MapleGlobalsMock(governor, lender.factory());
+
+        feeManager = new MapleLoanFeeManager(address(globals));
 
         lender.__setPoolManager(address(poolManager));
 
@@ -129,7 +131,11 @@ contract MapleLoanPaymentsTestBase is TestUtils {
             uint256 delegateBalanceBefore = fundsAsset.balanceOf(poolDelegate);
             uint256 treasuryBalanceBefore = fundsAsset.balanceOf(treasury);
 
-            ( uint256 delegateServiceFeeGetter, , uint256 platformServiceFeeGetter, ) = MapleLoanFeeManager(loan.feeManager()).getServiceFeeBreakdown(address(loan), 1);
+            (
+                uint256 delegateServiceFeeGetter,
+                ,
+                uint256 platformServiceFeeGetter,
+            ) = MapleLoanFeeManager(loan.feeManager()).getServiceFeeBreakdown(address(loan), 1);
 
             // Warp to when payment is due and make payment
             vm.warp(loan.nextPaymentDueDate());
