@@ -1761,15 +1761,17 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
 
     MapleGlobalsMock internal globals;
     MapleLoanHarness internal loan;
+    MockERC20        internal collateralAsset;
     MockERC20        internal fundsAsset;
     MockFactory      internal factory;
     MockFeeManager   internal feeManager;
 
     function setUp() external {
-        feeManager = new MockFeeManager();
-        fundsAsset = new MockERC20("FundsAsset", "FA", 0);
-        lender     = address(new MockLoanManager());
-        loan       = new MapleLoanHarness();
+        collateralAsset = new MockERC20("collateralAsset", "CA", 0);
+        feeManager      = new MockFeeManager();
+        fundsAsset      = new MockERC20("FundsAsset", "FA", 0);
+        lender          = address(new MockLoanManager());
+        loan            = new MapleLoanHarness();
 
         globals = new MapleGlobalsMock(governor, MockLoanManager(lender).factory());
 
@@ -2072,6 +2074,48 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         ( principal, interest, ) = loan.makePayment(0);
 
         assertEq(loan.drawableFunds(), 0);
+    }
+
+    function test_makePayment_collateralNotMaintained() external {
+        setupLoan(address(loan), 1_000_000, 2, 365 days, 0.1e18, 1_000_000);
+
+        // Need to set fees because if principal = drawableFunds the collateral required is 0
+        feeManager.__setDelegateServiceFee(100);
+        feeManager.__setPlatformServiceFee(100);
+        feeManager.__setServiceFeesToPay(200);
+
+        vm.prank(address(loan));
+        fundsAsset.approve(address(feeManager), type(uint256).max);
+
+        uint256 collateralRequired = 1_000;
+
+        loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setCollateralRequired(collateralRequired);
+
+        ( , uint256 interest, uint256 fees ) = loan.getNextPaymentBreakdown();
+
+        vm.startPrank(borrower);
+        vm.expectRevert("ML:MP:INSUFFICIENT_COLLATERAL");
+        loan.makePayment(0);
+
+        // _getCollateralRequiredFor() = (collateralRequired_ * (principal_ - drawableFunds_) + principalRequested_ - 1) / principalRequested_;
+        uint256 getCollateralRequiredFor = (1_000 * (1_000_000 - (1_000_000 - fees - interest)) + 1_000_000 - 1) / 1_000_000;
+
+        assertEq(getCollateralRequiredFor, 101);
+
+        collateralAsset.mint(borrower, getCollateralRequiredFor);
+        collateralAsset.approve(address(loan), getCollateralRequiredFor);
+
+        loan.postCollateral(getCollateralRequiredFor - 1);
+
+        vm.expectRevert("ML:MP:INSUFFICIENT_COLLATERAL");
+        loan.makePayment(0);
+
+        loan.postCollateral(1);
+
+        loan.makePayment(0);
+
+        assertEq(loan.drawableFunds(), 1_000_000 - fees - interest);
     }
 
 }
