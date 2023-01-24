@@ -197,6 +197,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         ILenderLike(_lender).claim(principal_, interest_, previousPaymentDueDate_, nextPaymentDueDate_);
 
         emit FundsClaimed(principalAndInterest, _lender);
+
+        require(_isCollateralMaintained(), "ML:MP:INSUFFICIENT_COLLATERAL");
     }
 
     function postCollateral(uint256 amount_) public override whenProtocolNotPaused returns (uint256 collateralPosted_) {
