@@ -834,13 +834,13 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // If the user has made an early payment, there is no refinance interest owed.
         if (currentTime_ + paymentInterval_ < nextPaymentDueDate_) return 0;
 
-        uint256 timeSinceLastPaymentDueDate_ = currentTime_ - (nextPaymentDueDate_ - paymentInterval_);
+        uint256 refinanceInterestInterval_ = _min(currentTime_ - (nextPaymentDueDate_ - paymentInterval_), paymentInterval_);
 
         ( , refinanceInterest_ ) = _getInstallment(
             principal_,
             endingPrincipal_,
             interestRate_,
-            timeSinceLastPaymentDueDate_,
+            refinanceInterestInterval_,
             paymentsRemaining_
         );
 
@@ -906,6 +906,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function _handleImpairment() internal {
         if (!isImpaired()) return;
         _originalNextPaymentDueDate = uint256(0);
+    }
+
+    function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
+        minimum_ = a_ < b_ ? a_ : b_;
     }
 
     /**
