@@ -6,7 +6,7 @@ import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockER
 
 import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
 
-import { MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager } from "./mocks/Mocks.sol";
+import { EmptyContract, MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager } from "./mocks/Mocks.sol";
 
 // TODO: Add fees
 contract MapleLoanScenariosTests is TestUtils {
@@ -337,6 +337,59 @@ contract MapleLoanScenariosTests is TestUtils {
         loan.removeCollateral(150_000, borrower);
 
         assertEq(loan.collateral(), 0, "Different collateral");
+    }
+
+    function test_scenario_lateLoanRefinanceInterest() external {
+        uint256 start = block.timestamp;
+
+        token.mint(address(lender), 1_000_000);
+
+        address[2] memory assets      = [address(token), address(token)];
+        uint256[3] memory termDetails = [uint256(0), uint256(30 days), uint256(3)];
+        uint256[3] memory amounts     = [uint256(0), uint256(1_000_000), uint256(1_000_000)];
+        uint256[4] memory rates       = [uint256(0.1e18), uint256(0), uint256(0), uint256(0.1e18)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+
+        vm.prank(address(factory));
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
+
+        // Fund via a 1M transfer
+        vm.startPrank(address(lender));
+        token.transfer(address(loan), 1_000_000);
+        loan.fundLoan();
+        vm.stopPrank();
+
+        assertEq(loan.drawableFunds(), 1_000_000);
+
+        // 4 days late on payment #1
+        vm.warp(start + 34 days);
+
+        address mockRefinancer = address(new EmptyContract());
+
+        uint256 deadline = start + 45 days;
+
+        bytes[] memory emptyCalls = new bytes[](1);
+
+        emptyCalls[0] = "";
+
+        // Borrower proposes new terms
+        vm.prank(borrower);
+        loan.proposeNewTerms(mockRefinancer, deadline, emptyCalls);  // No calls required
+
+        assertEq(loan.refinanceInterest(), 0);
+
+        // Lender accepts new terms
+        vm.warp(start + 35 days);
+        vm.prank(address(lender));
+        loan.acceptNewTerms(mockRefinancer, deadline, emptyCalls);
+
+        uint256 normalInterest = 30 days * uint256(1_000_000) * 0.1e18 / 1e18 / 365 days;  // at 10% interest annualized
+        uint256 lateInterest   =  5 days * uint256(1_000_000) * 0.2e18 / 1e18 / 365 days;  // at 20% interest annualized
+
+        assertEq(normalInterest,           8_219);
+        assertEq(lateInterest,             2_739);
+        assertEq(loan.refinanceInterest(), 10_958);
+        assertEq(loan.refinanceInterest(), normalInterest + lateInterest);
     }
 
 }
