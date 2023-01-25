@@ -27,9 +27,7 @@ contract MapleLoanTests is TestUtils {
         feeManager = new MockFeeManager();
         lender     = address(new MockLoanManager());
         loan       = new MapleLoanHarness();
-
-        globals = new MapleGlobalsMock(governor, MockLoanManager(lender).factory());
-
+        globals    = new MapleGlobalsMock(governor);
         factoryMock = new MockFactory(address(globals));
 
         loan.__setBorrower(borrower);
@@ -562,15 +560,17 @@ contract MapleLoanTests is TestUtils {
         loan.__setPrincipalRequested(amount);
 
         // Fails without pushing funds
+        vm.prank(lender);
         vm.expectRevert(ARITHMETIC_ERROR);
-        loan.fundLoan(lender);
+        loan.fundLoan();
 
         fundsAsset.mint(address(loan), amount);
 
         assertEq(fundsAsset.balanceOf(address(loan)), amount);
         assertEq(loan.principal(),                    0);
 
-        loan.fundLoan(lender);
+        vm.prank(lender);
+        loan.fundLoan();
 
         assertEq(fundsAsset.balanceOf(address(loan)), amount);
         assertEq(loan.principal(),                    amount);
@@ -704,7 +704,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(borrower), amount);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), amount);
-        assertEq(fundsAsset.balanceOf(address(lender)),   0);
+        assertEq(fundsAsset.balanceOf(lender),   0);
         assertEq(loan.principal(),                        amount);
 
         vm.startPrank(borrower);
@@ -716,7 +716,7 @@ contract MapleLoanTests is TestUtils {
         loan.closeLoan(amount);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), 0);
-        assertEq(fundsAsset.balanceOf(address(lender)),   amount);
+        assertEq(fundsAsset.balanceOf(lender),   amount);
         assertEq(loan.paymentsRemaining(),                0);
         assertEq(loan.principal(),                        0);
     }
@@ -735,7 +735,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(borrower), amount);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), amount);
-        assertEq(fundsAsset.balanceOf(address(lender)),   0);
+        assertEq(fundsAsset.balanceOf(lender),   0);
         assertEq(loan.principal(),                        amount);
 
         vm.startPrank(borrower);
@@ -747,7 +747,7 @@ contract MapleLoanTests is TestUtils {
         loan.closeLoan(0);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), 0);
-        assertEq(fundsAsset.balanceOf(address(lender)),   amount);
+        assertEq(fundsAsset.balanceOf(lender),   amount);
         assertEq(loan.paymentsRemaining(),                0);
         assertEq(loan.principal(),                        0);
     }
@@ -765,7 +765,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(user), amount);
 
         assertEq(fundsAsset.balanceOf(address(user)),   amount);
-        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(lender), 0);
         assertEq(loan.principal(),                      amount);
 
         vm.startPrank(user);
@@ -777,7 +777,7 @@ contract MapleLoanTests is TestUtils {
         loan.closeLoan(amount);
 
         assertEq(fundsAsset.balanceOf(address(user)),   0);
-        assertEq(fundsAsset.balanceOf(address(lender)), amount);
+        assertEq(fundsAsset.balanceOf(lender), amount);
         assertEq(loan.paymentsRemaining(),              0);
         assertEq(loan.principal(),                      0);
     }
@@ -795,7 +795,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(user), amount);
 
         assertEq(fundsAsset.balanceOf(address(user)),   amount);
-        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(lender), 0);
         assertEq(loan.principal(),                      amount);
 
         vm.startPrank(user);
@@ -807,7 +807,7 @@ contract MapleLoanTests is TestUtils {
         loan.closeLoan(0);
 
         assertEq(fundsAsset.balanceOf(address(user)),   0);
-        assertEq(fundsAsset.balanceOf(address(lender)), amount);
+        assertEq(fundsAsset.balanceOf(lender), amount);
         assertEq(loan.paymentsRemaining(),              0);
         assertEq(loan.principal(),                      0);
     }
@@ -896,7 +896,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(borrower), totalPayment);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), totalPayment);
-        assertEq(fundsAsset.balanceOf(address(lender)),   0);
+        assertEq(fundsAsset.balanceOf(lender),   0);
         assertEq(loan.paymentsRemaining(),                3);
         assertEq(loan.principal(),                        startingPrincipal);
 
@@ -909,7 +909,7 @@ contract MapleLoanTests is TestUtils {
         loan.makePayment(totalPayment);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), 0);
-        assertEq(fundsAsset.balanceOf(address(lender)),   totalPayment);
+        assertEq(fundsAsset.balanceOf(lender),   totalPayment);
         assertEq(loan.paymentsRemaining(),                2);
         assertEq(loan.principal(),                        startingPrincipal - principal);
     }
@@ -931,7 +931,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(borrower), totalPayment);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), totalPayment);
-        assertEq(fundsAsset.balanceOf(address(lender)),   0);
+        assertEq(fundsAsset.balanceOf(lender),   0);
         assertEq(loan.paymentsRemaining(),                3);
         assertEq(loan.principal(),                        startingPrincipal);
 
@@ -944,7 +944,7 @@ contract MapleLoanTests is TestUtils {
         loan.makePayment(0);
 
         assertEq(fundsAsset.balanceOf(address(borrower)), 0);
-        assertEq(fundsAsset.balanceOf(address(lender)),   totalPayment);
+        assertEq(fundsAsset.balanceOf(lender),   totalPayment);
         assertEq(loan.paymentsRemaining(),                2);
         assertEq(loan.principal(),                        startingPrincipal - principal);
     }
@@ -966,7 +966,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(user), totalPayment);
 
         assertEq(fundsAsset.balanceOf(address(user)),   totalPayment);
-        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(lender), 0);
         assertEq(loan.paymentsRemaining(),              3);
         assertEq(loan.principal(),                      startingPrincipal);
 
@@ -979,7 +979,7 @@ contract MapleLoanTests is TestUtils {
         loan.makePayment(totalPayment);
 
         assertEq(fundsAsset.balanceOf(address(user)),   0);
-        assertEq(fundsAsset.balanceOf(address(lender)), totalPayment);
+        assertEq(fundsAsset.balanceOf(lender), totalPayment);
         assertEq(loan.paymentsRemaining(),              2);
         assertEq(loan.principal(),                      startingPrincipal - principal);
     }
@@ -1001,7 +1001,7 @@ contract MapleLoanTests is TestUtils {
         fundsAsset.mint(address(user), totalPayment);
 
         assertEq(fundsAsset.balanceOf(address(user)),   totalPayment);
-        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(lender), 0);
         assertEq(loan.paymentsRemaining(),              3);
         assertEq(loan.principal(),                      startingPrincipal);
 
@@ -1014,7 +1014,7 @@ contract MapleLoanTests is TestUtils {
         loan.makePayment(0);
 
         assertEq(fundsAsset.balanceOf(address(user)),   0);
-        assertEq(fundsAsset.balanceOf(address(lender)), totalPayment);
+        assertEq(fundsAsset.balanceOf(lender), totalPayment);
         assertEq(loan.paymentsRemaining(),              2);
         assertEq(loan.principal(),                      startingPrincipal - principal);
     }
@@ -1489,10 +1489,9 @@ contract MapleLoanTests is TestUtils {
 
 contract MapleLoanRoleTests is TestUtils {
 
-    address lender;
-
     address borrower = address(new Address());
     address governor = address(new Address());
+    address lender;
 
     ConstructableMapleLoan loan;
     MapleGlobalsMock       globals;
@@ -1502,8 +1501,8 @@ contract MapleLoanRoleTests is TestUtils {
 
     function setUp() public {
         lender     = address(new MockLoanManager());
-        globals    = new MapleGlobalsMock(governor, MockLoanManager(lender).factory());
         feeManager = new MockFeeManager();
+        globals    = new MapleGlobalsMock(governor);
         token      = new MockERC20("Token", "T", 0);
 
         factory = new MockFactory(address(globals));
@@ -1519,7 +1518,7 @@ contract MapleLoanRoleTests is TestUtils {
         globals.setValidPoolAsset(address(token),       true);
 
         vm.prank(address(factory));
-        loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
+        loan = new ConstructableMapleLoan(address(factory), borrower, lender, address(feeManager), assets, termDetails, amounts, rates, fees);
     }
 
     function test_transferBorrowerRole_failIfInvalidBorrower() public {
@@ -1585,7 +1584,7 @@ contract MapleLoanRoleTests is TestUtils {
         token.mint(address(loan), 1_000_000);
 
         vm.prank(lender);
-        loan.fundLoan(lender);
+        loan.fundLoan();
 
         address newLender = address(new Address());
 

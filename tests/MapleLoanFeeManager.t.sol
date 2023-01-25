@@ -26,7 +26,7 @@ contract FeeManagerBase is TestUtils {
     MapleLoanFeeManager internal feeManager;
     MockERC20           internal collateralAsset;
     MockERC20           internal fundsAsset;
-    MockLoanManager     internal loanManager;
+    MockLoanManager     internal lender;
     MockPoolManager     internal poolManager;
 
     address[2] internal defaultAssets;
@@ -43,12 +43,12 @@ contract FeeManagerBase is TestUtils {
         fundsAsset      = new MockERC20("MockAsset", "MA", 18);
         poolManager     = new MockPoolManager(PD);
 
-        loanManager = new MockLoanManager();
-        globals     = new MapleGlobalsMock(GOVERNOR, loanManager.factory());
-        factory     = new MapleLoanFactory(address(globals));
-        feeManager  = new MapleLoanFeeManager(address(globals));
+        lender     = new MockLoanManager();
+        globals    = new MapleGlobalsMock(GOVERNOR);
+        factory    = new MapleLoanFactory(address(globals));
+        feeManager = new MapleLoanFeeManager(address(globals));
 
-        loanManager.__setPoolManager(address(poolManager));
+        lender.__setPoolManager(address(poolManager));
 
         vm.startPrank(GOVERNOR);
         factory.registerImplementation(1, implementation, initializer);
@@ -69,6 +69,7 @@ contract FeeManagerBase is TestUtils {
 
     function _createLoan(
         address borrower_,
+        address lender_,
         address feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
@@ -82,6 +83,7 @@ contract FeeManagerBase is TestUtils {
         loan_ = factory.createInstance({
             arguments_: MapleLoanInitializer(initializer).encodeArguments(
                 borrower_,
+                lender_,
                 feeManager_,
                 assets_,
                 termDetails_,
@@ -89,14 +91,15 @@ contract FeeManagerBase is TestUtils {
                 rates_,
                 fees_
             ),
-            salt_:      keccak256(abi.encodePacked(salt_))
+            salt_: keccak256(abi.encodePacked(salt_))
         });
     }
 
     function _fundLoan(address loan_, address lender_, uint256 amount_) internal {
         fundsAsset.mint(address(loan_), amount_);
+
         vm.prank(lender_);
-        MapleLoan(loan_).fundLoan(lender_);
+        MapleLoan(loan_).fundLoan();
     }
 
     function _drawdownLoan(address loan_, address borrower_) internal {
@@ -115,12 +118,12 @@ contract PayClosingFeesTests is FeeManagerBase {
         super.setUp();
 
         loan = MapleLoan(
-            _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
+            _createLoan(BORROWER, address(lender), address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
         );
 
         globals.setPlatformServiceFeeRate(address(poolManager), 3000);  // 0.3%
 
-        _fundLoan(address(loan), address(loanManager), loan.principalRequested());
+        _fundLoan(address(loan), address(lender), loan.principalRequested());
 
         _drawdownLoan(address(loan), BORROWER);
     }
@@ -142,17 +145,17 @@ contract PayClosingFeesTests is FeeManagerBase {
 
         fundsAsset.approve(address(loan), 1_022_250e18);  // 1m + 20k + 2.25k = 1_022_250
 
-        assertEq(fundsAsset.balanceOf(BORROWER),             1_022_250e18);  // 1m + 20k + 2.25k + = 1_022_250
-        assertEq(fundsAsset.balanceOf(address(loanManager)), 0);
-        assertEq(fundsAsset.balanceOf(PD),                   50_000e18);     // Origination fees
-        assertEq(fundsAsset.balanceOf(TREASURY),             0);
+        assertEq(fundsAsset.balanceOf(BORROWER),        1_022_250e18);  // 1m + 20k + 2.25k + = 1_022_250
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(PD),              50_000e18);     // Origination fees
+        assertEq(fundsAsset.balanceOf(TREASURY),        0);
 
         loan.closeLoan(1_022_250e18);
 
-        assertEq(fundsAsset.balanceOf(BORROWER),             0);
-        assertEq(fundsAsset.balanceOf(address(loanManager)), 1_020_000e18);          // Principal + interest
-        assertEq(fundsAsset.balanceOf(PD),                   50_000e18 + 1_500e18);
-        assertEq(fundsAsset.balanceOf(TREASURY),             750e18);
+        assertEq(fundsAsset.balanceOf(BORROWER),        0);
+        assertEq(fundsAsset.balanceOf(address(lender)), 1_020_000e18);          // Principal + interest
+        assertEq(fundsAsset.balanceOf(PD),              50_000e18 + 1_500e18);
+        assertEq(fundsAsset.balanceOf(TREASURY),        750e18);
     }
 
 }
@@ -167,7 +170,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
         super.setUp();
 
         loan = MapleLoan(
-            _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
+            _createLoan(BORROWER, address(lender), address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
         );
 
         globals.setPlatformOriginationFeeRate(address(poolManager), 3000);  // 0.3%
@@ -176,17 +179,17 @@ contract PayOriginationFeesTests is FeeManagerBase {
     function test_payOriginationFees_insufficientFunds_poolDelegate() external {
         fundsAsset.mint(address(loan), 50_00e18 - 1);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         vm.expectRevert("MLFM:POF:PD_TRANSFER");
-        loan.fundLoan(address(loanManager));
+        loan.fundLoan();
     }
 
     function test_payOriginationFees_insufficientFunds_treasury() external {
         fundsAsset.mint(address(loan), 50_750e18 - 1);  // 50k + (1m * 0.3% / 12 * 3) = 50_750
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
-        loan.fundLoan(address(loanManager));
+        loan.fundLoan();
     }
 
     function test_payOriginationFees_zeroTreasury() external {
@@ -195,9 +198,9 @@ contract PayOriginationFeesTests is FeeManagerBase {
 
         fundsAsset.mint(address(loan), 1_000_000e18);  // 1m + 50k + (1m * 0.3% = 3_000) = 1_053_000
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         vm.expectRevert("MLFM:TT:ZERO_DESTINATION");
-        loan.fundLoan(address(loanManager));
+        loan.fundLoan();
     }
 
     function test_payOriginationFees() external {
@@ -207,8 +210,8 @@ contract PayOriginationFeesTests is FeeManagerBase {
         assertEq(fundsAsset.balanceOf(PD),            0);
         assertEq(fundsAsset.balanceOf(TREASURY),      0);
 
-        vm.prank(address(loanManager));
-        loan.fundLoan(address(loanManager));
+        vm.prank(address(lender));
+        loan.fundLoan();
 
         assertEq(fundsAsset.balanceOf(address(loan)), 949_250e18);  // Principal - both origination fees
         assertEq(fundsAsset.balanceOf(PD),            50_000e18);   // 50k origination fee to PD
@@ -227,12 +230,12 @@ contract PayServiceFeesTests is FeeManagerBase {
         super.setUp();
 
         loan = MapleLoan(
-            _createLoan(BORROWER, address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
+            _createLoan(BORROWER, address(lender), address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
         );
 
         globals.setPlatformServiceFeeRate(address(poolManager), platformServiceFeeRate);
 
-        _fundLoan(address(loan), address(loanManager), loan.principalRequested());
+        _fundLoan(address(loan), address(lender), loan.principalRequested());
         _drawdownLoan(address(loan), BORROWER);
     }
 
@@ -269,17 +272,17 @@ contract PayServiceFeesTests is FeeManagerBase {
 
         fundsAsset.approve(address(loan), 10_750e18);
 
-        assertEq(fundsAsset.balanceOf(BORROWER),             950_000e18);
-        assertEq(fundsAsset.balanceOf(address(loanManager)), 0);
-        assertEq(fundsAsset.balanceOf(PD),                   50_000e18);  // Origination fees
-        assertEq(fundsAsset.balanceOf(TREASURY),             0);
+        assertEq(fundsAsset.balanceOf(BORROWER),        950_000e18);
+        assertEq(fundsAsset.balanceOf(address(lender)), 0);
+        assertEq(fundsAsset.balanceOf(PD),              50_000e18);  // Origination fees
+        assertEq(fundsAsset.balanceOf(TREASURY),        0);
 
         loan.makePayment(10_750e18);
 
-        assertEq(fundsAsset.balanceOf(BORROWER),             939_250e18);          // 950k - 10.75k
-        assertEq(fundsAsset.balanceOf(address(loanManager)), 10_000e18);           // Interest
-        assertEq(fundsAsset.balanceOf(PD),                   50_000e18 + 500e18);
-        assertEq(fundsAsset.balanceOf(TREASURY),             250e18);
+        assertEq(fundsAsset.balanceOf(BORROWER),        939_250e18);          // 950k - 10.75k
+        assertEq(fundsAsset.balanceOf(address(lender)), 10_000e18);           // Interest
+        assertEq(fundsAsset.balanceOf(PD),              50_000e18 + 500e18);
+        assertEq(fundsAsset.balanceOf(TREASURY),        250e18);
     }
 
 }
@@ -289,6 +292,7 @@ contract UpdatePlatformServiceFeeTests is FeeManagerBase {
     function test_updatePlatformServiceFee() external {
         address loan1 = _createLoan(
             BORROWER,
+            address(lender),
             address(feeManager),
             defaultAssets,
             defaultTermDetails,
@@ -300,6 +304,7 @@ contract UpdatePlatformServiceFeeTests is FeeManagerBase {
 
         address loan2 = _createLoan(
             BORROWER,
+            address(lender),
             address(feeManager),
             defaultAssets,
             defaultTermDetails,
@@ -309,8 +314,8 @@ contract UpdatePlatformServiceFeeTests is FeeManagerBase {
             "salt2"
         );
 
-        _fundLoan(loan1, address(loanManager), 1_000_000e18);
-        _fundLoan(loan2, address(loanManager), 1_000_000e18);
+        _fundLoan(loan1, address(lender), 1_000_000e18);
+        _fundLoan(loan2, address(lender), 1_000_000e18);
 
         assertEq(feeManager.platformServiceFee(loan1), 0);
         assertEq(feeManager.platformServiceFee(loan2), 0);
@@ -362,6 +367,7 @@ contract FeeManager_Getters is FeeManagerBase {
 
         address loan1 = _createLoan(
             BORROWER,
+            address(lender),
             address(feeManager),
             defaultAssets,
             defaultTermDetails,
@@ -389,6 +395,7 @@ contract FeeManager_Getters is FeeManagerBase {
 
         address loan1 = _createLoan(
             BORROWER,
+            address(lender),
             address(feeManager),
             defaultAssets,
             defaultTermDetails,
@@ -398,7 +405,7 @@ contract FeeManager_Getters is FeeManagerBase {
             "salt1"
         );
 
-        _fundLoan(loan1, address(loanManager), 1_000_000e18);
+        _fundLoan(loan1, address(lender), 1_000_000e18);
 
         globals.setPlatformServiceFeeRate(address(poolManager), 1_0000);
 

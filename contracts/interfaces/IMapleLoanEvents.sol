@@ -54,7 +54,8 @@ interface IMapleLoanEvents {
     /**
      *  @dev   Loan was initialized.
      *  @param borrower_    The address of the borrower.
-     *  @param feeManager_  The address of the entity responsible for calculating fees
+     *  @param lender_      The address of the lender.
+     *  @param feeManager_  The address of the entity responsible for calculating fees.
      *  @param assets_      Array of asset addresses.
      *                       [0]: collateralAsset,
      *                       [1]: fundsAsset.
@@ -77,6 +78,7 @@ interface IMapleLoanEvents {
      */
     event Initialized(
         address indexed borrower_,
+        address indexed lender_,
         address indexed feeManager_,
         address[2] assets_,
         uint256[3] termDetails_,

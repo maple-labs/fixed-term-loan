@@ -338,16 +338,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");
     }
 
-    function fundLoan(address lender_) external override returns (uint256 fundsLent_) {
-        require((_lender = lender_) != address(0), "ML:FL:INVALID_LENDER");
+    function fundLoan() external override returns (uint256 fundsLent_) {
+        address lender_ = _lender;
 
-        address loanManagerFactory_ = ILenderLike(lender_).factory();
+        require(msg.sender == lender_, "ML:FL:NOT_LENDER");
 
-        require(IMapleGlobalsLike(globals()).isFactory("LOAN_MANAGER", loanManagerFactory_), "ML:FL:INVALID_FACTORY");
-        require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),             "ML:FL:INVALID_INSTANCE");
-
-        // Can only fund loan if there are payments remaining (as defined by the initialization)
-        // and no payment is due yet (as set by a funding).
+        // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
         require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
 
         address fundsAsset_         = _fundsAsset;
