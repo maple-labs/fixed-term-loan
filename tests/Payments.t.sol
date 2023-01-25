@@ -40,7 +40,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         initializer     = new MapleLoanInitializer();
         poolManager     = new MockPoolManager(address(poolDelegate));
 
-        globals = new MapleGlobalsMock(governor, lender.factory());
+        globals = new MapleGlobalsMock(governor);
 
         feeManager = new MapleLoanFeeManager(address(globals));
 
@@ -76,7 +76,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         fundsAsset.mint(address(lender), amounts[1]);
         fundsAsset.mint(borrower, amounts[1]);  // Mint more than enough for borrower to make payments
 
-        bytes memory arguments = initializer.encodeArguments(borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
+        bytes memory arguments = initializer.encodeArguments(borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
         bytes32 salt           = keccak256(abi.encodePacked("salt"));
 
         // Create Loan
@@ -85,7 +85,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         // Approve and fund Loan
         vm.startPrank(address(lender));
         fundsAsset.transfer(address(loan), amounts[1]);
-        loan.fundLoan(address(lender));
+        loan.fundLoan();
         vm.stopPrank();
 
         // Transfer and post collateral and drawdown

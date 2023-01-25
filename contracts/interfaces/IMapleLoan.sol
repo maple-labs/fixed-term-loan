@@ -190,10 +190,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Lend funds to the loan/borrower.
-     *  @param  lender_    The address to be registered as the lender.
      *  @return fundsLent_ The amount funded.
      */
-    function fundLoan(address lender_) external returns (uint256 fundsLent_);
+    function fundLoan() external returns (uint256 fundsLent_);
 
     /**
      *  @dev    Make a payment to the loan.

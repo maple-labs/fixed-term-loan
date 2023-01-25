@@ -216,6 +216,7 @@ contract ConstructableMapleLoan is MapleLoanHarness {
     constructor(
         address factory_,
         address borrower_,
+        address lender_,
         address feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
@@ -229,7 +230,7 @@ contract ConstructableMapleLoan is MapleLoanHarness {
 
         _delegateCall(
             address(initializer),
-            initializer.encodeArguments(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_)
+            initializer.encodeArguments(borrower_, lender_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_)
         );
     }
 

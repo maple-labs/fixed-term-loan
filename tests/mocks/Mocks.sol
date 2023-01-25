@@ -11,8 +11,6 @@ contract MapleGlobalsMock {
 
     bool public protocolPaused;
 
-    mapping(bytes32 => mapping(address => bool)) public isFactory;
-
     mapping(address => uint256) public platformOriginationFeeRate;
     mapping(address => uint256) public platformServiceFeeRate;
 
@@ -20,9 +18,15 @@ contract MapleGlobalsMock {
     mapping(address => bool) public isCollateralAsset;
     mapping(address => bool) public isPoolAsset;
 
-    constructor (address governor_, address loanManagerFactory_) {
-        governor = governor_;
-        isFactory["LOAN_MANAGER"][loanManagerFactory_] = true;
+    bool internal _isFactory;
+
+    constructor (address governor_) {
+        governor   = governor_;
+        _isFactory = true;
+    }
+
+    function isFactory(bytes32, address) external view returns (bool) {
+        return _isFactory;
     }
 
     function setGovernor(address governor_) external {
@@ -61,6 +65,10 @@ contract MapleGlobalsMock {
         isPoolAsset[poolAsset_] = isValid_;
     }
 
+    function __setIsFactory(bool isFactory_) external {
+        _isFactory = isFactory_;
+    }
+
 }
 
 contract MockFactory {
@@ -87,8 +95,18 @@ contract MockFactory {
 
 contract MockLoanManagerFactory {
 
-    function isInstance(address) external pure returns (bool) {
-        return true;
+    bool internal _isInstance;
+
+    constructor() {
+        _isInstance = true;
+    }
+
+    function isInstance(address) external view returns (bool) {
+        return _isInstance;
+    }
+
+    function __setIsInstance(bool isInstance_) external {
+        _isInstance = isInstance_;
     }
 
 }
@@ -189,11 +207,11 @@ contract MockLoanManager {
         poolManager = address(new MockPoolManager(address(1)));
     }
 
+    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external { }
+
     function __setPoolManager(address poolManager_) external {
         poolManager = poolManager_;
     }
-
-    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external { }
 
 }
 

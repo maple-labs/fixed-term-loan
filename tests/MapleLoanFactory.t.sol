@@ -7,15 +7,17 @@ import { MapleLoan }            from "../contracts/MapleLoan.sol";
 import { MapleLoanFactory }     from "../contracts/MapleLoanFactory.sol";
 import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 
-import { MapleGlobalsMock, MockFeeManager } from "./mocks/Mocks.sol";
+import { MapleGlobalsMock, MockFeeManager, MockLoanManager, MockLoanManagerFactory } from "./mocks/Mocks.sol";
 
 import { Proxy } from "../modules/maple-proxy-factory/modules/proxy-factory/contracts/Proxy.sol";
 
 contract MapleLoanFactoryTest is TestUtils {
 
-    MapleGlobalsMock internal globals;
-    MapleLoanFactory internal factory;
-    MockFeeManager   internal feeManager;
+    MapleGlobalsMock       internal globals;
+    MapleLoanFactory       internal factory;
+    MockFeeManager         internal feeManager;
+    MockLoanManager        internal lender;
+    MockLoanManagerFactory internal loanManagerFactory;
 
     address internal governor = address(new Address());
 
@@ -23,10 +25,12 @@ contract MapleLoanFactoryTest is TestUtils {
     address internal initializer;
 
     function setUp() external {
-        feeManager     = new MockFeeManager();
-        globals        = new MapleGlobalsMock(governor, address(0));
-        implementation = address(new MapleLoan());
-        initializer    = address(new MapleLoanInitializer());
+        lender             = new MockLoanManager();
+        loanManagerFactory = MockLoanManagerFactory(lender.factory());
+        feeManager         = new MockFeeManager();
+        globals            = new MapleGlobalsMock(governor);
+        implementation     = address(new MapleLoan());
+        initializer        = address(new MapleLoanInitializer());
 
         factory = new MapleLoanFactory(address(globals));
 
@@ -49,6 +53,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
             address(1),
+            address(lender),
             address(feeManager),
             assets,
             termDetails,
@@ -76,6 +81,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
             address(1),
+            address(lender),
             address(feeManager),
             assets,
             termDetails,
@@ -94,6 +100,97 @@ contract MapleLoanFactoryTest is TestUtils {
         factory.createInstance(arguments, salt);
     }
 
+    function test_createInstance_zeroLender() external {
+        address[2] memory assets      = [address(1), address(1)];
+        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
+        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(0),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        vm.expectRevert("MPF:CI:FAILED");
+        factory.createInstance(arguments, "SALT");
+
+        arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(lender),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        factory.createInstance(arguments, "SALT");
+    }
+
+    function test_createInstance_invalidFactory() external {
+        address[2] memory assets      = [address(1), address(1)];
+        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
+        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(lender),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        globals.__setIsFactory(false);
+
+        vm.expectRevert("MPF:CI:FAILED");
+        factory.createInstance(arguments, "SALT");
+
+        globals.__setIsFactory(true);
+
+        factory.createInstance(arguments, "SALT");
+    }
+
+    function test_createInstance_invalidInstance() external {
+        address[2] memory assets      = [address(1), address(1)];
+        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
+        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(lender),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        loanManagerFactory.__setIsInstance(false);
+
+        vm.expectRevert("MPF:CI:FAILED");
+        factory.createInstance(arguments, "SALT");
+
+        loanManagerFactory.__setIsInstance(true);
+
+        factory.createInstance(arguments, "SALT");
+    }
+
     function testFail_createInstance_saltAndArgumentsCollision() external {
         address[2] memory assets      = [address(1), address(1)];
         uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
@@ -103,6 +200,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
             address(1),
+            address(lender),
             address(feeManager),
             assets,
             termDetails,
@@ -128,6 +226,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
             address(1),
+            address(lender),
             address(feeManager),
             assets,
             termDetails,

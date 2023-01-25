@@ -44,8 +44,7 @@ contract RefinancerTestBase is TestUtils {
         refinancer = new Refinancer();
         token      = new MockERC20("Test", "TST", 0);
 
-        globals = new MapleGlobalsMock(governor, lender.factory());
-
+        globals = new MapleGlobalsMock(governor);
         factory = new MockFactory(address(globals));
 
         globals.setValidBorrower(borrower,        true);
@@ -63,7 +62,6 @@ contract RefinancerTestBase is TestUtils {
     )
         internal
     {
-
         globals.setValidCollateralAsset(address(token), true);
 
         address[2] memory assets      = [address(token), address(token)];
@@ -73,12 +71,12 @@ contract RefinancerTestBase is TestUtils {
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
-        loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
+        loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         token.mint(address(loan), principalRequested_);
 
         vm.prank(address(lender));
-        loan.fundLoan(address(lender));
+        loan.fundLoan();
 
         token.mint(address(loan), collateralRequired_);
         loan.postCollateral(0);
@@ -689,13 +687,12 @@ contract RefinancerInterestTests is TestUtils {
     address internal governor = address(new Address());
 
     function setUp() external {
-        lender     = new MockLoanManager();
         feeManager = new MockFeeManager();
+        lender     = new MockLoanManager();
         refinancer = new Refinancer();
         token      = new MockERC20("Test", "TST", 0);
 
-        globals = new MapleGlobalsMock(address(governor), lender.factory());
-
+        globals = new MapleGlobalsMock(address(governor));
         factory = new MockFactory(address(globals));
 
         globals.setValidBorrower(borrower,        true);
@@ -736,7 +733,7 @@ contract RefinancerInterestTests is TestUtils {
         token.mint(address(loan), interestPortion);  // Interest only payment
         loan.makePayment(0);
 
-        assertEq(interestPortion,         8_219_178_082);
+        assertEq(interestPortion, 8_219_178_082);
         assertEq(token.balanceOf(address(lender)), interestPortion);
 
         bytes[] memory data = new bytes[](4);
@@ -791,10 +788,12 @@ contract RefinancerInterestTests is TestUtils {
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
-        loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
+        loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         token.mint(address(loan), principalRequested_);
-        loan.fundLoan(address(lender));
+
+        vm.prank(address(lender));
+        loan.fundLoan();
 
         token.mint(address(loan), collateralRequired_);
         loan.postCollateral(0);
@@ -1226,7 +1225,7 @@ contract RefinancingFeesTerms is TestUtils {
     MapleLoanFeeManager    internal feeManager;
     MockERC20              internal token;
     MockFactory            internal factory;
-    MockLoanManager        internal loanManager;
+    MockLoanManager        internal lender;
     MockPoolManager        internal poolManager;
     Refinancer             internal refinancer;
 
@@ -1234,9 +1233,8 @@ contract RefinancingFeesTerms is TestUtils {
     address internal governor = address(new Address());
 
     function setUp() public virtual {
-        loanManager = new MockLoanManager();
-
-        globals     = new MapleGlobalsMock(governor, loanManager.factory());
+        lender      = new MockLoanManager();
+        globals     = new MapleGlobalsMock(governor);
         poolManager = new MockPoolManager(address(POOL_DELEGATE));
         refinancer  = new Refinancer();
 
@@ -1244,7 +1242,7 @@ contract RefinancingFeesTerms is TestUtils {
         feeManager = new MapleLoanFeeManager(address(globals));
         token      = new MockERC20("Test", "TST", 0);
 
-        loanManager.__setPoolManager(address(poolManager));  // Set so correct PD address is used.
+        lender.__setPoolManager(address(poolManager));  // Set so correct PD address is used.
 
         globals.setValidBorrower(borrower,        true);
         globals.setValidPoolAsset(address(token), true);
@@ -1262,7 +1260,6 @@ contract RefinancingFeesTerms is TestUtils {
     )
         internal
     {
-
         MockERC20 collateralToken = new MockERC20("Collateral", "COL", 0);
 
         globals.setValidCollateralAsset(address(collateralToken), true);
@@ -1274,10 +1271,12 @@ contract RefinancingFeesTerms is TestUtils {
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
-        loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
+        loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         token.mint(address(loan), principalRequested_);
-        loan.fundLoan(address(loanManager));
+
+        vm.prank(address(lender));
+        loan.fundLoan();
 
         collateralToken.mint(address(loan), collateralRequired_);
         loan.postCollateral(0);
@@ -1317,7 +1316,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
         assertEq(feeManager.platformRefinanceServiceFee(address(loan)), 1_000_000e18 * 0.01 / 10); // Saved fee is 1/10 of annual refinance fee
@@ -1345,7 +1344,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
         assertEq(feeManager.platformRefinanceServiceFee(address(loan)), 1_000_000e18 * 0.01 / 10); // Saved fee is 1/10 of annual refinance fee
@@ -1358,7 +1357,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
         // Now assert that fees include 2 periods
@@ -1386,7 +1385,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         vm.expectRevert("MLFM:POF:PD_TRANSFER");
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
     }
@@ -1424,7 +1423,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(address(borrower));
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
     }
@@ -1461,7 +1460,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
         // Fees were paid during loan origination
@@ -1492,7 +1491,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
         assertEq(feeManager.platformServiceFee(address(loan)), 1_000_000e18 * newPlatformServiceFeeRate_ * 30 days / 365 days / 100_0000);
@@ -1544,7 +1543,7 @@ contract RefinancingFeesTerms is TestUtils {
         vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, calls);
 
-        vm.prank(address(loanManager));
+        vm.prank(address(lender));
         loan.acceptNewTerms(address(refinancer), deadline_, calls);
 
         assertEq(feeManager.delegateOriginationFee(address(loan)), newOriginationFee_);

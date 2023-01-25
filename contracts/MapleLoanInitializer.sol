@@ -4,7 +4,7 @@ pragma solidity 0.8.7;
 import { IMapleLoanInitializer } from "./interfaces/IMapleLoanInitializer.sol";
 import { IMapleLoanFeeManager }  from "./interfaces/IMapleLoanFeeManager.sol";
 
-import { IMapleGlobalsLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
+import { ILenderLike, IMapleGlobalsLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -12,6 +12,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     function encodeArguments(
         address borrower_,
+        address lender_,
         address feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
@@ -19,12 +20,13 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         uint256[4] memory rates_,
         uint256[2] memory fees_
     ) external pure override returns (bytes memory encodedArguments_) {
-        return abi.encode(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
+        return abi.encode(borrower_, lender_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
     }
 
     function decodeArguments(bytes calldata encodedArguments_)
         public pure override returns (
             address borrower_,
+            address lender_,
             address feeManager_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,
@@ -35,18 +37,20 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
     {
         (
             borrower_,
+            lender_,
             feeManager_,
             assets_,
             termDetails_,
             amounts_,
             rates_,
             fees_
-        ) = abi.decode(encodedArguments_, (address, address, address[2], uint256[3], uint256[3], uint256[4], uint256[2]));
+        ) = abi.decode(encodedArguments_, (address, address, address, address[2], uint256[3], uint256[3], uint256[4], uint256[2]));
     }
 
     fallback() external {
         (
             address borrower_,
+            address lender_,
             address feeManager_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,
@@ -55,9 +59,9 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             uint256[2] memory fees_
         ) = decodeArguments(msg.data);
 
-        _initialize(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
+        _initialize(borrower_, lender_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
 
-        emit Initialized(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
+        emit Initialized(borrower_, lender_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_);
     }
 
     /**
@@ -86,6 +90,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
      */
     function _initialize(
         address borrower_,
+        address lender_,
         address feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
@@ -111,6 +116,13 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         require(IMapleGlobalsLike(globals_).isBorrower(borrower_),         "MLI:I:INVALID_BORROWER");
         require(IMapleGlobalsLike(globals_).isPoolAsset(assets_[1]),       "MLI:I:INVALID_FUNDS_ASSET");
         require(IMapleGlobalsLike(globals_).isCollateralAsset(assets_[0]), "MLI:I:INVALID_COLLATERAL_ASSET");
+
+        require((_lender = lender_) != address(0), "MLI:I:ZERO_LENDER");
+
+        address loanManagerFactory_ = ILenderLike(lender_).factory();
+
+        require(IMapleGlobalsLike(globals_).isFactory("LOAN_MANAGER", loanManagerFactory_), "MLI:I:INVALID_FACTORY");
+        require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),            "MLI:I:INVALID_INSTANCE");
 
         require((_feeManager = feeManager_) != address(0), "MLI:I:INVALID_MANAGER");
 

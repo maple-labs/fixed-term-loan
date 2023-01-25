@@ -23,7 +23,7 @@ contract MapleLoanScenariosTests is TestUtils {
     function setUp() external {
         feeManager = new MockFeeManager();
         lender     = new MockLoanManager();
-        globals    = new MapleGlobalsMock(governor, lender.factory());
+        globals    = new MapleGlobalsMock(governor);
         token      = new MockERC20("Test", "TST", 0);
 
         factory = new MockFactory(address(globals));
@@ -47,6 +47,7 @@ contract MapleLoanScenariosTests is TestUtils {
         ConstructableMapleLoan loan = new ConstructableMapleLoan(
             address(factory),
             borrower,
+            address(lender),
             address(feeManager),
             assets,
             termDetails,
@@ -58,7 +59,7 @@ contract MapleLoanScenariosTests is TestUtils {
         // Fund via a 1M transfer
         vm.startPrank(address(lender));
         token.transfer(address(loan), 1_000_000);
-        loan.fundLoan(address(lender));
+        loan.fundLoan();
         vm.stopPrank();
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
@@ -207,12 +208,12 @@ contract MapleLoanScenariosTests is TestUtils {
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         // Fund via a 1M transfer
         vm.startPrank(address(lender));
         token.transfer(address(loan), 1_000_000);
-        loan.fundLoan(address(lender));
+        loan.fundLoan();
         vm.stopPrank();
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
