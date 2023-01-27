@@ -8,7 +8,7 @@ import { IMapleLoanV4Migrator } from "./interfaces/IMapleLoanV4Migrator.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
-/// @title DebtLockerV4Migrator is intended to initialize the storage of a DebtLocker proxy.
+/// @title MapleLoanV4Migrator is intended to initialize the storage of a MapleLoan proxy.
 contract MapleLoanV4Migrator is IMapleLoanV4Migrator, MapleLoanStorage {
 
     function encodeArguments(address feeManager_) external pure override returns (bytes memory encodedArguments_) {
@@ -20,9 +20,8 @@ contract MapleLoanV4Migrator is IMapleLoanV4Migrator, MapleLoanStorage {
     }
 
     fallback() external {
-
         // Taking the feeManager_ address as argument for now
-        // but ideally this would be hardcoded in the debtLocker migrator registered in the factory.
+        // but ideally this would be hardcoded in the loan migrator registered in the factory.
         ( address feeManager_ ) = decodeArguments(msg.data);
 
         _feeManager = feeManager_;
