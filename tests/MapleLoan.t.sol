@@ -433,19 +433,12 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_upgrade_acl() external {
-        MockFactory factory = new MockFactory(address(globals));
-
-        loan.__setFactory(address(factory));
-
-        address securityAdmin    = address(new Address());
         address newImplementation = address(new MapleLoanHarness());
 
-        globals.setSecurityAdmin(securityAdmin);
-
-        vm.expectRevert("ML:U:NOT_SECURITY_ADMIN");
+        vm.expectRevert("ML:U:NOT_BORROWER");
         loan.upgrade(1, abi.encode(newImplementation));
 
-        vm.prank(securityAdmin);
+        vm.prank(borrower);
         loan.upgrade(1, abi.encode(newImplementation));
 
         assertEq(loan.implementation(), newImplementation);
@@ -1463,23 +1456,19 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_upgrade_failWhenPaused() external {
-         MockFactory factory = new MockFactory(address(globals));
+        loan.__setFactory(address(new MockFactory(address(globals))));
 
-        loan.__setFactory(address(factory));
-
-        address securityAdmin     = address(new Address());
         address newImplementation = address(new MapleLoanHarness());
 
-        globals.setSecurityAdmin(securityAdmin);
         globals.setProtocolPaused(true);
 
-        vm.prank(securityAdmin);
+        vm.prank(borrower);
         vm.expectRevert("L:PROTOCOL_PAUSED");
         loan.upgrade(1, abi.encode(newImplementation));
 
         globals.setProtocolPaused(false);
 
-        vm.prank(securityAdmin);
+        vm.prank(borrower);
         loan.upgrade(1, abi.encode(newImplementation));
 
         assertEq(loan.implementation(), newImplementation);
