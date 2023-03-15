@@ -55,6 +55,8 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         globals.setValidCollateralAsset(address(collateralAsset), true);
         globals.setValidPoolAsset(address(fundsAsset),            true);
 
+        globals.__setIsInstanceOf(true);
+
         vm.startPrank(address(factory));
         loan = new ConstructableMapleLoan(
             address(factory),
@@ -2222,6 +2224,8 @@ contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
 
         factory = new MockFactory(address(globals));
 
+        globals.__setIsInstanceOf(true);
+
         loan.__setBorrower(borrower);
         loan.__setFactory(address(factory));
     }
@@ -2258,6 +2262,19 @@ contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
         assertEq(proposedRefinanceCommitment, bytes32(0));
         assertEq(loan.refinanceCommitment(), bytes32(0));
     }
+
+    function test_proposeNewTerms_invalidRefinancer() external {
+        address refinancer = address(new Address());
+
+        globals.__setIsInstanceOf(false);
+
+        bytes[] memory data = new bytes[](0);
+
+        vm.prank(borrower);
+        vm.expectRevert("ML:PNT:INVALID_REFINANCER");
+        loan.proposeNewTerms(refinancer, block.timestamp + 1, data);
+    }
+
 }
 
 contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
@@ -2277,6 +2294,8 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
 
         loan.__setBorrower(borrower);
         loan.__setFactory(address(factory));
+
+        globals.__setIsInstanceOf(true);
     }
 
     function test_rejectNewTerms_commitmentMismatch_emptyCallsArray() external {

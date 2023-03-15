@@ -49,6 +49,8 @@ contract RefinancerTestBase is TestUtils {
 
         globals.setValidBorrower(borrower,        true);
         globals.setValidPoolAsset(address(token), true);
+
+        globals.__setIsInstanceOf(true);
     }
 
     function setUpOngoingLoan(
@@ -697,6 +699,8 @@ contract RefinancerInterestTests is TestUtils {
 
         globals.setValidBorrower(borrower,        true);
         globals.setValidPoolAsset(address(token), true);
+
+        globals.__setIsInstanceOf(true);
     }
 
     function test_acceptNewTerms_makePayment_withRefinanceInterest() external {
@@ -1247,6 +1251,8 @@ contract RefinancingFeesTerms is TestUtils {
         globals.setValidBorrower(borrower,        true);
         globals.setValidPoolAsset(address(token), true);
         globals.setMapleTreasury(TREASURY);
+
+        globals.__setIsInstanceOf(true);
     }
 
     function setUpOngoingLoan(
