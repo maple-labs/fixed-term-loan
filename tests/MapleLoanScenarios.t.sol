@@ -31,6 +31,8 @@ contract MapleLoanScenariosTests is TestUtils {
         globals.setValidBorrower(borrower,              true);
         globals.setValidCollateralAsset(address(token), true);
         globals.setValidPoolAsset(address(token),       true);
+
+        globals.__setIsInstanceOf(true);
     }
 
     function test_scenario_fullyAmortized() external {

@@ -34,6 +34,8 @@ contract MapleLoanTests is TestUtils {
         loan.__setFactory(address(factoryMock));
         loan.__setFeeManager(address(feeManager));
         loan.__setLender(lender);
+
+        globals.__setIsInstanceOf(true);
     }
 
     /***********************************/

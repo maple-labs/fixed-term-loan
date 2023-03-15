@@ -19,6 +19,7 @@ contract MapleGlobalsMock {
     mapping(address => bool) public isPoolAsset;
 
     bool internal _isFactory;
+    bool internal _isInstanceOf;
 
     constructor (address governor_) {
         governor   = governor_;
@@ -27,6 +28,10 @@ contract MapleGlobalsMock {
 
     function isFactory(bytes32, address) external view returns (bool) {
         return _isFactory;
+    }
+
+    function isInstanceOf(bytes32, address) external view returns (bool) {
+        return _isInstanceOf;
     }
 
     function setGovernor(address governor_) external {
@@ -67,6 +72,10 @@ contract MapleGlobalsMock {
 
     function __setIsFactory(bool isFactory_) external {
         _isFactory = isFactory_;
+    }
+    
+    function __setIsInstanceOf(bool isInstanceOf_) external {
+        _isInstanceOf = isInstanceOf_;
     }
 
 }
