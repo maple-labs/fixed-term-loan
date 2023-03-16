@@ -45,10 +45,10 @@ interface IRefinancer {
     event LateFeeRateSet(uint256 lateFeeRate_);
 
     /**
-     *  @dev   A new value for lateInterestPremium has been set.
-     *  @param lateInterestPremium_ The new value for lateInterestPremium.
+     *  @dev   A new value for lateInterestPremiumRate has been set.
+     *  @param lateInterestPremiumRate_ The new value for lateInterestPremiumRate.
      */
-    event LateInterestPremiumSet(uint256 lateInterestPremium_);
+    event LateInterestPremiumRateSet(uint256 lateInterestPremiumRate_);
 
     /**
      *  @dev   A new value for paymentInterval has been set.
@@ -116,10 +116,10 @@ interface IRefinancer {
     function setLateFeeRate(uint256 lateFeeRate_) external;
 
     /**
-     *  @dev   Function to set the lateInterestPremium during a refinance.
-     *  @param lateInterestPremium_ The new value for lateInterestPremium.
+     *  @dev   Function to set the lateInterestPremiumRate during a refinance.
+     *  @param lateInterestPremiumRate_ The new value for lateInterestPremiumRate.
      */
-    function setLateInterestPremium(uint256 lateInterestPremium_) external;
+    function setLateInterestPremiumRate(uint256 lateInterestPremiumRate_) external;
 
     /**
      *  @dev   Function to set the paymentInterval during a refinance.

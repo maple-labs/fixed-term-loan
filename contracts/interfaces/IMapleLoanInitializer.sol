@@ -25,7 +25,7 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *                       [0]: interestRate,
      *                       [1]: closingFeeRate,
      *                       [2]: lateFeeRate,
-     *                       [3]: lateInterestPremium,
+     *                       [3]: lateInterestPremiumRate,
      *  @param fees_        Array of fees:
      *                       [0]: delegateOriginationFee,
      *                       [1]: delegateServiceFee
@@ -61,7 +61,7 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *                        [0]: interestRate,
      *                        [1]: closingFeeRate,
      *                        [2]: lateFeeRate,
-     *                        [3]: lateInterestPremium,
+     *                        [3]: lateInterestPremiumRate,
      *  @return fees_        Array of fees:
      *                        [0]: delegateOriginationFee,
      *                        [1]: delegateServiceFee

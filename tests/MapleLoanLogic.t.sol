@@ -1212,7 +1212,7 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
         loan.__setPaymentsRemaining(paymentsRemaining_);
         loan.__setInterestRate(interestRate_);
         loan.__setLateFeeRate(lateFeeRate_);
-        loan.__setLateInterestPremium(lateInterestPremium_);
+        loan.__setLateInterestPremiumRate(lateInterestPremium_);
         loan.__setRefinanceInterest(refinanceInterest_);
         loan.__setFeeManager(address(new MockFeeManager()));
 
@@ -1644,10 +1644,10 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         assertEq(loan.principalRequested(), defaultAmounts[1]);
         assertEq(loan.endingPrincipal(),    defaultAmounts[2]);
 
-        assertEq(loan.interestRate(),        defaultRates[0]);
-        assertEq(loan.closingRate(),         defaultRates[1]);
-        assertEq(loan.lateFeeRate(),         defaultRates[2]);
-        assertEq(loan.lateInterestPremium(), defaultRates[3]);
+        assertEq(loan.interestRate(),            defaultRates[0]);
+        assertEq(loan.closingRate(),             defaultRates[1]);
+        assertEq(loan.lateFeeRate(),             defaultRates[2]);
+        assertEq(loan.lateInterestPremiumRate(), defaultRates[3]);
     }
 
     function test_initialize_invalidPrincipal() external {
@@ -1992,16 +1992,16 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(loan.drawableFunds(),   0);
 
         // Make sure loan accounting is cleared from _clearLoanAccounting().
-        assertEq(loan.gracePeriod(),         0);
-        assertEq(loan.paymentInterval(),     0);
-        assertEq(loan.interestRate(),        0);
-        assertEq(loan.closingRate(),         0);
-        assertEq(loan.lateFeeRate(),         0);
-        assertEq(loan.lateInterestPremium(), 0);
-        assertEq(loan.endingPrincipal(),     0);
-        assertEq(loan.nextPaymentDueDate(),  0);
-        assertEq(loan.paymentsRemaining(),   0);
-        assertEq(loan.principal(),           0);
+        assertEq(loan.gracePeriod(),             0);
+        assertEq(loan.paymentInterval(),         0);
+        assertEq(loan.interestRate(),            0);
+        assertEq(loan.closingRate(),             0);
+        assertEq(loan.lateFeeRate(),             0);
+        assertEq(loan.lateInterestPremiumRate(), 0);
+        assertEq(loan.endingPrincipal(),         0);
+        assertEq(loan.nextPaymentDueDate(),      0);
+        assertEq(loan.paymentsRemaining(),       0);
+        assertEq(loan.principal(),               0);
     }
 
     function test_makePayment_withRefinanceInterest(

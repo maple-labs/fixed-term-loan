@@ -520,7 +520,7 @@ contract RefinancerFeeTests is RefinancerTestBase {
         uint256 lateFeeRate_,
         uint256 paymentInterval_,
         uint256 paymentsRemaining_,
-        uint256 newLateInterestPremium_,
+        uint256 newLateInterestPremiumRate_,
         uint256 deadline_
     )
         external
@@ -544,12 +544,12 @@ contract RefinancerFeeTests is RefinancerTestBase {
             paymentsRemaining_
         );
 
-        newLateInterestPremium_ = constrictToRange(newLateInterestPremium_, 0,               MAX_RATE);
-        deadline_               = constrictToRange(deadline_,               block.timestamp, type(uint256).max);
+        newLateInterestPremiumRate_ = constrictToRange(newLateInterestPremiumRate_, 0,               MAX_RATE);
+        deadline_                   = constrictToRange(deadline_,                   block.timestamp, type(uint256).max);
 
-        assertEq(loan.lateInterestPremium(), 0);
+        assertEq(loan.lateInterestPremiumRate(), 0);
 
-        bytes[] memory data = _encodeWithSignatureAndUint("setLateInterestPremium(uint256)", newLateInterestPremium_);
+        bytes[] memory data = _encodeWithSignatureAndUint("setLateInterestPremiumRate(uint256)", newLateInterestPremiumRate_);
 
         vm.prank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline_, data);
@@ -557,7 +557,7 @@ contract RefinancerFeeTests is RefinancerTestBase {
         vm.prank(address(lender));
         loan.acceptNewTerms(address(refinancer), deadline_, data);
 
-        assertEq(loan.lateInterestPremium(), newLateInterestPremium_);
+        assertEq(loan.lateInterestPremiumRate(), newLateInterestPremiumRate_);
     }
 
 }

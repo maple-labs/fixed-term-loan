@@ -58,8 +58,8 @@ contract Refinancer is IRefinancer, MapleLoanStorage {
         emit LateFeeRateSet(_lateFeeRate = lateFeeRate_);
     }
 
-    function setLateInterestPremium(uint256 lateInterestPremium_) external override {
-        emit LateInterestPremiumSet(_lateInterestPremium = lateInterestPremium_);
+    function setLateInterestPremiumRate(uint256 lateInterestPremiumRate_) external override {
+        emit LateInterestPremiumRateSet(_lateInterestPremiumRate = lateInterestPremiumRate_);
     }
 
     function setPaymentInterval(uint256 paymentInterval_) external override {
