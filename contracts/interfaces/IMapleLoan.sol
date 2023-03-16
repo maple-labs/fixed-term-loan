@@ -89,7 +89,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     /**
      *  @dev The premium over the regular interest rate applied when paying late.
      */
-    function lateInterestPremium() external view returns (uint256 lateInterestPremium_);
+    function lateInterestPremiumRate() external view returns (uint256 lateInterestPremiumRate_);
 
     /**
      *  @dev The lender of the Loan.

@@ -78,8 +78,8 @@ contract MapleLoanHarness is MapleLoan {
         _lateFeeRate = lateFeeRate_;
     }
 
-    function __setLateInterestPremium(uint256 lateInterestPremium_) external {
-        _lateInterestPremium = lateInterestPremium_;
+    function __setLateInterestPremiumRate(uint256 lateInterestPremiumRate_) external {
+        _lateInterestPremiumRate = lateInterestPremiumRate_;
     }
 
     function __setLender(address lender_) external {

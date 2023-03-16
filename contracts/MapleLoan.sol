@@ -502,7 +502,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
                 _paymentsRemaining,
                 _interestRate,
                 _lateFeeRate,
-                _lateInterestPremium
+                _lateInterestPremiumRate
             );
     }
 
@@ -519,7 +519,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             _paymentsRemaining,
             _interestRate,
             _lateFeeRate,
-            _lateInterestPremium
+            _lateInterestPremiumRate
         );
 
         interest_ = interestArray_[0] + interestArray_[1] + interestArray_[2];
@@ -536,7 +536,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             _paymentsRemaining,
             _nextPaymentDueDate,
             _lateFeeRate,
-            _lateInterestPremium
+            _lateInterestPremiumRate
         );
     }
 
@@ -621,8 +621,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _lateFeeRate;
     }
 
-    function lateInterestPremium() external view override returns (uint256 lateInterestPremium_) {
-        return _lateInterestPremium;
+    function lateInterestPremiumRate() external view override returns (uint256 lateInterestPremiumRate_) {
+        return _lateInterestPremiumRate;
     }
 
     function lender() external view override returns (address lender_) {
@@ -682,10 +682,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _gracePeriod     = uint256(0);
         _paymentInterval = uint256(0);
 
-        _interestRate        = uint256(0);
-        _closingRate         = uint256(0);
-        _lateFeeRate         = uint256(0);
-        _lateInterestPremium = uint256(0);
+        _interestRate            = uint256(0);
+        _closingRate             = uint256(0);
+        _lateFeeRate             = uint256(0);
+        _lateInterestPremiumRate = uint256(0);
 
         _endingPrincipal = uint256(0);
 

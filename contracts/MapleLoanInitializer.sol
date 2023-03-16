@@ -83,7 +83,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
      *                       [0]: interestRate,
      *                       [1]: closingFeeRate,
      *                       [2]: lateFeeRate,
-     *                       [3]: lateInterestPremium,
+     *                       [3]: lateInterestPremiumRate,
      *  @param fees_        Array of fees:
      *                       [0]: delegateOriginationFee,
      *                       [1]: delegateServiceFee
@@ -137,10 +137,10 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         _principalRequested = amounts_[1];
         _endingPrincipal    = amounts_[2];
 
-        _interestRate        = rates_[0];
-        _closingRate         = rates_[1];
-        _lateFeeRate         = rates_[2];
-        _lateInterestPremium = rates_[3];
+        _interestRate            = rates_[0];
+        _closingRate             = rates_[1];
+        _lateFeeRate             = rates_[2];
+        _lateInterestPremiumRate = rates_[3];
 
         // Set fees for the loan.
         IMapleLoanFeeManager(feeManager_).updateDelegateFeeTerms(fees_[0], fees_[1]);
