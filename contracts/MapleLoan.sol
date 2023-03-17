@@ -220,11 +220,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(msg.sender == _borrower,                                                 "ML:PNT:NOT_BORROWER");
         require(deadline_ >= block.timestamp,                                            "ML:PNT:INVALID_DEADLINE");
         require(IMapleGlobalsLike(globals()).isInstanceOf("FT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
+        require(calls_.length > uint256(0),                                              "ML:PNT:EMPTY_CALLS");
 
         emit NewTermsProposed(
-            refinanceCommitment_ = _refinanceCommitment = calls_.length > uint256(0)
-                ? _getRefinanceCommitment(refinancer_, deadline_, calls_)
-                : bytes32(0),
+            _refinanceCommitment = refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_),
             refinancer_,
             deadline_,
             calls_

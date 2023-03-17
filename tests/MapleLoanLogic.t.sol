@@ -2257,10 +2257,8 @@ contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
         bytes[] memory data = new bytes[](0);
 
         vm.prank(borrower);
+        vm.expectRevert("ML:PNT:EMPTY_CALLS");
         bytes32 proposedRefinanceCommitment = loan.proposeNewTerms(refinancer_, deadline_, data);
-
-        assertEq(proposedRefinanceCommitment, bytes32(0));
-        assertEq(loan.refinanceCommitment(), bytes32(0));
     }
 
     function test_proposeNewTerms_invalidRefinancer() external {
