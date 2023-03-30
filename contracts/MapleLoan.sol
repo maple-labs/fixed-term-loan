@@ -343,7 +343,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         require(msg.sender == lender_, "ML:FL:NOT_LENDER");
 
-        // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
+        // Can only fund loan if there are payments remaining (defined in the initialization) and no payment is due (as set by a funding).
         require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
 
         address fundsAsset_         = _fundsAsset;
