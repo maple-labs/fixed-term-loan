@@ -11,7 +11,7 @@ interface IMapleGlobalsLike {
 
     function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_);
 
-    function isInstanceOf(bytes32 instanceId_, address instance_) external view returns (bool isValid_);
+    function isInstanceOf(bytes32 instanceId_, address instance_) external view returns (bool isInstance_);
 
     function isPoolAsset(address poolAsset_) external view returns (bool isValid_);
 

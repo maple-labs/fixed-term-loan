@@ -38,6 +38,8 @@ contract MapleLoanFactoryTest is TestUtils {
         globals.setValidCollateralAsset(address(1), true);
         globals.setValidPoolAsset(address(1),       true);
 
+        globals.__setIsInstanceOf(true);
+
         vm.startPrank(governor);
         factory.registerImplementation(1, implementation, initializer);
         factory.setDefaultVersion(1);
@@ -153,12 +155,12 @@ contract MapleLoanFactoryTest is TestUtils {
             fees
         );
 
-        globals.__setIsFactory(false);
+        globals.__setIsInstanceOf(false);
 
         vm.expectRevert("MPF:CI:FAILED");
         factory.createInstance(arguments, "SALT");
 
-        globals.__setIsFactory(true);
+        globals.__setIsInstanceOf(true);
 
         factory.createInstance(arguments, "SALT");
     }

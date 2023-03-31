@@ -1507,6 +1507,8 @@ contract MapleLoanRoleTests is TestUtils {
         globals.setValidBorrower(borrower,              true);
         globals.setValidCollateralAsset(address(token), true);
         globals.setValidPoolAsset(address(token),       true);
+        
+        globals.__setIsInstanceOf(true);
 
         vm.prank(address(factory));
         loan = new ConstructableMapleLoan(address(factory), borrower, lender, address(feeManager), assets, termDetails, amounts, rates, fees);
