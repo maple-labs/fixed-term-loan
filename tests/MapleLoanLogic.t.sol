@@ -1061,6 +1061,8 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
         globals.setValidBorrower(defaultBorrower,        true);
         globals.setValidCollateralAsset(address(token1), true);
         globals.setValidPoolAsset(address(token2),       true);
+
+        globals.__setIsInstanceOf(true);
     }
 
     function test_getClosingPaymentBreakdown(uint256 principal_, uint256 closingRate_, uint256 refinanceInterest_) external {
@@ -1615,6 +1617,8 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         globals.setValidBorrower(defaultBorrower,        true);
         globals.setValidCollateralAsset(address(token1), true);
         globals.setValidPoolAsset(address(token2),       true);
+
+        globals.__setIsInstanceOf(true);
     }
 
     function test_initialize() external {

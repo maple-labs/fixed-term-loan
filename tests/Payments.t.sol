@@ -57,6 +57,8 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         globals.setValidCollateralAsset(address(collateralAsset), true);
         globals.setValidPoolAsset(address(fundsAsset),            true);
 
+        globals.__setIsInstanceOf(true);
+
         vm.startPrank(governor);
         factory.registerImplementation(1, address(implementation), address(initializer));
         factory.setDefaultVersion(1);
