@@ -42,7 +42,7 @@ contract MapleLoanScenariosTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
-        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [uint256(0.12e6), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
@@ -206,7 +206,7 @@ contract MapleLoanScenariosTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
-        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [uint256(0.12e6),  uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
@@ -349,7 +349,7 @@ contract MapleLoanScenariosTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(0), uint256(30 days), uint256(3)];
         uint256[3] memory amounts     = [uint256(0), uint256(1_000_000), uint256(1_000_000)];
-        uint256[4] memory rates       = [uint256(0.1e18), uint256(0), uint256(0), uint256(0.1e18)];
+        uint256[4] memory rates       = [uint256(0.1e6), uint256(0), uint256(0), uint256(0.1e6)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));

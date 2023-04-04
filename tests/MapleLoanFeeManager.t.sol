@@ -64,7 +64,7 @@ contract FeeManagerBase is TestUtils {
         defaultAssets      = [address(collateralAsset), address(fundsAsset)];
         defaultTermDetails = [uint256(10 days), uint256(365 days / 12), uint256(3)];
         defaultAmounts     = [uint256(0), uint256(1_000_000e18), uint256(1_000_000e18)];
-        defaultRates       = [uint256(0.12e18), uint256(0.02e18), uint256(0), uint256(0.02e18)];
+        defaultRates       = [uint256(0.12e6), uint256(0.02e6), uint256(0), uint256(0.02e6)];
         defaultFees        = [uint256(50_000e18), uint256(500e18)];
     }
 

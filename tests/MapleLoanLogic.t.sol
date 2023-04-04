@@ -48,7 +48,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         defaultAssets      = [address(collateralAsset), address(fundsAsset)];
         defaultTermDetails = [uint256(1), uint256(30 days), uint256(12)];
         defaultAmounts     = [uint256(0), uint256(1000), uint256(0)];
-        defaultRates       = [uint256(0.10e18), uint256(7), uint256(8), uint256(9)];
+        defaultRates       = [uint256(0.10e6), uint256(7), uint256(8), uint256(9)];
         defaultFees        = [uint256(0), uint256(0)];
 
         globals.setValidBorrower(defaultBorrower,                 true);
@@ -343,7 +343,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100,     365 days);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,       120);
-        closingRate_        = constrictToRange(closingRate_,        0.01e18, 1.00e18);
+        closingRate_        = constrictToRange(closingRate_,        0.01e6,  1.00e6);
         principalRequested_ = constrictToRange(principalRequested_, 1,       MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,       principalRequested_);
 
@@ -422,7 +422,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100,     365 days);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,       120);
-        closingRate_        = constrictToRange(closingRate_,        0.01e18, 1.00e18);
+        closingRate_        = constrictToRange(closingRate_,        0.01e6,  1.00e6);
         principalRequested_ = constrictToRange(principalRequested_, 1,       MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,       principalRequested_);
 
@@ -453,7 +453,7 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100,     365 days);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,       120);
-        closingRate_        = constrictToRange(closingRate_,        0.01e18, 1.00e18);
+        closingRate_        = constrictToRange(closingRate_,        0.01e6,  1.00e6);
         principalRequested_ = constrictToRange(principalRequested_, 100,     MAX_TOKEN_AMOUNT);
         refinanceInterest_  = constrictToRange(refinanceInterest_,  100,     MAX_TOKEN_AMOUNT);
 
@@ -1028,7 +1028,7 @@ contract MapleLoanLogic_GetCollateralRequiredForTests is TestUtils {
 }
 
 contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
-    uint256 private constant SCALED_ONE = uint256(10 ** 18);
+    uint256 private constant HUNDRED_PERCENT = uint256(10 ** 6);
 
     address    defaultBorrower;
     address[2] defaultAssets;
@@ -1066,7 +1066,7 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
     }
 
     function test_getClosingPaymentBreakdown(uint256 principal_, uint256 closingRate_, uint256 refinanceInterest_) external {
-        uint256 maxClosingRateForTestCase = 1 * SCALED_ONE;  // 100%
+        uint256 maxClosingRateForTestCase = 1 * HUNDRED_PERCENT;  // 100%
 
         principal_         = constrictToRange(principal_,         1, type(uint256).max / maxClosingRateForTestCase);
         closingRate_       = constrictToRange(closingRate_,       1, maxClosingRateForTestCase);
@@ -1074,7 +1074,7 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
 
         // Set principal and closingRate for _initialize().
         uint256[3] memory amounts = [uint256(5), principal_, uint256(0)];
-        uint256[4] memory rates   = [uint256(0.05 ether), closingRate_, uint256(0.15 ether), uint256(20)];
+        uint256[4] memory rates   = [uint256(0.05e6), closingRate_, uint256(0.15e6), uint256(20)];
         uint256[2] memory fees    = [uint256(0), uint256(0)];
 
         vm.startPrank(address(factory));
@@ -1097,7 +1097,7 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
         ( uint256 principal, uint256 interest, ) = loan.getClosingPaymentBreakdown();
 
         uint256 expectedPrincipal = amounts[1];
-        uint256 expectedInterest  = (expectedPrincipal * rates[1] / SCALED_ONE) + refinanceInterest_;
+        uint256 expectedInterest  = (expectedPrincipal * rates[1] / HUNDRED_PERCENT) + refinanceInterest_;
 
         assertEq(principal, expectedPrincipal);
         assertEq(interest,  expectedInterest);
@@ -1116,7 +1116,7 @@ contract MapleLoanLogic_GetInstallmentTests is TestUtils {
     }
 
     function test_getInstallment_withFixtures() external {
-        ( uint256 principalAmount, uint256 interestAmount ) = loan.__getInstallment(1_000_000, 0, 0.12 ether, 365 days / 12, 12);
+        ( uint256 principalAmount, uint256 interestAmount ) = loan.__getInstallment(1_000_000, 0, 0.12e6 , 365 days / 12, 12);
 
         assertEq(principalAmount, 78_848);
         assertEq(interestAmount,  10_000);
@@ -1131,7 +1131,7 @@ contract MapleLoanLogic_GetInstallmentTests is TestUtils {
     ) external {
         principal_       = constrictToRange(principal_,       MIN_TOKEN_AMOUNT, MAX_TOKEN_AMOUNT);
         endingPrincipal_ = constrictToRange(endingPrincipal_, 0,                principal_);
-        interestRate_    = constrictToRange(interestRate_,    0,                1.00 ether);  // 0% - 100% APY
+        interestRate_    = constrictToRange(interestRate_,    0,                1e6);  // 0% - 100% APY
         paymentInterval_ = constrictToRange(paymentInterval_, 1 hours,          365 days);
         totalPayments_   = constrictToRange(totalPayments_,   1,                50);
 
@@ -1145,13 +1145,13 @@ contract MapleLoanLogic_GetInstallmentTests is TestUtils {
         uint256 interestAmount_;
 
         // 100,000% APY charged all at once in one payment
-        ( principalAmount_, interestAmount_ ) = loan.__getInstallment(MAX_TOKEN_AMOUNT, 0, 1000.00 ether, 365 days, 1);
+        ( principalAmount_, interestAmount_ ) = loan.__getInstallment(MAX_TOKEN_AMOUNT, 0, 1000e6, 365 days, 1);
 
         assertEq(principalAmount_, 1e30);
         assertEq(interestAmount_,  1000e30);
 
         // A payment a day for 30 years (10950 payments) at 100% APY
-        ( principalAmount_, interestAmount_ ) = loan.__getInstallment(MAX_TOKEN_AMOUNT, 0, 1.00 ether, 1 days, 10950);
+        ( principalAmount_, interestAmount_ ) = loan.__getInstallment(MAX_TOKEN_AMOUNT, 0, 1e6, 1 days, 10950);
 
         assertEq(principalAmount_, 267108596355467);
         assertEq(interestAmount_,  2739726027397260000000000000);
@@ -1168,8 +1168,8 @@ contract MapleLoanLogic_GetInterestTests is TestUtils {
     }
 
     function test_getInterest() external {
-        assertEq(loan.__getInterest(1_000_000, 0.12e18, 365 days / 12), 10_000);  // 12% APY on 1M
-        assertEq(loan.__getInterest(10_000,    1.20e18, 365 days / 12), 1_000);   // 120% APY on 10k
+        assertEq(loan.__getInterest(1_000_000, 0.12e6, 365 days / 12), 10_000);  // 12% APY on 1M
+        assertEq(loan.__getInterest(10_000,    1.20e6, 365 days / 12), 1_000);   // 120% APY on 10k
     }
 
 }
@@ -1200,9 +1200,9 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
         principal_           = constrictToRange(principal_,           1,                          1e12 * 1e18);
         endingPrincipal_     = constrictToRange(endingPrincipal_,     0,                          principal_);
         paymentsRemaining_   = constrictToRange(paymentsRemaining_,   1,                          100);
-        interestRate_        = constrictToRange(interestRate_,        0,                          1.00e18);
-        lateFeeRate_         = constrictToRange(lateFeeRate_,         interestRate_,              1.00e18);
-        lateInterestPremium_ = constrictToRange(lateInterestPremium_, interestRate_,              1.00e18);
+        interestRate_        = constrictToRange(interestRate_,        0,                          1.00e6);
+        lateFeeRate_         = constrictToRange(lateFeeRate_,         interestRate_,              1.00e6);
+        lateInterestPremium_ = constrictToRange(lateInterestPremium_, interestRate_,              1.00e6);
         refinanceInterest_   = constrictToRange(refinanceInterest_,   0,                          1e12 * 1e18);
 
         uint256 paymentInterval = termLength_ / paymentsRemaining_;
@@ -1269,9 +1269,9 @@ contract MapleLoanLogic_GetPaymentBreakdownTests is TestUtils {
             1_000_000,            // Principal
             0,                    // Ending principal
             12,                   // 12 payments
-            0.12e18,              // 12% interest
+            0.12e6,               // 12% interest
             0,
-            0.04e18               // 4% late premium interest
+            0.04e6                // 4% late premium interest
         );
     }
 
@@ -1352,8 +1352,8 @@ contract MapleLoanLogic_GetPeriodicInterestRateTests is TestUtils {
     }
 
     function test_getPeriodicInterestRate() external {
-        assertEq(loan.__getPeriodicInterestRate(0.12 ether, 365 days),      0.12 ether);  // 12%
-        assertEq(loan.__getPeriodicInterestRate(0.12 ether, 365 days / 12), 0.01 ether);  // 1%
+        assertEq(loan.__getPeriodicInterestRate(0.12e6, 365 days),      0.12e18);  // 12%
+        assertEq(loan.__getPeriodicInterestRate(0.12e6, 365 days / 12), 0.01e18);  // 1%
     }
 
 }
@@ -1842,7 +1842,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  2,   50);
-        interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
+        interestRate_       = constrictToRange(interestRate_,       0,   1.00e6);
         principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
 
@@ -1886,7 +1886,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  2,   50);
-        interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
+        interestRate_       = constrictToRange(interestRate_,       0,   1.00e6);
         principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
 
@@ -1927,7 +1927,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100,        365 days);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,          50);
-        interestRate_       = constrictToRange(interestRate_,       1,          1.00e18);
+        interestRate_       = constrictToRange(interestRate_,       1,          1.00e6);
         principalRequested_ = constrictToRange(principalRequested_, 10_000_000, MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,          principalRequested_);
 
@@ -1965,7 +1965,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         external
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
-        interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
+        interestRate_       = constrictToRange(interestRate_,       0,   1.00e6);
         principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
         endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
 
@@ -2019,7 +2019,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
     {
         paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
         paymentsRemaining_  = constrictToRange(paymentsRemaining_,  2,   50);
-        interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
+        interestRate_       = constrictToRange(interestRate_,       0,   1.00e6);
         principalRequested_ = constrictToRange(principalRequested_, 100, MAX_TOKEN_AMOUNT);
         refinanceInterest_  = constrictToRange(refinanceInterest_,  100, MAX_TOKEN_AMOUNT);
 
@@ -2104,7 +2104,7 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
     }
 
     function test_makePayment_collateralNotMaintained() external {
-        setupLoan(address(loan), 1_000_000, 2, 365 days, 0.1e18, 1_000_000);
+        setupLoan(address(loan), 1_000_000, 2, 365 days, 0.1e6, 1_000_000);
 
         // Need to set fees because if principal = drawableFunds the collateral required is 0
         feeManager.__setDelegateServiceFee(100);

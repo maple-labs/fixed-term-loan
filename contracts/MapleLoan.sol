@@ -15,19 +15,21 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 /*
 
-    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗    ██╗      ██████╗  █████╗ ███╗   ██╗    ██╗   ██╗██╗  ██╗
-    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝    ██║     ██╔═══██╗██╔══██╗████╗  ██║    ██║   ██║██║  ██║
-    ██╔████╔██║███████║██████╔╝██║     █████╗      ██║     ██║   ██║███████║██╔██╗ ██║    ██║   ██║███████║
+    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗    ██╗      ██████╗  █████╗ ███╗   ██╗    ██╗   ██╗███████╗
+    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝    ██║     ██╔═══██╗██╔══██╗████╗  ██║    ██║   ██║██╔════╝
+    ██╔████╔██║███████║██████╔╝██║     █████╗      ██║     ██║   ██║███████║██╔██╗ ██║    ██║   ██║███████╗
     ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝      ██║     ██║   ██║██╔══██║██║╚██╗██║    ╚██╗ ██╔╝╚════██║
-    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗    ███████╗╚██████╔╝██║  ██║██║ ╚████║     ╚████╔╝      ██║
-    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝    ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝      ╚═══╝       ╚═╝
+    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗    ███████╗╚██████╔╝██║  ██║██║ ╚████║     ╚████╔╝ ███████║
+    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝    ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝      ╚═══╝  ╚══════╝
+
 
 */
 
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
-    uint256 private constant SCALED_ONE = uint256(10 ** 18);
+    uint256 private constant HUNDRED_PERCENT = 1e6;
+    uint256 private constant SCALED_ONE      = 1e18;
 
     modifier limitDrawableUse() {
         if (msg.sender == _borrower) {
@@ -485,7 +487,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         fees_ = delegateServiceFee_ + platformServiceFee_ + delegateRefinanceFee_ + platformRefinanceFee_;
 
         // Compute interest and include any uncaptured interest from refinance.
-        interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
+        interest_ = (((principal_ = _principal) * _closingRate) / HUNDRED_PERCENT) + _refinanceInterest;
     }
 
     function getNextPaymentDetailedBreakdown()
@@ -749,8 +751,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
          * - Both of these rates are scaled by 1e18 (e.g., 12% => 0.12 * 10 ** 18)                       *
         \*************************************************************************************************/
 
-        uint256 periodicRate = _getPeriodicInterestRate(interestRate_, paymentInterval_);
-        uint256 raisedRate   = _scaledExponent(SCALED_ONE + periodicRate, totalPayments_, SCALED_ONE);
+        uint256 periodicRate = _getPeriodicInterestRate(interestRate_, paymentInterval_);              // 1e18 decimal precision
+        uint256 raisedRate   = _scaledExponent(SCALED_ONE + periodicRate, totalPayments_, SCALED_ONE); // 1e18 decimal precision
 
         // NOTE: If a lack of precision in `_scaledExponent` results in a `raisedRate` smaller than one,
         //       assume it to be one and simplify the equation.
@@ -874,12 +876,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 fullDaysLate = ((currentTime_ - nextPaymentDueDate_ + (1 days - 1)) / 1 days) * 1 days;
 
         lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate);
-        lateInterest_ += (lateFeeRate_ * principal_) / SCALED_ONE;
+        lateInterest_ += (lateFeeRate_ * principal_) / HUNDRED_PERCENT;
     }
 
-    /// @dev Returns the interest rate over an interval, given an annualized interest rate.
+    /// @dev Returns the interest rate over an interval, given an annualized interest rate, scaled to 1e18.
     function _getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) internal pure returns (uint256 periodicInterestRate_) {
-        return (interestRate_ * interval_) / uint256(365 days);
+        return (interestRate_ * (SCALED_ONE / HUNDRED_PERCENT) * interval_) / uint256(365 days);
     }
 
     /// @dev Returns refinance commitment given refinance parameters.
