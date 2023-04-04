@@ -22,7 +22,7 @@ contract RefinancerTestBase is TestUtils {
 
     // Loan Boundaries
     uint256 internal constant MAX_PAYMENTS     = 20;
-    uint256 internal constant MAX_RATE         = 1e18;             // 100 %
+    uint256 internal constant MAX_RATE         = 1e6;              // 100 %
     uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
     uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
@@ -670,7 +670,7 @@ contract RefinancerInterestTests is TestUtils {
 
     // Loan Boundaries
     uint256 internal constant MAX_PAYMENTS     = 20;
-    uint256 internal constant MAX_RATE         = 1e18;             // 100 %
+    uint256 internal constant MAX_RATE         = 1e6;              // 100 %
     uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
     uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
@@ -711,7 +711,7 @@ contract RefinancerInterestTests is TestUtils {
             collateralRequired_: 0,
             endingPrincipal_:    1_000_000 * USD,
             gracePeriod_:        10 days,
-            interestRate_:       0.1e18,
+            interestRate_:       0.1e6,
             paymentInterval_:    30 days,
             paymentsRemaining_ : 3
         });
@@ -720,7 +720,7 @@ contract RefinancerInterestTests is TestUtils {
         assertEq(loan.collateralRequired(), 0);
         assertEq(loan.endingPrincipal(),    1_000_000 * USD);
         assertEq(loan.gracePeriod(),        10 days);
-        assertEq(loan.interestRate(),       0.1e18);
+        assertEq(loan.interestRate(),       0.1e6);
         assertEq(loan.paymentInterval(),    30 days);
         assertEq(loan.nextPaymentDueDate(), start + 30 days);
         assertEq(loan.paymentsRemaining(),  3);
@@ -741,7 +741,7 @@ contract RefinancerInterestTests is TestUtils {
         assertEq(token.balanceOf(address(lender)), interestPortion);
 
         bytes[] memory data = new bytes[](4);
-        data[0] = abi.encodeWithSignature("setInterestRate(uint256)",      0.12e18);
+        data[0] = abi.encodeWithSignature("setInterestRate(uint256)",      0.12e6);
         data[1] = abi.encodeWithSignature("setPaymentInterval(uint256)",   60 days);
         data[2] = abi.encodeWithSignature("increasePrincipal(uint256)",    1_000_000 * USD);  // Ending principal stays the same so switches to amortized
         data[3] = abi.encodeWithSignature("setPaymentsRemaining(uint256)", 3);  // Ending principal stays the same so switches to amortized
@@ -763,7 +763,7 @@ contract RefinancerInterestTests is TestUtils {
         assertEq(loan.collateralRequired(), 0);
         assertEq(loan.endingPrincipal(),    1_000_000 * USD);
         assertEq(loan.gracePeriod(),        10 days);
-        assertEq(loan.interestRate(),       0.12e18);
+        assertEq(loan.interestRate(),       0.12e6);
         assertEq(loan.paymentInterval(),    60 days);
         assertEq(loan.nextPaymentDueDate(), start + 40 days + 60 days);  // New payment interval from refinance date
         assertEq(loan.paymentsRemaining(),  3);
@@ -924,7 +924,7 @@ contract RefinancerMultipleParameterTests is RefinancerTestBase {
 contract RefinancerPaymentIntervalTests is RefinancerTestBase {
 
     function test_refinance_paymentInterval_zeroAmount() external {
-        setUpOngoingLoan(MIN_TOKEN_AMOUNT, 0, MIN_TOKEN_AMOUNT, 0, 0.1e18, 30 days, 6);
+        setUpOngoingLoan(MIN_TOKEN_AMOUNT, 0, MIN_TOKEN_AMOUNT, 0, 0.1e6, 30 days, 6);
 
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentInterval(uint256)", 0);
@@ -998,7 +998,7 @@ contract RefinancerPaymentIntervalTests is RefinancerTestBase {
 contract RefinancerPaymentsRemainingTests is RefinancerTestBase {
 
     function test_refinance_paymentRemaining_zeroAmount() external {
-        setUpOngoingLoan(MIN_TOKEN_AMOUNT, 0, MIN_TOKEN_AMOUNT, 0, 0.1e18, 30 days, 6);
+        setUpOngoingLoan(MIN_TOKEN_AMOUNT, 0, MIN_TOKEN_AMOUNT, 0, 0.1e6, 30 days, 6);
 
         uint256 deadline = block.timestamp + 10 days;
         bytes[] memory data = _encodeWithSignatureAndUint("setPaymentsRemaining(uint256)", 0);
@@ -1219,7 +1219,7 @@ contract RefinancingFeesTerms is TestUtils {
     // Loan Boundaries
     uint256 internal constant MAX_FEE_RATE     = 100_0000;         // 100 %
     uint256 internal constant MAX_PAYMENTS     = 20;
-    uint256 internal constant MAX_RATE         = 1e18;             // 100 %
+    uint256 internal constant MAX_RATE         = 1e6;              // 100 %
     uint256 internal constant MAX_TIME         = 90 days;          // Assumed reasonable upper limit for payment intervals and grace periods
     uint256 internal constant MAX_TOKEN_AMOUNT = 1e12 * 10 ** 18;  // 1 trillion of a token with 18 decimals (assumed reasonable upper limit for token amounts)
     uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
@@ -1302,7 +1302,7 @@ contract RefinancingFeesTerms is TestUtils {
     }
 
     function test_refinance_updateRefinanceServiceFees() external {
-        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 365 days, 6);
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e6, 365 days, 6);
 
         // Set Globals values
         globals.setPlatformServiceFeeRate(address(poolManager), 1_0000);
@@ -1330,7 +1330,7 @@ contract RefinancingFeesTerms is TestUtils {
     }
 
      function test_refinance_updateRefinanceServiceFeesOnDoubleRefinance() external {
-        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 365 days, 6);
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e6, 365 days, 6);
 
         // Set Globals values
         globals.setPlatformServiceFeeRate(address(poolManager), 1_0000);
@@ -1372,7 +1372,7 @@ contract RefinancingFeesTerms is TestUtils {
     }
 
     function testFuzz_refinance_pdOriginationFeeTransferFail(uint256 newDelegateOriginationFee_) external {
-        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e6, 30 days, 6);
 
         uint256 deadline_ = type(uint256).max;
 
@@ -1402,7 +1402,7 @@ contract RefinancingFeesTerms is TestUtils {
     )
         external
     {
-        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e6, 30 days, 6);
 
         uint256 deadline_ = type(uint256).max;
 
@@ -1435,7 +1435,7 @@ contract RefinancingFeesTerms is TestUtils {
     }
 
     function testFuzz_refinance_payOriginationFees(uint256 newDelegateOriginationFee_, uint256 newPlatformOriginationFeeRate_) external {
-        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e6, 30 days, 6);
 
         uint256 deadline_ = type(uint256).max;
 
@@ -1479,7 +1479,7 @@ contract RefinancingFeesTerms is TestUtils {
     }
 
     function testFuzz_refinance_updatesPlatformServiceFees(uint256 newPlatformServiceFeeRate_) external {
-        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e18, 30 days, 6);
+        setUpOngoingLoan(1_000_000e18, 50_000e18, 1_000_000e18, 10 days, 0.01e6, 30 days, 6);
 
         newPlatformServiceFeeRate_ = constrictToRange(newPlatformServiceFeeRate_, 1, MAX_FEE_RATE);
 
