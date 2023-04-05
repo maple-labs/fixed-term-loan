@@ -6,24 +6,24 @@ import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockER
 
 import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
 
-import { EmptyContract, MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager } from "./mocks/Mocks.sol";
+import { EmptyContract, MockFactory, MockFeeManager, MockGlobals, MockLoanManager } from "./mocks/Mocks.sol";
 
 // TODO: Add fees
 contract MapleLoanScenariosTests is TestUtils {
 
-    MapleGlobalsMock internal globals;
-    MockERC20        internal token;
-    MockFactory      internal factory;
-    MockFeeManager   internal feeManager;
-    MockLoanManager  internal lender;
+    MockERC20       internal token;
+    MockFactory     internal factory;
+    MockFeeManager  internal feeManager;
+    MockGlobals     internal globals;
+    MockLoanManager internal lender;
 
     address internal borrower = address(new Address());
     address internal governor = address(new Address());
 
     function setUp() external {
         feeManager = new MockFeeManager();
+        globals    = new MockGlobals(governor);
         lender     = new MockLoanManager();
-        globals    = new MapleGlobalsMock(governor);
         token      = new MockERC20("Test", "TST", 0);
 
         factory = new MockFactory(address(globals));

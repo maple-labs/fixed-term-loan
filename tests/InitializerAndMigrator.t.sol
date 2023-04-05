@@ -9,7 +9,7 @@ import { MapleLoanFactory}      from "../contracts/MapleLoanFactory.sol";
 import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 import { MapleLoanV5Migrator }  from "../contracts/MapleLoanV5Migrator.sol";
 
-import { MapleGlobalsMock, MockFeeManager, MockLoanManager, MockLoanManagerFactory } from "./mocks/Mocks.sol";
+import { MockGlobals, MockFeeManager, MockLoanManager, MockLoanManagerFactory } from "./mocks/Mocks.sol";
 
 contract MapleLoanInitializerAndMigratorTests is TestUtils {
 
@@ -18,26 +18,27 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
     address internal implementation5;
     address internal initializer;
 
-    MapleGlobalsMock       globals;
-    MockFeeManager         feeManager;
     MapleLoan              loan;
     MapleLoanFactory       factory;
     MapleLoanV5Migrator    migrator;
     MockERC20              asset;
+    MockFeeManager         feeManager;
+    MockGlobals            globals;
     MockLoanManager        lender;
     MockLoanManagerFactory loanManagerFactory;
 
     function setUp() external {
-        asset              = new MockERC20("Asset", "ASSET", 18);
-        globals            = new MapleGlobalsMock(governor);
+        asset           = new MockERC20("Asset", "ASSET", 18);
+        globals         = new MockGlobals(governor);
+        feeManager      = new MockFeeManager();
+        implementation4 = address(new MapleLoan());
+        implementation5 = address(new MapleLoan());
+        initializer     = address(new MapleLoanInitializer());
+        lender          = new MockLoanManager();
+        migrator        = new MapleLoanV5Migrator();
+
         factory            = new MapleLoanFactory(address(globals));
-        feeManager         = new MockFeeManager();
-        implementation4    = address(new MapleLoan());
-        implementation5    = address(new MapleLoan());
-        initializer        = address(new MapleLoanInitializer());
-        lender             = new MockLoanManager();
         loanManagerFactory = MockLoanManagerFactory(lender.factory());
-        migrator           = new MapleLoanV5Migrator();
 
         globals.setValidBorrower(address(1),            true);
         globals.setValidCollateralAsset(address(asset), true);
@@ -80,7 +81,7 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
         // Failure modes are tested on the MapleLoanFactory.t.sol, so this is just test that state is properly set.
 
         // Check addresses
-        assertEq(loan.borrower(),        address(1)); 
+        assertEq(loan.borrower(),        address(1));
         assertEq(loan.collateralAsset(), address(asset));
         assertEq(loan.factory(),         address(factory));
         assertEq(loan.feeManager(),      address(feeManager));

@@ -7,15 +7,15 @@ import { MapleLoan }            from "../contracts/MapleLoan.sol";
 import { MapleLoanFactory }     from "../contracts/MapleLoanFactory.sol";
 import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 
-import { MapleGlobalsMock, MockFeeManager, MockLoanManager, MockLoanManagerFactory } from "./mocks/Mocks.sol";
+import { MockFeeManager, MockGlobals, MockLoanManager, MockLoanManagerFactory } from "./mocks/Mocks.sol";
 
 import { Proxy } from "../modules/maple-proxy-factory/modules/proxy-factory/contracts/Proxy.sol";
 
 contract MapleLoanFactoryTest is TestUtils {
 
-    MapleGlobalsMock       internal globals;
     MapleLoanFactory       internal factory;
     MockFeeManager         internal feeManager;
+    MockGlobals            internal globals;
     MockLoanManager        internal lender;
     MockLoanManagerFactory internal loanManagerFactory;
 
@@ -28,7 +28,7 @@ contract MapleLoanFactoryTest is TestUtils {
         lender             = new MockLoanManager();
         loanManagerFactory = MockLoanManagerFactory(lender.factory());
         feeManager         = new MockFeeManager();
-        globals            = new MapleGlobalsMock(governor);
+        globals            = new MockGlobals(governor);
         implementation     = address(new MapleLoan());
         initializer        = address(new MapleLoanInitializer());
 

@@ -10,9 +10,9 @@ import { Refinancer }          from "../contracts/Refinancer.sol";
 import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
 
 import {
-    MapleGlobalsMock,
     MockFactory,
     MockFeeManager,
+    MockGlobals,
     MockLoanManager,
     MockPoolManager
 } from "./mocks/Mocks.sol";
@@ -28,10 +28,10 @@ contract RefinancerTestBase is TestUtils {
     uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
 
     ConstructableMapleLoan internal loan;
-    MapleGlobalsMock       internal globals;
     MockERC20              internal token;
     MockFactory            internal factory;
     MockFeeManager         internal feeManager;
+    MockGlobals            internal globals;
     MockLoanManager        internal lender;
     Refinancer             internal refinancer;
 
@@ -40,11 +40,11 @@ contract RefinancerTestBase is TestUtils {
 
     function setUp() public virtual {
         feeManager = new MockFeeManager();
+        globals    = new MockGlobals(governor);
         lender     = new MockLoanManager();
         refinancer = new Refinancer();
         token      = new MockERC20("Test", "TST", 0);
 
-        globals = new MapleGlobalsMock(governor);
         factory = new MockFactory(address(globals));
 
         globals.setValidBorrower(borrower,        true);
@@ -678,10 +678,10 @@ contract RefinancerInterestTests is TestUtils {
     uint256 internal constant WAD              = 1e18;
 
     ConstructableMapleLoan internal loan;
-    MapleGlobalsMock       internal globals;
     MockERC20              internal token;
     MockFactory            internal factory;
     MockFeeManager         internal feeManager;
+    MockGlobals            internal globals;
     MockLoanManager        internal lender;
     Refinancer             internal refinancer;
 
@@ -690,11 +690,11 @@ contract RefinancerInterestTests is TestUtils {
 
     function setUp() external {
         feeManager = new MockFeeManager();
+        globals    = new MockGlobals(address(governor));
         lender     = new MockLoanManager();
         refinancer = new Refinancer();
         token      = new MockERC20("Test", "TST", 0);
 
-        globals = new MapleGlobalsMock(address(governor));
         factory = new MockFactory(address(globals));
 
         globals.setValidBorrower(borrower,        true);
@@ -1225,10 +1225,10 @@ contract RefinancingFeesTerms is TestUtils {
     uint256 internal constant MIN_TOKEN_AMOUNT = 10 ** 6;          // Needed so payments don't round down to zero
 
     ConstructableMapleLoan internal loan;
-    MapleGlobalsMock       internal globals;
     MapleLoanFeeManager    internal feeManager;
     MockERC20              internal token;
     MockFactory            internal factory;
+    MockGlobals            internal globals;
     MockLoanManager        internal lender;
     MockPoolManager        internal poolManager;
     Refinancer             internal refinancer;
@@ -1238,7 +1238,7 @@ contract RefinancingFeesTerms is TestUtils {
 
     function setUp() public virtual {
         lender      = new MockLoanManager();
-        globals     = new MapleGlobalsMock(governor);
+        globals     = new MockGlobals(governor);
         poolManager = new MockPoolManager(address(POOL_DELEGATE));
         refinancer  = new Refinancer();
 
