@@ -9,7 +9,7 @@ import { MapleLoanFactory }     from "../contracts/MapleLoanFactory.sol";
 import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 import { MapleLoanFeeManager }  from "../contracts/MapleLoanFeeManager.sol";
 
-import { MapleGlobalsMock, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
+import { MockGlobals, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
 
 contract FeeManagerBase is TestUtils {
 
@@ -21,11 +21,11 @@ contract FeeManagerBase is TestUtils {
     address internal implementation;
     address internal initializer;
 
-    MapleGlobalsMock    internal globals;
     MapleLoanFactory    internal factory;
     MapleLoanFeeManager internal feeManager;
     MockERC20           internal collateralAsset;
     MockERC20           internal fundsAsset;
+    MockGlobals         internal globals;
     MockLoanManager     internal lender;
     MockPoolManager     internal poolManager;
 
@@ -43,8 +43,9 @@ contract FeeManagerBase is TestUtils {
         fundsAsset      = new MockERC20("MockAsset", "MA", 18);
         poolManager     = new MockPoolManager(PD);
 
-        lender     = new MockLoanManager();
-        globals    = new MapleGlobalsMock(GOVERNOR);
+        globals = new MockGlobals(GOVERNOR);
+        lender  = new MockLoanManager();
+
         factory    = new MapleLoanFactory(address(globals));
         feeManager = new MapleLoanFeeManager(address(globals));
 

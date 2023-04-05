@@ -9,7 +9,7 @@ interface IMapleGlobalsLike {
 
     function isCollateralAsset(address collateralAsset_) external view returns (bool isCollateralAsset_);
 
-    function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_);
+    function isFunctionPaused(bytes4 sig_) external view returns (bool isFunctionPaused_);
 
     function isInstanceOf(bytes32 instanceId_, address instance_) external view returns (bool isInstance_);
 
@@ -20,10 +20,6 @@ interface IMapleGlobalsLike {
     function platformOriginationFeeRate(address pool_) external view returns (uint256 platformOriginationFeeRate_);
 
     function platformServiceFeeRate(address pool_) external view returns (uint256 platformFee_);
-
-    function protocolPaused() external view returns (bool protocolPaused_);
-
-    function securityAdmin() external view returns (address securityAdmin_);
 
 }
 

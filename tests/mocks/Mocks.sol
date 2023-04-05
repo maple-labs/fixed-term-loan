@@ -3,7 +3,9 @@ pragma solidity 0.8.7;
 
 import { IERC20 } from "../../modules/erc20/contracts/interfaces/IERC20.sol";
 
-contract MapleGlobalsMock {
+contract MockGlobals {
+
+    bool internal _isFunctionPaused;
 
     address public governor;
     address public mapleTreasury;
@@ -18,16 +20,14 @@ contract MapleGlobalsMock {
     mapping(address => bool) public isCollateralAsset;
     mapping(address => bool) public isPoolAsset;
 
-    bool internal _isFactory;
     bool internal _isInstanceOf;
 
     constructor (address governor_) {
         governor   = governor_;
-        _isFactory = true;
     }
 
-    function isFactory(bytes32, address) external view returns (bool) {
-        return _isFactory;
+    function isFunctionPaused(bytes4) external view returns (bool isFunctionPaused_) {
+        isFunctionPaused_ = _isFunctionPaused;
     }
 
     function isInstanceOf(bytes32, address) external view returns (bool) {
@@ -70,10 +70,10 @@ contract MapleGlobalsMock {
         isPoolAsset[poolAsset_] = isValid_;
     }
 
-    function __setIsFactory(bool isFactory_) external {
-        _isFactory = isFactory_;
+    function __setFunctionPaused(bool paused_) external {
+        _isFunctionPaused = paused_;
     }
-    
+
     function __setIsInstanceOf(bool isInstanceOf_) external {
         _isInstanceOf = isInstanceOf_;
     }
