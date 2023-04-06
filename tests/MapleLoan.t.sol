@@ -15,9 +15,10 @@ contract MapleLoanTests is TestUtils {
     MockFeeManager   internal feeManager;
     MockGlobals      internal globals;
 
-    address internal borrower = address(new Address());
-    address internal governor = address(new Address());
-    address internal user     = address(new Address());
+    address internal borrower      = address(new Address());
+    address internal governor      = address(new Address());
+    address internal securityAdmin = address(new Address());
+    address internal user          = address(new Address());
 
     address internal lender;
 
@@ -37,6 +38,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setLender(lender);
 
         globals.__setIsInstanceOf(true);
+        globals.__setSecurityAdmin(securityAdmin);
     }
 
     /***********************************/
@@ -261,7 +263,7 @@ contract MapleLoanTests is TestUtils {
         vm.prank(borrower);
         bytes32 refinanceCommitment = loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
-        assertEq(refinanceCommitment, bytes32(0x26478c38be89f84468d7528127656a3342aabe17eb79f47f93c2848beb573afb));
+        assertEq(refinanceCommitment, bytes32(0x1e5d5a3131b2767db93add6039629037a11bd673fe4726b7e3afc4527f96aeaf));
     }
 
     function test_proposeNewTerms_acl() external {
@@ -435,13 +437,26 @@ contract MapleLoanTests is TestUtils {
         loan.acceptLender();
     }
 
-    function test_upgrade_acl() external {
+    function test_upgrade_acl_noAuth() external {
         address newImplementation = address(new MapleLoanHarness());
 
-        vm.expectRevert("ML:U:NOT_BORROWER");
+        vm.expectRevert("ML:U:NO_AUTH");
         loan.upgrade(1, abi.encode(newImplementation));
+    }
+
+    function test_upgrade_acl_borrower() external {
+        address newImplementation = address(new MapleLoanHarness());
 
         vm.prank(borrower);
+        loan.upgrade(1, abi.encode(newImplementation));
+
+        assertEq(loan.implementation(), newImplementation);
+    }
+
+    function test_upgrade_acl_securityAdmin() external {
+        address newImplementation = address(new MapleLoanHarness());
+
+        vm.prank(securityAdmin);
         loan.upgrade(1, abi.encode(newImplementation));
 
         assertEq(loan.implementation(), newImplementation);
