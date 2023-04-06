@@ -42,10 +42,6 @@ contract MockGlobals {
         mapleTreasury = mapleTreasury_;
     }
 
-    function setSecurityAdmin(address securityAdmin_) external {
-        securityAdmin = securityAdmin_;
-    }
-
     function setPlatformOriginationFeeRate(address poolManager_, uint256 feeRate_) external {
         platformOriginationFeeRate[poolManager_] = feeRate_;
     }
@@ -76,6 +72,10 @@ contract MockGlobals {
 
     function __setIsInstanceOf(bool isInstanceOf_) external {
         _isInstanceOf = isInstanceOf_;
+    }
+
+    function __setSecurityAdmin(address securityAdmin_) external {
+        securityAdmin = securityAdmin_;
     }
 
 }
