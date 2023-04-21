@@ -48,7 +48,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
     function test_createInstance_invalidPoolAsset() external {
         address[2] memory assets      = [address(1), address(1)];
-        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
@@ -76,7 +76,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
     function test_createInstance_invalidCollateralAsset() external {
         address[2] memory assets      = [address(1), address(1)];
-        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
@@ -104,7 +104,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
     function test_createInstance_zeroLender() external {
         address[2] memory assets      = [address(1), address(1)];
-        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
@@ -139,7 +139,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
     function test_createInstance_invalidFactory() external {
         address[2] memory assets      = [address(1), address(1)];
-        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
@@ -167,7 +167,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
     function test_createInstance_invalidInstance() external {
         address[2] memory assets      = [address(1), address(1)];
-        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
@@ -195,7 +195,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
     function testFail_createInstance_saltAndArgumentsCollision() external {
         address[2] memory assets      = [address(1), address(1)];
-        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
@@ -221,7 +221,7 @@ contract MapleLoanFactoryTest is TestUtils {
 
     function test_createInstance(bytes32 salt_) external {
         address[2] memory assets      = [address(1), address(1)];
-        uint256[3] memory termDetails = [uint256(1), uint256(1), uint256(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];

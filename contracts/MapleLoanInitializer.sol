@@ -107,8 +107,13 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         require(amounts_[2] <= amounts_[1], "MLI:I:INVALID_ENDING_PRINCIPAL");
 
         // Payment interval and payments remaining need to be non-zero.
-        require(termDetails_[1] > 0, "MLI:I:INVALID_PAYMENT_INTERVAL");
-        require(termDetails_[2] > 0, "MLI:I:INVALID_PAYMENTS_REMAINING");
+        require(termDetails_[0] >= 12 hours, "MLI:I:INVALID_GRACE_PERIOD");
+        require(termDetails_[1] > 0,         "MLI:I:INVALID_PAYMENT_INTERVAL");
+        require(termDetails_[2] > 0,         "MLI:I:INVALID_PAYMENTS_REMAINING");
+
+        uint256 maxOriginationFee_ = amounts_[1] * 0.025e6 / 1e6;  // 2.5% of principal
+
+        require(fees_[0] <= maxOriginationFee_, "MLI:I:INVALID_ORIGINATION_FEE");
 
         IMapleGlobalsLike globals_ = IMapleGlobalsLike(IMapleProxyFactoryLike(msg.sender).mapleGlobals());
 

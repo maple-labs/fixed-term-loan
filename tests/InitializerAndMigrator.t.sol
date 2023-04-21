@@ -52,11 +52,11 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
         factory.enableUpgradePath(1, 2, address(migrator));
         vm.stopPrank();
 
-        address[2] memory assets      = [address(asset),  address(asset)];
-        uint256[3] memory termDetails = [uint256(1),      uint256(365 days),    uint256(1)];
-        uint256[3] memory amounts     = [uint256(0),      uint256(1_000_000e6), uint256(1_000_000e6)];
-        uint256[4] memory rates       = [uint256(0.1e18), uint256(0.02e18),     uint256(0.03e18), uint256(0.04e18)];
-        uint256[2] memory fees        = [uint256(0),      uint256(0)];
+        address[2] memory assets      = [address(asset),    address(asset)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(365 days),    uint256(1)];
+        uint256[3] memory amounts     = [uint256(0),        uint256(1_000_000e6), uint256(1_000_000e6)];
+        uint256[4] memory rates       = [uint256(0.1e18),   uint256(0.02e18),     uint256(0.03e18), uint256(0.04e18)];
+        uint256[2] memory fees        = [uint256(0),        uint256(0)];
 
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
             address(1),
@@ -98,7 +98,7 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
         assertEq(loan.principalRequested(), 1_000_000e6);
 
         // Check term details
-        assertEq(loan.gracePeriod(),       1);
+        assertEq(loan.gracePeriod(),       12 hours);
         assertEq(loan.paymentInterval(),   365 days);
         assertEq(loan.paymentsRemaining(), 1);
 

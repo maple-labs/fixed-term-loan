@@ -347,7 +347,7 @@ contract MapleLoanScenariosTests is TestUtils {
         token.mint(address(lender), 1_000_000);
 
         address[2] memory assets      = [address(token), address(token)];
-        uint256[3] memory termDetails = [uint256(0), uint256(30 days), uint256(3)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(30 days), uint256(3)];
         uint256[3] memory amounts     = [uint256(0), uint256(1_000_000), uint256(1_000_000)];
         uint256[4] memory rates       = [uint256(0.1e6), uint256(0), uint256(0), uint256(0.1e6)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
