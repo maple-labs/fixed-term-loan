@@ -351,7 +351,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint256 originationFees_ = IMapleLoanFeeManager(_feeManager).payOriginationFees(fundsAsset_, principalRequested_);
 
-        _drawableFunds = principalRequested_ - originationFees_;
+        _drawableFunds += (principalRequested_ - originationFees_);
 
         require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:FL:UNEXPECTED_FUNDS");
 
