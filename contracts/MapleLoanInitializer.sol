@@ -110,21 +110,22 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         require(termDetails_[1] > 0, "MLI:I:INVALID_PAYMENT_INTERVAL");
         require(termDetails_[2] > 0, "MLI:I:INVALID_PAYMENTS_REMAINING");
 
-        address globals_ = IMapleProxyFactoryLike(msg.sender).mapleGlobals();
+        IMapleGlobalsLike globals_ = IMapleGlobalsLike(IMapleProxyFactoryLike(msg.sender).mapleGlobals());
 
-        require((_borrower = borrower_) != address(0),                     "MLI:I:ZERO_BORROWER");
-        require(IMapleGlobalsLike(globals_).isBorrower(borrower_),         "MLI:I:INVALID_BORROWER");
-        require(IMapleGlobalsLike(globals_).isPoolAsset(assets_[1]),       "MLI:I:INVALID_FUNDS_ASSET");
-        require(IMapleGlobalsLike(globals_).isCollateralAsset(assets_[0]), "MLI:I:INVALID_COLLATERAL_ASSET");
+        require((_borrower = borrower_) != address(0),  "MLI:I:ZERO_BORROWER");
+        require(globals_.isBorrower(borrower_),         "MLI:I:INVALID_BORROWER");
+        require(globals_.isPoolAsset(assets_[1]),       "MLI:I:INVALID_FUNDS_ASSET");
+        require(globals_.isCollateralAsset(assets_[0]), "MLI:I:INVALID_COLLATERAL_ASSET");
 
         require((_lender = lender_) != address(0), "MLI:I:ZERO_LENDER");
 
         address loanManagerFactory_ = ILenderLike(lender_).factory();
 
-        require(IMapleGlobalsLike(globals_).isInstanceOf("FT_LOAN_MANAGER_FACTORY", loanManagerFactory_), "MLI:I:INVALID_FACTORY");
-        require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),                          "MLI:I:INVALID_INSTANCE");
+        require(globals_.isInstanceOf("FT_LOAN_MANAGER_FACTORY", loanManagerFactory_), "MLI:I:INVALID_FACTORY");
+        require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),       "MLI:I:INVALID_INSTANCE");
 
-        require((_feeManager = feeManager_) != address(0), "MLI:I:INVALID_MANAGER");
+        require((_feeManager = feeManager_) != address(0),         "MLI:I:INVALID_MANAGER");
+        require(globals_.isInstanceOf("FEE_MANAGER", feeManager_), "MLI:I:INVALID_FEE_MANAGER");
 
         _collateralAsset = assets_[0];
         _fundsAsset      = assets_[1];
