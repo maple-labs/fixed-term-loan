@@ -104,11 +104,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         _refinanceInterest = uint256(0);
 
-        uint256 principalAndInterest = principal_ + interest_;
+        uint256 principalAndInterest_ = principal_ + interest_;
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
+        _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest_;
 
         fees_ = _handleServiceFeePayment(_paymentsRemaining);
 
@@ -116,11 +116,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         emit LoanClosed(principal_, interest_, fees_);
 
-        require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
+        require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest_), "ML:MP:TRANSFER_FAILED");
 
         ILenderLike(_lender).claim(principal_, interest_, paymentDueDate_, 0);
 
-        emit FundsClaimed(principalAndInterest, _lender);
+        emit FundsClaimed(principalAndInterest_, _lender);
     }
 
     function drawdownFunds(uint256 amount_, address destination_) external override whenNotPaused returns (uint256 collateralPosted_) {
@@ -129,15 +129,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsDrawnDown(amount_, destination_);
 
         // Post additional collateral required to facilitate this drawdown, if needed.
-        uint256 additionalCollateralRequired = getAdditionalCollateralRequiredFor(amount_);
+        uint256 additionalCollateralRequired_ = getAdditionalCollateralRequiredFor(amount_);
 
-        if (additionalCollateralRequired > uint256(0)) {
+        if (additionalCollateralRequired_ > uint256(0)) {
             // Determine collateral currently unaccounted for.
-            uint256 unaccountedCollateral = getUnaccountedAmount(_collateralAsset);
+            uint256 unaccountedCollateral_ = getUnaccountedAmount(_collateralAsset);
 
             // Post required collateral, specifying then amount lacking as the optional amount to be transferred from.
             collateralPosted_ = postCollateral(
-                additionalCollateralRequired > unaccountedCollateral ? additionalCollateralRequired - unaccountedCollateral : uint256(0)
+                additionalCollateralRequired_ > unaccountedCollateral_ ? additionalCollateralRequired_ - unaccountedCollateral_ : uint256(0)
             );
         }
 
@@ -163,11 +163,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         _refinanceInterest = uint256(0);
 
-        uint256 principalAndInterest = principal_ + interest_;
+        uint256 principalAndInterest_ = principal_ + interest_;
 
         // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
         // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
+        _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest_;
 
         fees_ = _handleServiceFeePayment(1);
 
@@ -185,11 +185,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         emit PaymentMade(principal_, interest_, fees_);
 
-        require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
+        require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest_), "ML:MP:TRANSFER_FAILED");
 
         ILenderLike(_lender).claim(principal_, interest_, previousPaymentDueDate_, nextPaymentDueDate_);
 
-        emit FundsClaimed(principalAndInterest, _lender);
+        emit FundsClaimed(principalAndInterest_, _lender);
 
         require(_isCollateralMaintained(), "ML:MP:INSUFFICIENT_COLLATERAL");
     }
@@ -295,25 +295,26 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         feeManager_.updateRefinanceServiceFees(previousPrincipalRequested, timeSinceLastDueDate_);
 
         // Get the amount of interest owed since the last payment due date, as well as the time since the last due date
-        uint256 proRataInterest = getRefinanceInterest(block.timestamp);
+        uint256 proRataInterest_ = getRefinanceInterest(block.timestamp);
 
         // In case there is still a refinance interest, just increment it instead of setting it.
-        _refinanceInterest += proRataInterest;
+        _refinanceInterest += proRataInterest_;
 
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
         _refinanceCommitment = bytes32(0);
 
-        for (uint256 i; i < calls_.length;) {
-            ( bool success, ) = refinancer_.delegatecall(calls_[i]);
-            require(success, "ML:ANT:FAILED");
-            unchecked { ++i; }
+        for (uint256 i_; i_ < calls_.length;) {
+            ( bool success_, ) = refinancer_.delegatecall(calls_[i_]);
+            require(success_, "ML:ANT:FAILED");
+            unchecked { ++i_; }
         }
 
         emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
 
         address fundsAsset_         = _fundsAsset;
         uint256 principalRequested_ = _principalRequested;
-        paymentInterval_            = _paymentInterval;
+
+        paymentInterval_ = _paymentInterval;
 
         // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
         // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
@@ -462,18 +463,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function getAdditionalCollateralRequiredFor(uint256 drawdown_) public view override returns (uint256 collateral_) {
         // Determine the collateral needed in the contract for a reduced drawable funds amount.
-        uint256 collateralNeeded  = _getCollateralRequiredFor(_principal, _drawableFunds - drawdown_, _principalRequested, _collateralRequired);
-        uint256 currentCollateral = _collateral;
+        uint256 collateralNeeded_  = _getCollateralRequiredFor(_principal, _drawableFunds - drawdown_, _principalRequested, _collateralRequired);
+        uint256 currentCollateral_ = _collateral;
 
-        return collateralNeeded > currentCollateral ? collateralNeeded - currentCollateral : uint256(0);
+        return collateralNeeded_ > currentCollateral_ ? collateralNeeded_ - currentCollateral_ : uint256(0);
     }
 
     function getClosingPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
         (
-          uint256 delegateServiceFee_,
-          uint256 delegateRefinanceFee_,
-          uint256 platformServiceFee_,
-          uint256 platformRefinanceFee_
+            uint256 delegateServiceFee_,
+            uint256 delegateRefinanceFee_,
+            uint256 platformServiceFee_,
+            uint256 platformRefinanceFee_
         ) = IMapleLoanFeeManager(_feeManager).getServiceFeeBreakdown(address(this), _paymentsRemaining);
 
         fees_ = delegateServiceFee_ + platformServiceFee_ + delegateRefinanceFee_ + platformRefinanceFee_;
@@ -572,10 +573,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function excessCollateral() external view override returns (uint256 excessCollateral_) {
-        uint256 collateralNeeded  = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
-        uint256 currentCollateral = _collateral;
+        uint256 collateralNeeded_  = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
+        uint256 currentCollateral_ = _collateral;
 
-        return currentCollateral > collateralNeeded ? currentCollateral - collateralNeeded : uint256(0);
+        return currentCollateral_ > collateralNeeded_ ? currentCollateral_ - collateralNeeded_ : uint256(0);
     }
 
     function factory() external view override returns (address factory_) {
@@ -743,17 +744,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
          * - Both of these rates are scaled by 1e18 (e.g., 12% => 0.12 * 10 ** 18)                       *
         \*************************************************************************************************/
 
-        uint256 periodicRate = _getPeriodicInterestRate(interestRate_, paymentInterval_);              // 1e18 decimal precision
-        uint256 raisedRate   = _scaledExponent(SCALED_ONE + periodicRate, totalPayments_, SCALED_ONE); // 1e18 decimal precision
+        uint256 periodicRate_ = _getPeriodicInterestRate(interestRate_, paymentInterval_);              // 1e18 decimal precision
+        uint256 raisedRate_   = _scaledExponent(SCALED_ONE + periodicRate_, totalPayments_, SCALED_ONE); // 1e18 decimal precision
 
-        // NOTE: If a lack of precision in `_scaledExponent` results in a `raisedRate` smaller than one,
+        // NOTE: If a lack of precision in `_scaledExponent` results in a `raisedRate_` smaller than one,
         //       assume it to be one and simplify the equation.
-        if (raisedRate <= SCALED_ONE) return ((principal_ - endingPrincipal_) / totalPayments_, uint256(0));
+        if (raisedRate_ <= SCALED_ONE) return ((principal_ - endingPrincipal_) / totalPayments_, uint256(0));
 
-        uint256 total = ((((principal_ * raisedRate) / SCALED_ONE) - endingPrincipal_) * periodicRate) / (raisedRate - SCALED_ONE);
+        uint256 total_ = ((((principal_ * raisedRate_) / SCALED_ONE) - endingPrincipal_) * periodicRate_) / (raisedRate_ - SCALED_ONE);
 
         interestAmount_  = _getInterest(principal_, interestRate_, paymentInterval_);
-        principalAmount_ = total >= interestAmount_ ? total - interestAmount_ : uint256(0);
+        principalAmount_ = total_ >= interestAmount_ ? total_ - interestAmount_ : uint256(0);
     }
 
     /// @dev Returns an amount by applying an annualized and scaled interest rate, to a principal, over an interval of time.
@@ -775,7 +776,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     )
         internal view
         returns (
-            uint256 principalAmount_,
+            uint256           principalAmount_,
             uint256[3] memory interest_,
             uint256[2] memory fees_
         )
@@ -865,9 +866,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // 24h0m1s late would be two full days late.
         // ((86400n - 0n + (86400n - 1n)) / 86400n) * 86400n = 86400n
         // ((86401n - 0n + (86400n - 1n)) / 86400n) * 86400n = 172800n
-        uint256 fullDaysLate = ((currentTime_ - nextPaymentDueDate_ + (1 days - 1)) / 1 days) * 1 days;
+        uint256 fullDaysLate_ = ((currentTime_ - nextPaymentDueDate_ + (1 days - 1)) / 1 days) * 1 days;
 
-        lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate);
+        lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate_);
         lateInterest_ += (lateFeeRate_ * principal_) / HUNDRED_PERCENT;
     }
 
@@ -899,6 +900,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function _handleImpairment() internal {
         if (!isImpaired()) return;
+
         _originalNextPaymentDueDate = uint256(0);
     }
 
