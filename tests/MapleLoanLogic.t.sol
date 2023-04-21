@@ -901,6 +901,28 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         assertEq(loan.getUnaccountedAmount(address(fundsAsset)), 0);
     }
 
+    function test_fundLoan_fullFundingWithExistingDrawableFunds(uint256 principalRequested_) external {
+        principalRequested_ = constrictToRange(principalRequested_, MIN_PRINCIPAL, MAX_PRINCIPAL);
+
+        loan.__setDrawableFunds(1);
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPaymentInterval(30 days);
+        loan.__setPaymentsRemaining(1);
+        loan.__setPrincipalRequested(principalRequested_);
+
+        fundsAsset.mint(address(loan), principalRequested_ + 1);
+
+        vm.prank(address(lender));
+        uint256 fundsLent_ = loan.fundLoan();
+
+        assertEq(fundsLent_,                                     principalRequested_);
+        assertEq(loan.lender(),                                  address(lender));
+        assertEq(loan.nextPaymentDueDate(),                      block.timestamp + loan.paymentInterval());
+        assertEq(loan.principal(),                               principalRequested_);
+        assertEq(loan.drawableFunds(),                           principalRequested_ + 1);
+        assertEq(loan.getUnaccountedAmount(address(fundsAsset)), 0);
+    }
+
     function test_fundLoan_partialFunding(uint256 principalRequested_) external {
         principalRequested_ = constrictToRange(principalRequested_, MIN_PRINCIPAL, MAX_PRINCIPAL);
 
