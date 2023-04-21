@@ -66,7 +66,7 @@ contract FeeManagerBase is TestUtils {
         defaultTermDetails = [uint256(10 days), uint256(365 days / 12), uint256(3)];
         defaultAmounts     = [uint256(0), uint256(1_000_000e18), uint256(1_000_000e18)];
         defaultRates       = [uint256(0.12e6), uint256(0.02e6), uint256(0), uint256(0.02e6)];
-        defaultFees        = [uint256(50_000e18), uint256(500e18)];
+        defaultFees        = [uint256(25_000e18), uint256(500e18)];
     }
 
     function _createLoan(
@@ -141,7 +141,7 @@ contract PayClosingFeesTests is FeeManagerBase {
         assertEq(interest,  20_000e18);
         assertEq(fees,      2_250e18);  // 1m * (0.3% + 0.6%) / 12 * 3 = 1000 + 750
 
-        fundsAsset.mint(BORROWER, 72_250e18);  // 1m + 20k + 2.25k = 1_022_250 = 950k + 72.25k
+        fundsAsset.mint(BORROWER, 47_250e18);  // 25k + 20k + 2.25k = 47.25k
 
         vm.startPrank(BORROWER);
 
@@ -149,14 +149,14 @@ contract PayClosingFeesTests is FeeManagerBase {
 
         assertEq(fundsAsset.balanceOf(BORROWER),        1_022_250e18);  // 1m + 20k + 2.25k + = 1_022_250
         assertEq(fundsAsset.balanceOf(address(lender)), 0);
-        assertEq(fundsAsset.balanceOf(PD),              50_000e18);     // Origination fees
+        assertEq(fundsAsset.balanceOf(PD),              25_000e18);     // Origination fees
         assertEq(fundsAsset.balanceOf(TREASURY),        0);
 
         loan.closeLoan(1_022_250e18);
 
         assertEq(fundsAsset.balanceOf(BORROWER),        0);
         assertEq(fundsAsset.balanceOf(address(lender)), 1_020_000e18);          // Principal + interest
-        assertEq(fundsAsset.balanceOf(PD),              50_000e18 + 1_500e18);
+        assertEq(fundsAsset.balanceOf(PD),              25_000e18 + 1_500e18);
         assertEq(fundsAsset.balanceOf(TREASURY),        750e18);
     }
 
@@ -187,7 +187,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
     }
 
     function test_payOriginationFees_insufficientFunds_treasury() external {
-        fundsAsset.mint(address(loan), 50_750e18 - 1);  // 50k + (1m * 0.3% / 12 * 3) = 50_750
+        fundsAsset.mint(address(loan), 25_750e18 - 1);  // 50k + (1m * 0.3% / 12 * 3) = 50_750
 
         vm.prank(address(lender));
         vm.expectRevert("MLFM:POF:TREASURY_TRANSFER");
@@ -215,8 +215,8 @@ contract PayOriginationFeesTests is FeeManagerBase {
         vm.prank(address(lender));
         loan.fundLoan();
 
-        assertEq(fundsAsset.balanceOf(address(loan)), 949_250e18);  // Principal - both origination fees
-        assertEq(fundsAsset.balanceOf(PD),            50_000e18);   // 50k origination fee to PD
+        assertEq(fundsAsset.balanceOf(address(loan)), 974_250e18);  // Principal - both origination fees
+        assertEq(fundsAsset.balanceOf(PD),            25_000e18);   // 25k origination fee to PD
         assertEq(fundsAsset.balanceOf(TREASURY),      750e18);      // (1m * 0.3% / 12 * 3) = 750 to treasury
     }
 
@@ -274,16 +274,16 @@ contract PayServiceFeesTests is FeeManagerBase {
 
         fundsAsset.approve(address(loan), 10_750e18);
 
-        assertEq(fundsAsset.balanceOf(BORROWER),        950_000e18);
+        assertEq(fundsAsset.balanceOf(BORROWER),        975_000e18);
         assertEq(fundsAsset.balanceOf(address(lender)), 0);
-        assertEq(fundsAsset.balanceOf(PD),              50_000e18);  // Origination fees
+        assertEq(fundsAsset.balanceOf(PD),              25_000e18);  // Origination fees
         assertEq(fundsAsset.balanceOf(TREASURY),        0);
 
         loan.makePayment(10_750e18);
 
-        assertEq(fundsAsset.balanceOf(BORROWER),        939_250e18);          // 950k - 10.75k
+        assertEq(fundsAsset.balanceOf(BORROWER),        964_250e18);          // 950k - 10.75k
         assertEq(fundsAsset.balanceOf(address(lender)), 10_000e18);           // Interest
-        assertEq(fundsAsset.balanceOf(PD),              50_000e18 + 500e18);
+        assertEq(fundsAsset.balanceOf(PD),              25_000e18 + 500e18);
         assertEq(fundsAsset.balanceOf(TREASURY),        250e18);
     }
 

@@ -46,7 +46,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         // Set _initialize() parameters.
         defaultBorrower    = address(1);
         defaultAssets      = [address(collateralAsset), address(fundsAsset)];
-        defaultTermDetails = [uint256(1), uint256(30 days), uint256(12)];
+        defaultTermDetails = [uint256(12 hours), uint256(30 days), uint256(12)];
         defaultAmounts     = [uint256(0), uint256(1000), uint256(0)];
         defaultRates       = [uint256(0.10e6), uint256(7), uint256(8), uint256(9)];
         defaultFees        = [uint256(0), uint256(0)];
@@ -1077,7 +1077,7 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
         // Set _initialize() parameters.
         defaultBorrower    = address(1);
         defaultAssets      = [address(token1), address(token2)];
-        defaultTermDetails = [uint256(1), uint256(20 days), uint256(3)];
+        defaultTermDetails = [uint256(12 hours), uint256(20 days), uint256(3)];
 
         globals.setValidBorrower(defaultBorrower,        true);
         globals.setValidCollateralAsset(address(token1), true);
@@ -1630,7 +1630,7 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         // Happy path dummy arguments to pass to initialize().
         defaultBorrower    = address(new Address());
         defaultAssets      = [address(token1), address(token2)];
-        defaultTermDetails = [uint256(1), uint256(20 days), uint256(3)];
+        defaultTermDetails = [uint256(12 hours), uint256(20 days), uint256(3)];
         defaultAmounts     = [uint256(5), uint256(4_000_000), uint256(0)];
         defaultRates       = [uint256(6), uint256(7), uint256(8), uint256(9)];
         defaultFees        = [uint256(0), uint256(0)];
@@ -1720,6 +1720,42 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         );
     }
 
+    function test_initialize_invalidGracePeriodBoundary() external {
+        uint256[3] memory termDetails = defaultTermDetails;
+
+        termDetails[0] = 12 hours - 1;
+
+        // Call initialize(), expecting to revert with correct error message.
+        vm.expectRevert("MLI:I:INVALID_GRACE_PERIOD");
+        vm.prank(address(factory));
+        new ConstructableMapleLoan(
+            address(factory),
+            defaultBorrower,
+            address(lender),
+            address(feeManager),
+            defaultAssets,
+            termDetails,
+            defaultAmounts,
+            defaultRates,
+            defaultFees
+        );
+
+        termDetails[0] = 12 hours;
+
+        vm.prank(address(factory));
+        new ConstructableMapleLoan(
+            address(factory),
+            defaultBorrower,
+            address(lender),
+            address(feeManager),
+            defaultAssets,
+            termDetails,
+            defaultAmounts,
+            defaultRates,
+            defaultFees
+        );
+    }
+
     function test_initialize_invalidPaymentInterval() external {
         uint256[3] memory termDetails = defaultTermDetails;
 
@@ -1759,6 +1795,42 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
             defaultAmounts,
             defaultRates,
             defaultFees
+        );
+    }
+
+    function test_initialize_invalidOriginationFeeBoundary() external {
+        uint256[2] memory fees = defaultFees;
+
+        fees[0] = 4_000_000 * 0.025e6 / 1e6 + 1;
+
+        // Call initialize(), expecting to revert with correct error message.
+        vm.expectRevert("MLI:I:INVALID_ORIGINATION_FEE");
+        vm.prank(address(factory));
+        new ConstructableMapleLoan(
+            address(factory),
+            defaultBorrower,
+            address(lender),
+            address(feeManager),
+            defaultAssets,
+            defaultTermDetails,
+            defaultAmounts,
+            defaultRates,
+            fees
+        );
+
+        fees[0] = 4_000_000 * 0.025e6 / 1e6;  // 2.5%
+
+        vm.prank(address(factory));
+        new ConstructableMapleLoan(
+            address(factory),
+            defaultBorrower,
+            address(lender),
+            address(feeManager),
+            defaultAssets,
+            defaultTermDetails,
+            defaultAmounts,
+            defaultRates,
+            fees
         );
     }
 
