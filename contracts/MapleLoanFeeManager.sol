@@ -123,9 +123,9 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     /**************************************************************************************************************************************/
 
     function getDelegateServiceFeesForPeriod(address loan_, uint256 interval_) public view override returns (uint256 delegateServiceFee_) {
-        uint256 paymentInterval = ILoanLike(loan_).paymentInterval();
+        uint256 paymentInterval_ = ILoanLike(loan_).paymentInterval();
 
-        delegateServiceFee_ = delegateServiceFee[loan_] * interval_ / paymentInterval;
+        delegateServiceFee_ = delegateServiceFee[loan_] * interval_ / paymentInterval_;
     }
 
     function getPlatformOriginationFee(address loan_, uint256 principalRequested_)
@@ -167,11 +167,11 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     }
 
     function getServiceFeesForPeriod(address loan_, uint256 interval_) external view override returns (uint256 serviceFee_) {
-        uint256 principalRequested = ILoanLike(loan_).principalRequested();
+        uint256 principalRequested_ = ILoanLike(loan_).principalRequested();
 
         serviceFee_ =
             getDelegateServiceFeesForPeriod(loan_, interval_) +
-            getPlatformServiceFeeForPeriod(loan_, principalRequested, interval_);
+            getPlatformServiceFeeForPeriod(loan_, principalRequested_, interval_);
     }
 
     function getOriginationFees(address loan_, uint256 principalRequested_) external view override returns (uint256 originationFees_) {

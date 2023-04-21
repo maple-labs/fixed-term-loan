@@ -31,9 +31,9 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *                       [1]: delegateServiceFee
      */
     function encodeArguments(
-        address borrower_,
-        address lender_,
-        address feeManager_,
+        address           borrower_,
+        address           lender_,
+        address           feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
@@ -68,9 +68,9 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      */
     function decodeArguments(bytes calldata encodedArguments_) external pure
         returns (
-            address borrower_,
-            address lender_,
-            address feeManager_,
+            address           borrower_,
+            address           lender_,
+            address           feeManager_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,

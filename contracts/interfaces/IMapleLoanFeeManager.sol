@@ -13,7 +13,7 @@ interface IMapleLoanFeeManager {
      *  @param delegateOriginationFee_ The new value for delegate origination fee.
      *  @param delegateServiceFee_     The new value for delegate service fee.
      */
-    event FeeTermsUpdated(address loan_, uint256 delegateOriginationFee_, uint256 delegateServiceFee_);
+    event FeeTermsUpdated(address indexed loan_, uint256 delegateOriginationFee_, uint256 delegateServiceFee_);
 
     /**
      *  @dev   A fee payment was made.
@@ -21,14 +21,14 @@ interface IMapleLoanFeeManager {
      *  @param delegateOriginationFee_ The amount of delegate origination fee paid.
      *  @param platformOriginationFee_ The amount of platform origination fee paid.
     */
-    event OriginationFeesPaid(address loan_, uint256 delegateOriginationFee_, uint256 platformOriginationFee_);
+    event OriginationFeesPaid(address indexed loan_, uint256 delegateOriginationFee_, uint256 platformOriginationFee_);
 
     /**
      *  @dev   New fee terms have been set.
      *  @param loan_               The address of the loan contract.
      *  @param platformServiceFee_ The new value for the platform service fee.
      */
-    event PlatformServiceFeeUpdated(address loan_, uint256 platformServiceFee_);
+    event PlatformServiceFeeUpdated(address indexed loan_, uint256 platformServiceFee_);
 
     /**
      *  @dev   New fee terms have been set.
@@ -36,7 +36,7 @@ interface IMapleLoanFeeManager {
      *  @param partialPlatformServiceFee_ The  value for the platform service fee.
      *  @param partialDelegateServiceFee_ The  value for the delegate service fee.
      */
-    event PartialRefinanceServiceFeesUpdated(address loan_, uint256 partialPlatformServiceFee_, uint256 partialDelegateServiceFee_);
+    event PartialRefinanceServiceFeesUpdated(address indexed loan_, uint256 partialPlatformServiceFee_, uint256 partialDelegateServiceFee_);
 
     /**
      *  @dev   A fee payment was made.
@@ -47,11 +47,11 @@ interface IMapleLoanFeeManager {
      *  @param partialRefinancePlatformServiceFee_ The amount of partial platform service fee from refinance paid.
     */
     event ServiceFeesPaid(
-        address loan_,
-        uint256 delegateServiceFee_,
-        uint256 partialRefinanceDelegateServiceFee_,
-        uint256 platformServiceFee_,
-        uint256 partialRefinancePlatformServiceFee_
+        address indexed loan_,
+        uint256         delegateServiceFee_,
+        uint256         partialRefinanceDelegateServiceFee_,
+        uint256         platformServiceFee_,
+        uint256         partialRefinancePlatformServiceFee_
     );
 
     /**************************************************************************************************************************************/
@@ -135,7 +135,7 @@ interface IMapleLoanFeeManager {
      *  @param  principalRequested_ The amount of principal requested in the loan.
      *  @return originationFees_    The amount of origination fees to be paid.
      */
-    function getOriginationFees(address loan_, uint256 principalRequested_) external view  returns (uint256 originationFees_);
+    function getOriginationFees(address loan_, uint256 principalRequested_) external view returns (uint256 originationFees_);
 
     /**
      *  @dev    Gets the platform origination fee value for the given loan.
@@ -152,7 +152,11 @@ interface IMapleLoanFeeManager {
      *  @param  interval_           The time, in seconds, to get the proportional fee for
      *  @return platformServiceFee_ The amount of platform service fee to be paid.
      */
-    function getPlatformServiceFeeForPeriod(address loan_, uint256 principalRequested_, uint256 interval_) external view returns (uint256 platformServiceFee_);
+    function getPlatformServiceFeeForPeriod(
+        address loan_,
+        uint256 principalRequested_,
+        uint256 interval_
+    ) external view returns (uint256 platformServiceFee_);
 
     /**
      *  @dev    Gets the service fees for the given interval.

@@ -11,9 +11,9 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     function encodeArguments(
-        address borrower_,
-        address lender_,
-        address feeManager_,
+        address           borrower_,
+        address           lender_,
+        address           feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
@@ -25,9 +25,9 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     function decodeArguments(bytes calldata encodedArguments_)
         public pure override returns (
-            address borrower_,
-            address lender_,
-            address feeManager_,
+            address           borrower_,
+            address           lender_,
+            address           feeManager_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
@@ -49,9 +49,9 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     fallback() external {
         (
-            address borrower_,
-            address lender_,
-            address feeManager_,
+            address           borrower_,
+            address           lender_,
+            address           feeManager_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
@@ -89,9 +89,9 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
      *                       [1]: delegateServiceFee
      */
     function _initialize(
-        address borrower_,
-        address lender_,
-        address feeManager_,
+        address           borrower_,
+        address           lender_,
+        address           feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
