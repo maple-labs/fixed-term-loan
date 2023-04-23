@@ -34,6 +34,8 @@ contract MapleLoanFactoryTest is TestUtils {
 
         factory = new MapleLoanFactory(address(globals));
 
+        lender.__setFundsAsset(address(1));
+
         globals.setValidBorrower(address(1),        true);
         globals.setValidCollateralAsset(address(1), true);
         globals.setValidPoolAsset(address(1),       true);
@@ -133,6 +135,34 @@ contract MapleLoanFactoryTest is TestUtils {
             rates,
             fees
         );
+
+        factory.createInstance(arguments, "SALT");
+    }
+
+    function test_createInstance_differentFundsAsset() external {
+        address[2] memory assets      = [address(1), address(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
+        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
+        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+ 
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(lender),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        lender.__setFundsAsset(address(2));
+
+        vm.expectRevert("MPF:CI:FAILED");
+        factory.createInstance(arguments, "SALT");
+
+        lender.__setFundsAsset(address(1));
 
         factory.createInstance(arguments, "SALT");
     }

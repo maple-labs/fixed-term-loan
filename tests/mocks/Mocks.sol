@@ -209,6 +209,7 @@ contract MockFeeManager {
 contract MockLoanManager {
 
     address public factory;
+    address public fundsAsset;
     address public poolManager;
 
     constructor() {
@@ -220,6 +221,10 @@ contract MockLoanManager {
 
     function __setPoolManager(address poolManager_) external {
         poolManager = poolManager_;
+    }
+
+    function __setFundsAsset(address asset_) external {
+        fundsAsset = asset_;
     }
 
 }

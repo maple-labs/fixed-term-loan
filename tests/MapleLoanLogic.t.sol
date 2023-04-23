@@ -43,6 +43,8 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
         factory = new MockFactory(address(globals));
 
+        lender.__setFundsAsset(address(fundsAsset));
+
         // Set _initialize() parameters.
         defaultBorrower    = address(1);
         defaultAssets      = [address(collateralAsset), address(fundsAsset)];
@@ -259,6 +261,8 @@ contract MapleLoanLogic_CloseLoanTests is TestUtils {
         loan       = new MapleLoanHarness();
 
         factory = new MockFactory(address(globals));
+
+        lender.__setFundsAsset(address(fundsAsset));
 
         loan.__setBorrower(borrower);
         loan.__setFactory(address(factory));
@@ -1074,6 +1078,8 @@ contract MapleLoanLogic_GetClosingPaymentBreakdownTests is TestUtils {
 
         factory = new MockFactory(address(globals));
 
+        lender.__setFundsAsset(address(token2));
+
         // Set _initialize() parameters.
         defaultBorrower    = address(1);
         defaultAssets      = [address(token1), address(token2)];
@@ -1626,6 +1632,8 @@ contract MapleLoanLogic_InitializeTests is TestUtils {
         token2     = new MockERC20("Token1", "T1", 0);
 
         factory = new MockFactory(address(globals));
+
+        lender.__setFundsAsset(address(token2));
 
         // Happy path dummy arguments to pass to initialize().
         defaultBorrower    = address(new Address());

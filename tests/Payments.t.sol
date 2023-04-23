@@ -44,6 +44,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
         feeManager = new MapleLoanFeeManager(address(globals));
 
         lender.__setPoolManager(address(poolManager));
+        lender.__setFundsAsset(address(fundsAsset));
 
         factory = new MapleProxyFactory(address(globals));
 

@@ -40,6 +40,8 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
         factory            = new MapleLoanFactory(address(globals));
         loanManagerFactory = MockLoanManagerFactory(lender.factory());
 
+        lender.__setFundsAsset(address(asset));
+
         globals.setValidBorrower(address(1),            true);
         globals.setValidCollateralAsset(address(asset), true);
         globals.setValidPoolAsset(address(asset),       true);

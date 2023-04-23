@@ -126,6 +126,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
         address loanManagerFactory_ = ILenderLike(lender_).factory();
 
+        require(ILenderLike(lender_).fundsAsset() == assets_[1],                       "MLI:I:DIFFERENT_FUNDS_ASSET");
         require(globals_.isInstanceOf("FT_LOAN_MANAGER_FACTORY", loanManagerFactory_), "MLI:I:INVALID_FACTORY");
         require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),       "MLI:I:INVALID_INSTANCE");
 

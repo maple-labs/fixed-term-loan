@@ -31,6 +31,8 @@ interface ILenderLike {
 
     function factory() external view returns (address factory_);
 
+    function fundsAsset() external view returns (address fundsAsset_);
+
 }
 
 interface ILoanLike {

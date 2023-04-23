@@ -28,6 +28,8 @@ contract MapleLoanScenariosTests is TestUtils {
 
         factory = new MockFactory(address(globals));
 
+        lender.__setFundsAsset(address(token));
+
         globals.setValidBorrower(borrower,              true);
         globals.setValidCollateralAsset(address(token), true);
         globals.setValidPoolAsset(address(token),       true);

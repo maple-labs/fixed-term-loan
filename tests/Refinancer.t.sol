@@ -47,6 +47,8 @@ contract RefinancerTestBase is TestUtils {
 
         factory = new MockFactory(address(globals));
 
+        lender.__setFundsAsset(address(token));
+
         globals.setValidBorrower(borrower,        true);
         globals.setValidPoolAsset(address(token), true);
 
@@ -697,6 +699,8 @@ contract RefinancerInterestTests is TestUtils {
 
         factory = new MockFactory(address(globals));
 
+        lender.__setFundsAsset(address(token));
+        
         globals.setValidBorrower(borrower,        true);
         globals.setValidPoolAsset(address(token), true);
 
@@ -1247,6 +1251,7 @@ contract RefinancingFeesTerms is TestUtils {
         token      = new MockERC20("Test", "TST", 0);
 
         lender.__setPoolManager(address(poolManager));  // Set so correct PD address is used.
+        lender.__setFundsAsset(address(token));
 
         globals.setValidBorrower(borrower,        true);
         globals.setValidPoolAsset(address(token), true);

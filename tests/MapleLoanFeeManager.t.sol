@@ -46,6 +46,8 @@ contract FeeManagerBase is TestUtils {
         globals = new MockGlobals(GOVERNOR);
         lender  = new MockLoanManager();
 
+        lender.__setFundsAsset(address(fundsAsset));
+
         factory    = new MapleLoanFactory(address(globals));
         feeManager = new MapleLoanFeeManager(address(globals));
 
