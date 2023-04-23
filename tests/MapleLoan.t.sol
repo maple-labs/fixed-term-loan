@@ -1360,6 +1360,8 @@ contract MapleLoanRoleTests is TestUtils {
 
         factory = new MockFactory(address(globals));
 
+        MockLoanManager(lender).__setFundsAsset(address(token));
+
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
