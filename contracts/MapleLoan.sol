@@ -45,8 +45,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_drawableFunds >= drawableFundsBeforePayment, "ML:CANNOT_USE_DRAWABLE");
     }
 
+    modifier onlyBorrower() {
+        _revertIfNotBorrower();
+        _;
+    }
+
+    modifier onlyLender() {
+        _revertIfNotLender();
+        _;
+    }
+
     modifier whenNotPaused() {
-        require(!IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig), "L:PAUSED");
+        _revertIfPaused();
         _;
     }
 
@@ -123,9 +133,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsClaimed(principalAndInterest_, _lender);
     }
 
-    function drawdownFunds(uint256 amount_, address destination_) external override whenNotPaused returns (uint256 collateralPosted_) {
-        require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
-
+    function drawdownFunds(uint256 amount_, address destination_) external override whenNotPaused onlyBorrower returns (uint256 collateralPosted_) {
         emit FundsDrawnDown(amount_, destination_);
 
         // Post additional collateral required to facilitate this drawdown, if needed.
@@ -208,9 +216,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override whenNotPaused returns (bytes32 refinanceCommitment_)
+        external override whenNotPaused onlyBorrower returns (bytes32 refinanceCommitment_)
     {
-        require(msg.sender == _borrower,                                                 "ML:PNT:NOT_BORROWER");
         require(deadline_ >= block.timestamp,                                            "ML:PNT:INVALID_DEADLINE");
         require(IMapleGlobalsLike(globals()).isInstanceOf("FT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
         require(calls_.length > uint256(0),                                              "ML:PNT:EMPTY_CALLS");
@@ -223,9 +230,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeCollateral(uint256 amount_, address destination_) external override whenNotPaused {
-        require(msg.sender == _borrower, "ML:RC:NOT_BORROWER");
-
+    function removeCollateral(uint256 amount_, address destination_) external override whenNotPaused onlyBorrower {
         emit CollateralRemoved(amount_, destination_);
 
         _collateral -= amount_;
@@ -247,8 +252,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsReturned(fundsReturned_);
     }
 
-    function setPendingBorrower(address pendingBorrower_) external override whenNotPaused {
-        require(msg.sender == _borrower,                                   "ML:SPB:NOT_BORROWER");
+    function setPendingBorrower(address pendingBorrower_) external override whenNotPaused onlyBorrower {
         require(IMapleGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
         emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
@@ -267,10 +271,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override whenNotPaused returns (bytes32 refinanceCommitment_)
+        external override whenNotPaused onlyLender returns (bytes32 refinanceCommitment_)
     {
-        require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
-
         // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
         require(
             _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
@@ -332,10 +334,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");
     }
 
-    function fundLoan() external override whenNotPaused returns (uint256 fundsLent_) {
+    function fundLoan() external override whenNotPaused onlyLender returns (uint256 fundsLent_) {
         address lender_ = _lender;
-
-        require(msg.sender == lender_, "ML:FL:NOT_LENDER");
 
         // Can only fund loan if there are payments remaining (defined in the initialization) and no payment is due (as set by a funding).
         require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
@@ -362,10 +362,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeLoanImpairment() external override whenNotPaused {
+    function removeLoanImpairment() external override whenNotPaused onlyLender {
         uint256 originalNextPaymentDueDate_ = _originalNextPaymentDueDate;
 
-        require(msg.sender == _lender,                          "ML:RLI:NOT_LENDER");
         require(originalNextPaymentDueDate_ != 0,               "ML:RLI:NOT_IMPAIRED");
         require(block.timestamp <= originalNextPaymentDueDate_, "ML:RLI:PAST_DATE");
 
@@ -376,9 +375,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function repossess(address destination_)
-        external override whenNotPaused returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
-        require(msg.sender == _lender, "ML:R:NOT_LENDER");
-
+        external override whenNotPaused onlyLender returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_)
+    {
         uint256 nextPaymentDueDate_ = _nextPaymentDueDate;
 
         require(
@@ -413,16 +411,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit Repossessed(collateralRepossessed_, fundsRepossessed_, destination_);
     }
 
-    function setPendingLender(address pendingLender_) external override whenNotPaused {
-        require(msg.sender == _lender, "ML:SPL:NOT_LENDER");
-
+    function setPendingLender(address pendingLender_) external override whenNotPaused onlyLender {
         emit PendingLenderSet(_pendingLender = pendingLender_);
     }
 
-    function impairLoan() external override whenNotPaused {
+    function impairLoan() external override whenNotPaused onlyLender {
         uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
-
-        require(msg.sender == _lender, "ML:IL:NOT_LENDER");
 
         // If the loan is late, do not change the payment due date.
         uint256 newPaymentDueDate_ = block.timestamp > originalNextPaymentDueDate_ ? originalNextPaymentDueDate_ : block.timestamp;
@@ -906,6 +900,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
         minimum_ = a_ < b_ ? a_ : b_;
+    }
+
+    function _revertIfNotBorrower() internal view {
+        require(msg.sender == _borrower, "ML:NOT_BORROWER");
+    }
+
+    function _revertIfNotLender() internal view {
+        require(msg.sender == _lender, "ML:NOT_LENDER");
+    }
+
+    function _revertIfPaused() internal view {
+        require(!IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig), "L:PAUSED");
     }
 
     /**

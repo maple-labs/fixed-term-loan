@@ -870,7 +870,7 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
     }
 
     function test_fundLoan_notLender() external {
-        vm.expectRevert("ML:FL:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.fundLoan();
     }
 
