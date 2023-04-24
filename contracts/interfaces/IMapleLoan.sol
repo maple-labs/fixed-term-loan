@@ -195,6 +195,12 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function fundLoan() external returns (uint256 fundsLent_);
 
     /**
+     *  @dev Fast forward the next payment due date to the current time.
+     *       This enables the pool delegate to force a payment (or default).
+     */
+    function impairLoan() external;
+
+    /**
      *  @dev    Make a payment to the loan.
      *          FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
      *  @param  amount_    An amount to pull from the caller, if any.
@@ -245,20 +251,20 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function removeLoanImpairment() external;
 
     /**
-     *  @dev    Return funds to the loan (opposite of drawing down).
-     *          FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
-     *  @param  amount_        An amount to pull from the caller, if any.
-     *  @return fundsReturned_ The amount returned.
-     */
-    function returnFunds(uint256 amount_) external returns (uint256 fundsReturned_);
-
-    /**
      *  @dev    Repossess collateral, and any funds, for a loan in default.
      *  @param  destination_           The address where the collateral and funds asset is to be sent, if any.
      *  @return collateralRepossessed_ The amount of collateral asset repossessed.
      *  @return fundsRepossessed_      The amount of funds asset repossessed.
      */
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
+
+    /**
+     *  @dev    Return funds to the loan (opposite of drawing down).
+     *          FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
+     *  @param  amount_        An amount to pull from the caller, if any.
+     *  @return fundsReturned_ The amount returned.
+     */
+    function returnFunds(uint256 amount_) external returns (uint256 fundsReturned_);
 
     /**
      *  @dev   Set the pendingBorrower to a new account.
@@ -279,12 +285,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @return skimmed_     The amount of token removed from the loan.
      */
     function skim(address token_, address destination_) external returns (uint256 skimmed_);
-
-    /**
-     *  @dev   Fast forward the next payment due date to the current time.
-     *         This enables the pool delegate to force a payment (or default).
-     */
-    function impairLoan() external;
 
     /**************************************************************************************************************************************/
     /*** View Functions                                                                                                                 ***/
@@ -351,6 +351,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @dev    Return if the loan has been impaired.
      *  @return isImpaired_ Is the loan impaired or not.
      */
-     function isImpaired() external view returns (bool isImpaired_);
+    function isImpaired() external view returns (bool isImpaired_);
 
 }

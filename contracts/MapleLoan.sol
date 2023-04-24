@@ -9,7 +9,7 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 import { IMapleLoan }           from "./interfaces/IMapleLoan.sol";
 import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
 
-import { IMapleGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
+import { IGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -21,7 +21,6 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
     ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝      ██║     ██║   ██║██╔══██║██║╚██╗██║    ╚██╗ ██╔╝╚════██║
     ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗    ███████╗╚██████╔╝██║  ██║██║ ╚████║     ╚████╔╝ ███████║
     ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝    ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝      ╚═══╝  ╚══════╝
-
 
 */
 
@@ -75,7 +74,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function upgrade(uint256 toVersion_, bytes calldata arguments_) external override whenNotPaused {
-        require(msg.sender == _borrower || msg.sender == IMapleGlobalsLike(globals()).securityAdmin(), "ML:U:NO_AUTH");
+        require(msg.sender == _borrower || msg.sender == IGlobalsLike(globals()).securityAdmin(), "ML:U:NO_AUTH");
 
         emit Upgraded(toVersion_, arguments_);
 
@@ -218,9 +217,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused onlyBorrower returns (bytes32 refinanceCommitment_)
     {
-        require(deadline_ >= block.timestamp,                                            "ML:PNT:INVALID_DEADLINE");
-        require(IMapleGlobalsLike(globals()).isInstanceOf("FT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
-        require(calls_.length > uint256(0),                                              "ML:PNT:EMPTY_CALLS");
+        require(deadline_ >= block.timestamp,                                       "ML:PNT:INVALID_DEADLINE");
+        require(IGlobalsLike(globals()).isInstanceOf("FT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
+        require(calls_.length > uint256(0),                                         "ML:PNT:EMPTY_CALLS");
 
         emit NewTermsProposed(
             _refinanceCommitment = refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_),
@@ -253,7 +252,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function setPendingBorrower(address pendingBorrower_) external override whenNotPaused onlyBorrower {
-        require(IMapleGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
+        require(IGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
         emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
     }
@@ -362,6 +361,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
+    function impairLoan() external override whenNotPaused onlyLender {
+        uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
+
+        // If the loan is late, do not change the payment due date.
+        uint256 newPaymentDueDate_ = block.timestamp > originalNextPaymentDueDate_ ? originalNextPaymentDueDate_ : block.timestamp;
+
+        emit LoanImpaired(newPaymentDueDate_);
+
+        _nextPaymentDueDate         = newPaymentDueDate_;
+        _originalNextPaymentDueDate = originalNextPaymentDueDate_;  // Store the existing payment due date to enable reversion.
+    }
+
     function removeLoanImpairment() external override whenNotPaused onlyLender {
         uint256 originalNextPaymentDueDate_ = _originalNextPaymentDueDate;
 
@@ -415,18 +426,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit PendingLenderSet(_pendingLender = pendingLender_);
     }
 
-    function impairLoan() external override whenNotPaused onlyLender {
-        uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
-
-        // If the loan is late, do not change the payment due date.
-        uint256 newPaymentDueDate_ = block.timestamp > originalNextPaymentDueDate_ ? originalNextPaymentDueDate_ : block.timestamp;
-
-        emit LoanImpaired(newPaymentDueDate_);
-
-        _nextPaymentDueDate         = newPaymentDueDate_;
-        _originalNextPaymentDueDate = originalNextPaymentDueDate_;  // Store the existing payment due date to enable reversion.
-    }
-
     /**************************************************************************************************************************************/
     /*** Miscellaneous Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
@@ -460,7 +459,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 collateralNeeded_  = _getCollateralRequiredFor(_principal, _drawableFunds - drawdown_, _principalRequested, _collateralRequired);
         uint256 currentCollateral_ = _collateral;
 
-        return collateralNeeded_ > currentCollateral_ ? collateralNeeded_ - currentCollateral_ : uint256(0);
+        collateral_ = collateralNeeded_ > currentCollateral_ ? collateralNeeded_ - currentCollateral_ : uint256(0);
     }
 
     function getClosingPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
@@ -529,7 +528,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function getUnaccountedAmount(address asset_) public view override returns (uint256 unaccountedAmount_) {
-        return IERC20(asset_).balanceOf(address(this))
+        unaccountedAmount_ = IERC20(asset_).balanceOf(address(this))
             - (asset_ == _collateralAsset ? _collateral    : uint256(0))   // `_collateral` is `_collateralAsset` accounted for.
             - (asset_ == _fundsAsset      ? _drawableFunds : uint256(0));  // `_drawableFunds` is `_fundsAsset` accounted for.
     }
@@ -539,50 +538,50 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /**************************************************************************************************************************************/
 
     function borrower() external view override returns (address borrower_) {
-        return _borrower;
+        borrower_ = _borrower;
     }
 
     function closingRate() external view override returns (uint256 closingRate_) {
-        return _closingRate;
+        closingRate_ = _closingRate;
     }
 
     function collateral() external view override returns (uint256 collateral_) {
-        return _collateral;
+        collateral_ = _collateral;
     }
 
     function collateralAsset() external view override returns (address collateralAsset_) {
-        return _collateralAsset;
+        collateralAsset_ = _collateralAsset;
     }
 
     function collateralRequired() external view override returns (uint256 collateralRequired_) {
-        return _collateralRequired;
+        collateralRequired_ = _collateralRequired;
     }
 
     function drawableFunds() external view override returns (uint256 drawableFunds_) {
-        return _drawableFunds;
+        drawableFunds_ = _drawableFunds;
     }
 
     function endingPrincipal() external view override returns (uint256 endingPrincipal_) {
-        return _endingPrincipal;
+        endingPrincipal_ = _endingPrincipal;
     }
 
     function excessCollateral() external view override returns (uint256 excessCollateral_) {
         uint256 collateralNeeded_  = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
         uint256 currentCollateral_ = _collateral;
 
-        return currentCollateral_ > collateralNeeded_ ? currentCollateral_ - collateralNeeded_ : uint256(0);
+        excessCollateral_ = currentCollateral_ > collateralNeeded_ ? currentCollateral_ - collateralNeeded_ : uint256(0);
     }
 
     function factory() external view override returns (address factory_) {
-        return _factory();
+        factory_ = _factory();
     }
 
     function feeManager() external view override returns (address feeManager_) {
-        return _feeManager;
+        feeManager_ = _feeManager;
     }
 
     function fundsAsset() external view override returns (address fundsAsset_) {
-        return _fundsAsset;
+        fundsAsset_ = _fundsAsset;
     }
 
     function globals() public view override returns (address globals_) {
@@ -590,75 +589,75 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function governor() public view override returns (address governor_) {
-        governor_ = IMapleGlobalsLike(globals()).governor();
+        governor_ = IGlobalsLike(globals()).governor();
     }
 
     function gracePeriod() external view override returns (uint256 gracePeriod_) {
-        return _gracePeriod;
+        gracePeriod_ = _gracePeriod;
     }
 
     function implementation() external view override returns (address implementation_) {
-        return _implementation();
+        implementation_ = _implementation();
     }
 
     function interestRate() external view override returns (uint256 interestRate_) {
-        return _interestRate;
-    }
-
-    function lateFeeRate() external view override returns (uint256 lateFeeRate_) {
-        return _lateFeeRate;
-    }
-
-    function lateInterestPremiumRate() external view override returns (uint256 lateInterestPremiumRate_) {
-        return _lateInterestPremiumRate;
-    }
-
-    function lender() external view override returns (address lender_) {
-        return _lender;
-    }
-
-    function nextPaymentDueDate() external view override returns (uint256 nextPaymentDueDate_) {
-        return _nextPaymentDueDate;
-    }
-
-    function originalNextPaymentDueDate() external view override returns (uint256 originalNextPaymentDueDate_) {
-        return _originalNextPaymentDueDate;
-    }
-
-    function paymentInterval() external view override returns (uint256 paymentInterval_) {
-        return _paymentInterval;
-    }
-
-    function paymentsRemaining() external view override returns (uint256 paymentsRemaining_) {
-        return _paymentsRemaining;
-    }
-
-    function pendingBorrower() external view override returns (address pendingBorrower_) {
-        return _pendingBorrower;
-    }
-
-    function pendingLender() external view override returns (address pendingLender_) {
-        return _pendingLender;
-    }
-
-    function principal() external view override returns (uint256 principal_) {
-        return _principal;
-    }
-
-    function principalRequested() external view override returns (uint256 principalRequested_) {
-        return _principalRequested;
-    }
-
-    function refinanceCommitment() external view override returns (bytes32 refinanceCommitment_) {
-        return _refinanceCommitment;
-    }
-
-    function refinanceInterest() external view override returns (uint256 refinanceInterest_) {
-        return _refinanceInterest;
+        interestRate_ = _interestRate;
     }
 
     function isImpaired() public view override returns (bool isImpaired_) {
-        return _originalNextPaymentDueDate != uint256(0);
+        isImpaired_ = _originalNextPaymentDueDate != uint256(0);
+    }
+
+    function lateFeeRate() external view override returns (uint256 lateFeeRate_) {
+        lateFeeRate_ = _lateFeeRate;
+    }
+
+    function lateInterestPremiumRate() external view override returns (uint256 lateInterestPremiumRate_) {
+        lateInterestPremiumRate_ = _lateInterestPremiumRate;
+    }
+
+    function lender() external view override returns (address lender_) {
+        lender_ = _lender;
+    }
+
+    function nextPaymentDueDate() external view override returns (uint256 nextPaymentDueDate_) {
+        nextPaymentDueDate_ = _nextPaymentDueDate;
+    }
+
+    function originalNextPaymentDueDate() external view override returns (uint256 originalNextPaymentDueDate_) {
+        originalNextPaymentDueDate_ = _originalNextPaymentDueDate;
+    }
+
+    function paymentInterval() external view override returns (uint256 paymentInterval_) {
+        paymentInterval_ = _paymentInterval;
+    }
+
+    function paymentsRemaining() external view override returns (uint256 paymentsRemaining_) {
+        paymentsRemaining_ = _paymentsRemaining;
+    }
+
+    function pendingBorrower() external view override returns (address pendingBorrower_) {
+        pendingBorrower_ = _pendingBorrower;
+    }
+
+    function pendingLender() external view override returns (address pendingLender_) {
+        pendingLender_ = _pendingLender;
+    }
+
+    function principal() external view override returns (uint256 principal_) {
+        principal_ = _principal;
+    }
+
+    function principalRequested() external view override returns (uint256 principalRequested_) {
+        principalRequested_ = _principalRequested;
+    }
+
+    function refinanceCommitment() external view override returns (bytes32 refinanceCommitment_) {
+        refinanceCommitment_ = _refinanceCommitment;
+    }
+
+    function refinanceInterest() external view override returns (uint256 refinanceInterest_) {
+        refinanceInterest_ = _refinanceInterest;
     }
 
     /**************************************************************************************************************************************/
@@ -685,16 +684,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     /**************************************************************************************************************************************/
-    /*** Internal View Functions                                                                                                        ***/
-    /**************************************************************************************************************************************/
-
-    /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
-    function _isCollateralMaintained() internal view returns (bool isMaintained_) {
-        return _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
-    }
-
-    /**************************************************************************************************************************************/
-    /*** Internal Pure Functions                                                                                                        ***/
+    /*** Internal Pure/View Functions                                                                                                   ***/
     /**************************************************************************************************************************************/
 
     /// @dev Returns the total collateral to be posted for some drawn down (outstanding) principal and overall collateral ratio requirement.
@@ -708,7 +698,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     {
         // Where (collateral / outstandingPrincipal) should be greater or equal to (collateralRequired / principalRequested).
         // NOTE: principalRequested_ cannot be 0, which is reasonable, since it means this was never a loan.
-        return principal_ <= drawableFunds_
+        collateral_ = principal_ <= drawableFunds_
             ? uint256(0)
             : (collateralRequired_ * (principal_ - drawableFunds_) + principalRequested_ - 1) / principalRequested_;
     }
@@ -753,7 +743,30 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     /// @dev Returns an amount by applying an annualized and scaled interest rate, to a principal, over an interval of time.
     function _getInterest(uint256 principal_, uint256 interestRate_, uint256 interval_) internal pure returns (uint256 interest_) {
-        return (principal_ * _getPeriodicInterestRate(interestRate_, interval_)) / SCALED_ONE;
+        interest_ = (principal_ * _getPeriodicInterestRate(interestRate_, interval_)) / SCALED_ONE;
+    }
+
+    function _getLateInterest(
+        uint256 currentTime_,
+        uint256 principal_,
+        uint256 interestRate_,
+        uint256 nextPaymentDueDate_,
+        uint256 lateFeeRate_,
+        uint256 lateInterestPremium_
+    )
+        internal pure returns (uint256 lateInterest_)
+    {
+        if (currentTime_ <= nextPaymentDueDate_) return 0;
+
+        // Calculates the number of full days late in seconds (will always be multiples of 86,400).
+        // Rounds up and is inclusive so that if a payment is 1s late or 24h0m0s late it is 1 full day late.
+        // 24h0m1s late would be two full days late.
+        // ((86400n - 0n + (86400n - 1n)) / 86400n) * 86400n = 86400n
+        // ((86401n - 0n + (86400n - 1n)) / 86400n) * 86400n = 172800n
+        uint256 fullDaysLate_ = ((currentTime_ - nextPaymentDueDate_ + (1 days - 1)) / 1 days) * 1 days;
+
+        lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate_);
+        lateInterest_ += (lateFeeRate_ * principal_) / HUNDRED_PERCENT;
     }
 
     /// @dev Returns total principal and interest portion of a number of payments, given generic, stateless loan parameters and loan state.
@@ -807,6 +820,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         fees_[1] = platformServiceFee_ + platformRefinanceFee_;
     }
 
+    /// @dev Returns the interest rate over an interval, given an annualized interest rate, scaled to 1e18.
+    function _getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) internal pure returns (uint256 periodicInterestRate_) {
+        periodicInterestRate_ = (interestRate_ * (SCALED_ONE / HUNDRED_PERCENT) * interval_) / uint256(365 days);
+    }
+
+    /// @dev Returns refinance commitment given refinance parameters.
+    function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        internal pure returns (bytes32 refinanceCommitment_)
+    {
+        refinanceCommitment_ = keccak256(abi.encode(refinancer_, deadline_, calls_));
+    }
+
     function _getRefinanceInterest(
         uint256 currentTime_,
         uint256 paymentInterval_,
@@ -843,39 +868,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function _getLateInterest(
-        uint256 currentTime_,
-        uint256 principal_,
-        uint256 interestRate_,
-        uint256 nextPaymentDueDate_,
-        uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
-    )
-        internal pure returns (uint256 lateInterest_)
-    {
-        if (currentTime_ <= nextPaymentDueDate_) return 0;
+    function _handleImpairment() internal {
+        if (!isImpaired()) return;
 
-        // Calculates the number of full days late in seconds (will always be multiples of 86,400).
-        // Rounds up and is inclusive so that if a payment is 1s late or 24h0m0s late it is 1 full day late.
-        // 24h0m1s late would be two full days late.
-        // ((86400n - 0n + (86400n - 1n)) / 86400n) * 86400n = 86400n
-        // ((86401n - 0n + (86400n - 1n)) / 86400n) * 86400n = 172800n
-        uint256 fullDaysLate_ = ((currentTime_ - nextPaymentDueDate_ + (1 days - 1)) / 1 days) * 1 days;
-
-        lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate_);
-        lateInterest_ += (lateFeeRate_ * principal_) / HUNDRED_PERCENT;
-    }
-
-    /// @dev Returns the interest rate over an interval, given an annualized interest rate, scaled to 1e18.
-    function _getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) internal pure returns (uint256 periodicInterestRate_) {
-        return (interestRate_ * (SCALED_ONE / HUNDRED_PERCENT) * interval_) / uint256(365 days);
-    }
-
-    /// @dev Returns refinance commitment given refinance parameters.
-    function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        internal pure returns (bytes32 refinanceCommitment_)
-    {
-        return keccak256(abi.encode(refinancer_, deadline_, calls_));
+        _originalNextPaymentDueDate = uint256(0);
     }
 
     function _handleServiceFeePayment(uint256 numberOfPayments_) internal returns (uint256 fees_) {
@@ -892,10 +888,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         }
     }
 
-    function _handleImpairment() internal {
-        if (!isImpaired()) return;
-
-        _originalNextPaymentDueDate = uint256(0);
+    /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
+    function _isCollateralMaintained() internal view returns (bool isMaintained_) {
+        isMaintained_ = _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
     }
 
     function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
@@ -911,7 +906,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function _revertIfPaused() internal view {
-        require(!IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig), "L:PAUSED");
+        require(!IGlobalsLike(globals()).isFunctionPaused(msg.sig), "L:PAUSED");
     }
 
     /**

@@ -4,9 +4,9 @@ pragma solidity 0.8.7;
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 
 import {
+    IGlobalsLike,
     ILoanLike,
     ILoanManagerLike,
-    IMapleGlobalsLike,
     IPoolManagerLike
 } from "./interfaces/Interfaces.sol";
 
@@ -100,6 +100,14 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         emit FeeTermsUpdated(msg.sender, delegateOriginationFee_, delegateServiceFee_);
     }
 
+    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external override {
+        uint256 platformServiceFee_ = getPlatformServiceFeeForPeriod(msg.sender, principalRequested_, paymentInterval_);
+
+        platformServiceFee[msg.sender] = platformServiceFee_;
+
+        emit PlatformServiceFeeUpdated(msg.sender, platformServiceFee_);
+    }
+
     function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external override {
         uint256 platformRefinanceServiceFee_ = getPlatformServiceFeeForPeriod(msg.sender, principalRequested_, timeSinceLastDueDate_);
         uint256 delegateRefinanceServiceFee_ = getDelegateServiceFeesForPeriod(msg.sender, timeSinceLastDueDate_);
@@ -108,14 +116,6 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         delegateRefinanceServiceFee[msg.sender] += delegateRefinanceServiceFee_;
 
         emit PartialRefinanceServiceFeesUpdated(msg.sender, platformRefinanceServiceFee_, delegateRefinanceServiceFee_);
-    }
-
-    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external override {
-        uint256 platformServiceFee_ = getPlatformServiceFeeForPeriod(msg.sender, principalRequested_, paymentInterval_);
-
-        platformServiceFee[msg.sender] = platformServiceFee_;
-
-        emit PlatformServiceFeeUpdated(msg.sender, platformServiceFee_);
     }
 
     /**************************************************************************************************************************************/
@@ -128,6 +128,10 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
         delegateServiceFee_ = delegateServiceFee[loan_] * interval_ / paymentInterval_;
     }
 
+    function getOriginationFees(address loan_, uint256 principalRequested_) external view override returns (uint256 originationFees_) {
+        originationFees_ = _getPlatformOriginationFee(loan_, principalRequested_) + delegateOriginationFee[loan_];
+    }
+
     function getPlatformOriginationFee(address loan_, uint256 principalRequested_)
         external view override returns (uint256 platformOriginationFee_)
     {
@@ -137,7 +141,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     function getPlatformServiceFeeForPeriod(address loan_, uint256 principalRequested_, uint256 interval_)
         public view override returns (uint256 platformServiceFee_)
     {
-        uint256 platformServiceFeeRate_ = IMapleGlobalsLike(globals).platformServiceFeeRate(_getPoolManager(loan_));
+        uint256 platformServiceFeeRate_ = IGlobalsLike(globals).platformServiceFeeRate(_getPoolManager(loan_));
         platformServiceFee_             = principalRequested_ * platformServiceFeeRate_ * interval_ / 365 days / HUNDRED_PERCENT;
     }
 
@@ -174,10 +178,6 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
             getPlatformServiceFeeForPeriod(loan_, principalRequested_, interval_);
     }
 
-    function getOriginationFees(address loan_, uint256 principalRequested_) external view override returns (uint256 originationFees_) {
-        originationFees_ = _getPlatformOriginationFee(loan_, principalRequested_) + delegateOriginationFee[loan_];
-    }
-
     /**************************************************************************************************************************************/
     /*** Internal View Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
@@ -189,7 +189,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     function _getPlatformOriginationFee(address loan_, uint256 principalRequested_)
         internal view returns (uint256 platformOriginationFee_)
     {
-        uint256 platformOriginationFeeRate_ = IMapleGlobalsLike(globals).platformOriginationFeeRate(_getPoolManager(loan_));
+        uint256 platformOriginationFeeRate_ = IGlobalsLike(globals).platformOriginationFeeRate(_getPoolManager(loan_));
         uint256 loanTermLength_             = ILoanLike(loan_).paymentInterval() * ILoanLike(loan_).paymentsRemaining();
 
         platformOriginationFee_ = platformOriginationFeeRate_ * principalRequested_ * loanTermLength_ / 365 days / HUNDRED_PERCENT;
@@ -204,7 +204,7 @@ contract MapleLoanFeeManager is IMapleLoanFeeManager {
     }
 
     function _getTreasury() internal view returns (address mapleTreasury_) {
-        return IMapleGlobalsLike(globals).mapleTreasury();
+        return IGlobalsLike(globals).mapleTreasury();
     }
 
     /**************************************************************************************************************************************/

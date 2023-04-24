@@ -25,18 +25,18 @@ interface IMapleLoanFeeManager {
 
     /**
      *  @dev   New fee terms have been set.
-     *  @param loan_               The address of the loan contract.
-     *  @param platformServiceFee_ The new value for the platform service fee.
-     */
-    event PlatformServiceFeeUpdated(address indexed loan_, uint256 platformServiceFee_);
-
-    /**
-     *  @dev   New fee terms have been set.
      *  @param loan_                      The address of the loan contract.
      *  @param partialPlatformServiceFee_ The  value for the platform service fee.
      *  @param partialDelegateServiceFee_ The  value for the delegate service fee.
      */
     event PartialRefinanceServiceFeesUpdated(address indexed loan_, uint256 partialPlatformServiceFee_, uint256 partialDelegateServiceFee_);
+
+    /**
+     *  @dev   New fee terms have been set.
+     *  @param loan_               The address of the loan contract.
+     *  @param platformServiceFee_ The new value for the platform service fee.
+     */
+    event PlatformServiceFeeUpdated(address indexed loan_, uint256 platformServiceFee_);
 
     /**
      *  @dev   A fee payment was made.
@@ -45,7 +45,7 @@ interface IMapleLoanFeeManager {
      *  @param partialRefinanceDelegateServiceFee_ The amount of partial delegate service fee from refinance paid.
      *  @param platformServiceFee_                 The amount of platform service fee paid.
      *  @param partialRefinancePlatformServiceFee_ The amount of partial platform service fee from refinance paid.
-    */
+     */
     event ServiceFeesPaid(
         address indexed loan_,
         uint256         delegateServiceFee_,
@@ -85,16 +85,16 @@ interface IMapleLoanFeeManager {
     function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external;
 
     /**
+     *  @dev Function called by loans to update the saved platform service fee rate.
+     */
+    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external;
+
+    /**
      *  @dev   Called during loan refinance to save the partial service fees accrued.
      *  @param principalRequested_   The amount of principal pre-refinance requested.
      *  @param timeSinceLastDueDate_ The amount of time since last payment due date.
      */
     function updateRefinanceServiceFees(uint256 principalRequested_, uint256 timeSinceLastDueDate_) external;
-
-    /**
-     *  @dev Function called by loans to update the saved platform service fee rate.
-     */
-    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external;
 
     /**************************************************************************************************************************************/
     /*** View Functions                                                                                                                 ***/
@@ -109,17 +109,17 @@ interface IMapleLoanFeeManager {
 
     /**
      *  @dev    Gets the delegate service fee rate for the given loan.
-     *  @param  loan_               The address of the loan contract.
-     *  @return delegateServiceFee_ The amount of delegate service fee to be paid.
-     */
-    function delegateServiceFee(address loan_) external view returns (uint256 delegateServiceFee_);
-
-    /**
-     *  @dev    Gets the delegate service fee rate for the given loan.
      *  @param  loan_                        The address of the loan contract.
      *  @return delegateRefinanceServiceFee_ The amount of delegate service fee to be paid.
      */
     function delegateRefinanceServiceFee(address loan_) external view returns (uint256 delegateRefinanceServiceFee_);
+
+    /**
+     *  @dev    Gets the delegate service fee rate for the given loan.
+     *  @param  loan_               The address of the loan contract.
+     *  @return delegateServiceFee_ The amount of delegate service fee to be paid.
+     */
+    function delegateServiceFee(address loan_) external view returns (uint256 delegateServiceFee_);
 
     /**
      *  @dev    Gets the delegate service fee for the given loan.
@@ -129,7 +129,7 @@ interface IMapleLoanFeeManager {
      */
     function getDelegateServiceFeesForPeriod(address loan_, uint256 interval_) external view returns (uint256 delegateServiceFee_);
 
-     /**
+    /**
      *  @dev    Gets the sum of all origination fees for the given loan.
      *  @param  loan_               The address of the loan contract.
      *  @param  principalRequested_ The amount of principal requested in the loan.
