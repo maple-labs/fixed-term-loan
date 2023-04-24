@@ -247,7 +247,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setPrincipalRequested(1_000_000);  // Needed for the getAdditionalCollateralRequiredFor
 
-        vm.expectRevert("ML:DF:NOT_BORROWER");
+        vm.expectRevert("ML:NOT_BORROWER");
         loan.drawdownFunds(1, borrower);
 
         vm.prank(borrower);
@@ -272,7 +272,7 @@ contract MapleLoanTests is TestUtils {
         bytes[] memory calls   = new bytes[](1);
         calls[0]               = new bytes(0);
 
-        vm.expectRevert("ML:PNT:NOT_BORROWER");
+        vm.expectRevert("ML:NOT_BORROWER");
         loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
         vm.prank(borrower);
@@ -324,7 +324,7 @@ contract MapleLoanTests is TestUtils {
 
         collateralAsset.mint(address(loan), 1);
 
-        vm.expectRevert("ML:RC:NOT_BORROWER");
+        vm.expectRevert("ML:NOT_BORROWER");
         loan.removeCollateral(1, borrower);
 
         vm.prank(borrower);
@@ -334,7 +334,7 @@ contract MapleLoanTests is TestUtils {
     function test_setPendingBorrower_acl() external {
         globals.setValidBorrower(address(1), true);
 
-        vm.expectRevert("ML:SPB:NOT_BORROWER");
+        vm.expectRevert("ML:NOT_BORROWER");
         loan.setPendingBorrower(address(1));
 
         vm.prank(borrower);
@@ -368,7 +368,7 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setRefinanceCommitment(keccak256(abi.encode(mockRefinancer, deadline, calls)));
 
-        vm.expectRevert("ML:ANT:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.acceptNewTerms(mockRefinancer, deadline, calls);
 
         vm.prank(lender);
@@ -378,7 +378,7 @@ contract MapleLoanTests is TestUtils {
     function test_removeLoanImpairment_acl() external {
         loan.__setOriginalNextPaymentDueDate(block.timestamp + 300);
 
-        vm.expectRevert("ML:RLI:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.removeLoanImpairment();
 
         vm.prank(lender);
@@ -396,7 +396,7 @@ contract MapleLoanTests is TestUtils {
 
         vm.warp(loan.nextPaymentDueDate() + loan.gracePeriod() + 1);
 
-        vm.expectRevert("ML:R:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.repossess(lender);
 
         vm.prank(lender);
@@ -412,7 +412,7 @@ contract MapleLoanTests is TestUtils {
 
         loan.__setNextPaymentDueDate(originalNextPaymentDate);
 
-        vm.expectRevert("ML:IL:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.impairLoan();
 
         vm.prank(lender);
@@ -420,7 +420,7 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_setPendingLender_acl() external {
-        vm.expectRevert("ML:SPL:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.setPendingLender(governor);
 
         vm.prank(lender);
@@ -1398,7 +1398,7 @@ contract MapleLoanRoleTests is TestUtils {
 
         // Only borrower can call setPendingBorrower
         vm.prank(newBorrower);
-        vm.expectRevert("ML:SPB:NOT_BORROWER");
+        vm.expectRevert("ML:NOT_BORROWER");
         loan.setPendingBorrower(newBorrower);
 
         vm.prank(borrower);
@@ -1408,7 +1408,7 @@ contract MapleLoanRoleTests is TestUtils {
 
         // Pending borrower can't call setPendingBorrower
         vm.prank(newBorrower);
-        vm.expectRevert("ML:SPB:NOT_BORROWER");
+        vm.expectRevert("ML:NOT_BORROWER");
         loan.setPendingBorrower(address(1));
 
         vm.prank(borrower);
@@ -1450,7 +1450,7 @@ contract MapleLoanRoleTests is TestUtils {
 
         // Only lender can call setPendingLender
         vm.prank(newLender);
-        vm.expectRevert("ML:SPL:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.setPendingLender(newLender);
 
         vm.prank(lender);
@@ -1460,7 +1460,7 @@ contract MapleLoanRoleTests is TestUtils {
 
         // Pending lender can't call setPendingLender
         vm.prank(newLender);
-        vm.expectRevert("ML:SPL:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.setPendingLender(address(1));
 
         vm.prank(lender);
