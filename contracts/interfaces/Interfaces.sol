@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-interface IMapleGlobalsLike {
+interface IGlobalsLike {
 
     function governor() external view returns (address governor_);
 
@@ -58,14 +58,6 @@ interface ILoanManagerLike {
     function owner() external view returns (address owner_);
 
     function poolManager() external view returns (address poolManager_);
-
-}
-
-interface IMapleFeeManagerLike {
-
-    function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external;
-
-    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external;
 
 }
 

@@ -4,7 +4,7 @@ pragma solidity 0.8.7;
 import { IMapleLoanInitializer } from "./interfaces/IMapleLoanInitializer.sol";
 import { IMapleLoanFeeManager }  from "./interfaces/IMapleLoanFeeManager.sol";
 
-import { ILenderLike, IMapleGlobalsLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
+import { IGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -101,7 +101,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         internal
     {
         // Principal requested needs to be non-zero (see `_getCollateralRequiredFor` math).
-	    require(amounts_[1] > uint256(0), "MLI:I:INVALID_PRINCIPAL");
+        require(amounts_[1] > uint256(0), "MLI:I:INVALID_PRINCIPAL");
 
         // Ending principal needs to be less than or equal to principal requested.
         require(amounts_[2] <= amounts_[1], "MLI:I:INVALID_ENDING_PRINCIPAL");
@@ -115,7 +115,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
         require(fees_[0] <= maxOriginationFee_, "MLI:I:INVALID_ORIGINATION_FEE");
 
-        IMapleGlobalsLike globals_ = IMapleGlobalsLike(IMapleProxyFactoryLike(msg.sender).mapleGlobals());
+        IGlobalsLike globals_ = IGlobalsLike(IMapleProxyFactoryLike(msg.sender).mapleGlobals());
 
         require((_borrower = borrower_) != address(0),  "MLI:I:ZERO_BORROWER");
         require(globals_.isBorrower(borrower_),         "MLI:I:INVALID_BORROWER");
