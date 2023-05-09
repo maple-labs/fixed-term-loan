@@ -13,7 +13,8 @@ import { MockGlobals, MockFeeManager, MockLoanManager, MockLoanManagerFactory } 
 
 contract MapleLoanInitializerAndMigratorTests is TestUtils {
 
-    address internal governor = address(new Address());
+    address internal governor      = address(new Address());
+    address internal securityAdmin = address(new Address());
     address internal implementation4;
     address internal implementation5;
     address internal initializer;
@@ -46,6 +47,7 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
         globals.setValidCollateralAsset(address(asset), true);
         globals.setValidPoolAsset(address(asset),       true);
         globals.__setIsInstanceOf(true);
+        globals.__setSecurityAdmin(securityAdmin);
 
         vm.startPrank(governor);
         factory.registerImplementation(1, implementation4, initializer);
@@ -118,7 +120,7 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
         assertEq(loan.lateInterestPremiumRate(), 0.04e18);
 
         // Upgrade
-        vm.prank(loan.borrower());
+        vm.prank(securityAdmin);
         loan.upgrade(2, new bytes(0));
 
         assertEq(loan.interestRate(),            0.1e6);

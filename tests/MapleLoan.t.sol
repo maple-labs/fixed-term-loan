@@ -444,13 +444,12 @@ contract MapleLoanTests is TestUtils {
         loan.upgrade(1, abi.encode(newImplementation));
     }
 
-    function test_upgrade_acl_borrower() external {
+    function test_upgrade_acl_noAuth_asBorrower() external {
         address newImplementation = address(new MapleLoanHarness());
 
         vm.prank(borrower);
+        vm.expectRevert("ML:U:NO_AUTH");
         loan.upgrade(1, abi.encode(newImplementation));
-
-        assertEq(loan.implementation(), newImplementation);
     }
 
     function test_upgrade_acl_securityAdmin() external {
