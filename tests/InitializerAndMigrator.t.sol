@@ -111,6 +111,8 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
         assertEq(loan.closingRate(),             0.02e18);
         assertEq(loan.lateFeeRate(),             0.03e18);
         assertEq(loan.lateInterestPremiumRate(), 0.04e18);
+
+        assertEq(loan.HUNDRED_PERCENT(), 1e6);
     }
 
     function test_migration_ratesChange() external {

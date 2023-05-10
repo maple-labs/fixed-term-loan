@@ -348,6 +348,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function getUnaccountedAmount(address asset_) external view returns (uint256 unaccountedAmount_);
 
     /**
+     *  @dev The value that represents 100%, to be easily comparable with the loan rates.
+     */
+    function HUNDRED_PERCENT() external pure returns (uint256 hundredPercent_);
+
+    /**
      *  @dev    Return if the loan has been impaired.
      *  @return isImpaired_ Is the loan impaired or not.
      */
