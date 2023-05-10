@@ -752,7 +752,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 interestRate_,
         uint256 nextPaymentDueDate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
+        uint256 lateInterestPremiumRate_
     )
         internal pure returns (uint256 lateInterest_)
     {
@@ -765,7 +765,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // ((86401n - 0n + (86400n - 1n)) / 86400n) * 86400n = 172800n
         uint256 fullDaysLate_ = ((currentTime_ - nextPaymentDueDate_ + (1 days - 1)) / 1 days) * 1 days;
 
-        lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate_);
+        lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremiumRate_, fullDaysLate_);
         lateInterest_ += (lateFeeRate_ * principal_) / HUNDRED_PERCENT;
     }
 
@@ -779,7 +779,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 paymentsRemaining_,
         uint256 interestRate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
+        uint256 lateInterestPremiumRate_
     )
         internal view
         returns (
@@ -804,7 +804,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             interestRate_,
             nextPaymentDueDate_,
             lateFeeRate_,
-            lateInterestPremium_
+            lateInterestPremiumRate_
         );
 
         interest_[2] = _refinanceInterest;
@@ -841,7 +841,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 paymentsRemaining_,
         uint256 nextPaymentDueDate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
+        uint256 lateInterestPremiumRate_
     )
         internal pure returns (uint256 refinanceInterest_)
     {
@@ -864,7 +864,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             interestRate_,
             nextPaymentDueDate_,
             lateFeeRate_,
-            lateInterestPremium_
+            lateInterestPremiumRate_
         );
     }
 
