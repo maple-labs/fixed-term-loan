@@ -513,7 +513,7 @@ contract RefinancerFeeTests is RefinancerTestBase {
         assertEq(loan.lateFeeRate(), newLateFeeRate_);
     }
 
-    function test_refinance_lateInterestPremium(
+    function test_refinance_lateInterestPremiumRate(
         uint256 principalRequested_,
         uint256 collateralRequired_,
         uint256 endingPrincipal_,
@@ -700,7 +700,7 @@ contract RefinancerInterestTests is TestUtils {
         factory = new MockFactory(address(globals));
 
         lender.__setFundsAsset(address(token));
-        
+
         globals.setValidBorrower(borrower,        true);
         globals.setValidPoolAsset(address(token), true);
 

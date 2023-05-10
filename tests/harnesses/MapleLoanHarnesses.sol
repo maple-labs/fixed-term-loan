@@ -169,7 +169,7 @@ contract MapleLoanHarness is MapleLoan {
         uint256 paymentsRemaining_,
         uint256 interestRate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
+        uint256 lateInterestPremiumRate_
     )
         external view
         returns (
@@ -189,7 +189,7 @@ contract MapleLoanHarness is MapleLoan {
             paymentsRemaining_,
             interestRate_,
             lateFeeRate_,
-            lateInterestPremium_
+            lateInterestPremiumRate_
         );
 
         interestAmount_ = interestArray_[0] + interestArray_[1] + interestArray_[2];

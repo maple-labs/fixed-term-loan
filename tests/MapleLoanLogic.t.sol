@@ -1217,20 +1217,20 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
         uint256 paymentsRemaining_,
         uint256 interestRate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestPremium_,
+        uint256 lateInterestPremiumRate_,
         uint256 refinanceInterest_
     )
         external
     {
-        nextPaymentDueDate_  = constrictToRange(nextPaymentDueDate_,  block.timestamp - 365 days, block.timestamp + 365 days);
-        termLength_          = constrictToRange(termLength_,          1 days,                     15 * 365 days);
-        principal_           = constrictToRange(principal_,           1,                          1e12 * 1e18);
-        endingPrincipal_     = constrictToRange(endingPrincipal_,     0,                          principal_);
-        paymentsRemaining_   = constrictToRange(paymentsRemaining_,   1,                          100);
-        interestRate_        = constrictToRange(interestRate_,        0,                          1.00e6);
-        lateFeeRate_         = constrictToRange(lateFeeRate_,         interestRate_,              1.00e6);
-        lateInterestPremium_ = constrictToRange(lateInterestPremium_, interestRate_,              1.00e6);
-        refinanceInterest_   = constrictToRange(refinanceInterest_,   0,                          1e12 * 1e18);
+        nextPaymentDueDate_      = constrictToRange(nextPaymentDueDate_,      block.timestamp - 365 days, block.timestamp + 365 days);
+        termLength_              = constrictToRange(termLength_,              1 days,                     15 * 365 days);
+        principal_               = constrictToRange(principal_,               1,                          1e12 * 1e18);
+        endingPrincipal_         = constrictToRange(endingPrincipal_,         0,                          principal_);
+        paymentsRemaining_       = constrictToRange(paymentsRemaining_,       1,                          100);
+        interestRate_            = constrictToRange(interestRate_,            0,                          1.00e6);
+        lateFeeRate_             = constrictToRange(lateFeeRate_,             interestRate_,              1.00e6);
+        lateInterestPremiumRate_ = constrictToRange(lateInterestPremiumRate_, interestRate_,              1.00e6);
+        refinanceInterest_       = constrictToRange(refinanceInterest_,       0,                          1e12 * 1e18);
 
         uint256 paymentInterval = termLength_ / paymentsRemaining_;
 
@@ -1241,7 +1241,7 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
         loan.__setPaymentsRemaining(paymentsRemaining_);
         loan.__setInterestRate(interestRate_);
         loan.__setLateFeeRate(lateFeeRate_);
-        loan.__setLateInterestPremiumRate(lateInterestPremium_);
+        loan.__setLateInterestPremiumRate(lateInterestPremiumRate_);
         loan.__setRefinanceInterest(refinanceInterest_);
         loan.__setFeeManager(address(new MockFeeManager()));
 
@@ -1254,7 +1254,7 @@ contract MapleLoanLogic_GetNextPaymentBreakdownTests is TestUtils {
             paymentsRemaining_,
             interestRate_,
             lateFeeRate_,
-            lateInterestPremium_
+            lateInterestPremiumRate_
         );
 
         ( uint256 actualPrincipal, uint256 actualInterest, ) = loan.getNextPaymentBreakdown();
