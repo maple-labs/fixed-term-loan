@@ -27,8 +27,9 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
-    uint256 private constant HUNDRED_PERCENT = 1e6;
-    uint256 private constant SCALED_ONE      = 1e18;
+    uint256 public constant override HUNDRED_PERCENT = 1e6;
+
+    uint256 private constant SCALED_ONE = 1e18;
 
     modifier limitDrawableUse() {
         if (msg.sender == _borrower) {
