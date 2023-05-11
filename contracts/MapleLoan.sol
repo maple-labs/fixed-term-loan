@@ -108,7 +108,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         require(block.timestamp <= paymentDueDate_, "ML:CL:PAYMENT_IS_LATE");
 
-        _handleImpairment();
 
         ( principal_, interest_, ) = getClosingPaymentBreakdown();
 
@@ -122,6 +121,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         fees_ = _handleServiceFeePayment(_paymentsRemaining);
 
+        // NOTE: Closing a loan always results in the an impairment being removed.
         _clearLoanAccounting();
 
         emit LoanClosed(principal_, interest_, fees_);
@@ -165,8 +165,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             "ML:MP:TRANSFER_FROM_FAILED"
         );
 
-        _handleImpairment();
-
         ( principal_, interest_, ) = getNextPaymentBreakdown();
 
         _refinanceInterest = uint256(0);
@@ -183,12 +181,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 previousPaymentDueDate_ = _nextPaymentDueDate;
         uint256 nextPaymentDueDate_;
 
+        // NOTE: Making a payment always results in the impairment being removed.
         if (paymentsRemaining_ == uint256(1)) {
             _clearLoanAccounting();  // Assumes `getNextPaymentBreakdown` returns a `principal_` that is `_principal`.
         } else {
             _nextPaymentDueDate  = nextPaymentDueDate_ = previousPaymentDueDate_ + _paymentInterval;
             _principal          -= principal_;
             _paymentsRemaining   = paymentsRemaining_ - uint256(1);
+
+            delete _originalNextPaymentDueDate;
         }
 
         emit PaymentMade(principal_, interest_, fees_);
@@ -303,14 +304,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _refinanceInterest += proRataInterest_;
 
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
-        _refinanceCommitment = bytes32(0);
+        delete _refinanceCommitment;
+
+        // NOTE: Accepting new terms always results in the an impairment being removed.
+        delete _originalNextPaymentDueDate;
+
+        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
 
         for (uint256 i_; i_ < calls_.length; ++i_) {
             ( bool success_, ) = refinancer_.delegatecall(calls_[i_]);
             require(success_, "ML:ANT:FAILED");
         }
-
-        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
 
         address fundsAsset_         = _fundsAsset;
         uint256 principalRequested_ = _principalRequested;
@@ -320,8 +324,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
         // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
         _nextPaymentDueDate = block.timestamp + paymentInterval_;
-
-        _handleImpairment();
 
         // Update Platform Fees and pay originations.
         feeManager_.updatePlatformServiceFee(principalRequested_, paymentInterval_);
@@ -382,7 +384,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _nextPaymentDueDate = originalNextPaymentDueDate_;
         delete _originalNextPaymentDueDate;
 
-        emit NextPaymentDueDateRestored(originalNextPaymentDueDate_);
+        emit ImpairmentRemoved(originalNextPaymentDueDate_);
     }
 
     function repossess(address destination_)
@@ -866,12 +868,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             lateFeeRate_,
             lateInterestPremiumRate_
         );
-    }
-
-    function _handleImpairment() internal {
-        if (!isImpaired()) return;
-
-        _originalNextPaymentDueDate = uint256(0);
     }
 
     function _handleServiceFeePayment(uint256 numberOfPayments_) internal returns (uint256 fees_) {

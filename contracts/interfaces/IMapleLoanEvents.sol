@@ -52,6 +52,12 @@ interface IMapleLoanEvents {
     event FundsReturned(uint256 amount_);
 
     /**
+     *  @dev   The loan impairment was explicitly removed (i.e. not the result of a payment or new terms acceptance).
+     *  @param nextPaymentDueDate_ The new next payment due date.
+     */
+    event ImpairmentRemoved(uint256 nextPaymentDueDate_);
+
+    /**
      *  @dev   Loan was initialized.
      *  @param borrower_    The address of the borrower.
      *  @param lender_      The address of the lender.
@@ -134,12 +140,6 @@ interface IMapleLoanEvents {
      *  @param calls_               The individual calls for the refinancer contract.
      */
     event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
-
-    /**
-     *  @dev   The next payment due date was restored to it's original value, reverting the action of loan impairment.
-     *  @param nextPaymentDueDate_ The new next payment due date.
-     */
-    event NextPaymentDueDateRestored(uint256 nextPaymentDueDate_);
 
     /**
      *  @dev   Payments were made.
