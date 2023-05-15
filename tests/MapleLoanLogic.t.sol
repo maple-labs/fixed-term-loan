@@ -2106,6 +2106,9 @@ contract MapleLoanLogic_MakePaymentTests is TestUtils {
         assertEq(loan.nextPaymentDueDate(),      0);
         assertEq(loan.paymentsRemaining(),       0);
         assertEq(loan.principal(),               0);
+        assertEq(loan.refinanceInterest(),       0);
+
+        assertEq(loan.refinanceCommitment(), bytes32(0));
     }
 
     function test_makePayment_withRefinanceInterest(

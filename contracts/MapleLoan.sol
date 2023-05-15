@@ -668,6 +668,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     /// @dev Clears all state variables to end a loan, but keep borrower and lender withdrawal functionality intact.
     function _clearLoanAccounting() internal {
+        _refinanceCommitment = bytes32(0);
+
         _gracePeriod     = uint256(0);
         _paymentInterval = uint256(0);
 
@@ -681,6 +683,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         _nextPaymentDueDate = uint256(0);
         _paymentsRemaining  = uint256(0);
         _principal          = uint256(0);
+
+        _refinanceInterest = uint256(0);
 
         _originalNextPaymentDueDate = uint256(0);
     }
