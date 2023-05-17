@@ -309,8 +309,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // NOTE: Accepting new terms always results in the an impairment being removed.
         delete _originalNextPaymentDueDate;
 
-        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
-
         for (uint256 i_; i_ < calls_.length; ++i_) {
             ( bool success_, ) = refinancer_.delegatecall(calls_[i_]);
             require(success_, "ML:ANT:FAILED");
