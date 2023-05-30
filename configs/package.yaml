@@ -1,5 +1,5 @@
-name: loan
-version: 4.0.0-beta.0
+name: fixed-term-loan
+version: 5.0.1
 source: contracts
 packages:
   - path: contracts/MapleLoan.sol
@@ -12,8 +12,8 @@ packages:
     contractName: MapleLoanInitializer
   - path: contracts/MapleLoanStorage.sol
     contractName: MapleLoanStorage
-  - path: contracts/MapleLoanV4Migrator.sol
-    contractName: MapleLoanV4Migrator
+  - path: contracts/MapleLoanV5Migrator.sol
+    contractName: MapleLoanV5Migrator
   - path: contracts/Refinancer.sol
     contractName: Refinancer
-customDescription: Maple Loan Artifacts and ABIs
+customDescription: Maple Fixed Term Loan Artifacts and ABIs
