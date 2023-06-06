@@ -19,10 +19,10 @@ abstract contract MapleLoanStorage {
     uint256 internal _paymentInterval;  // The number of seconds between payments.
 
     // Rates
-    uint256 internal _interestRate;         // The annualized interest rate of the loan.
-    uint256 internal _closingRate;          // The fee rate (applied to principal) to close the loan.
-    uint256 internal _lateFeeRate;          // The fee rate for late payments.
-    uint256 internal _lateInterestPremium;  // The amount to increase the interest rate by for late payments.
+    uint256 internal _interestRate;             // The annualized interest rate of the loan.
+    uint256 internal _closingRate;              // The fee rate (applied to principal) to close the loan.
+    uint256 internal _lateFeeRate;              // The fee rate for late payments.
+    uint256 internal _lateInterestPremiumRate;  // The amount to increase the interest rate by for late payments.
 
     // Requested Amounts
     uint256 internal _collateralRequired;  // The collateral the borrower is expected to put up to draw down all _principalRequested.

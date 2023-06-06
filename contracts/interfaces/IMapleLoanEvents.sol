@@ -52,9 +52,16 @@ interface IMapleLoanEvents {
     event FundsReturned(uint256 amount_);
 
     /**
+     *  @dev   The loan impairment was explicitly removed (i.e. not the result of a payment or new terms acceptance).
+     *  @param nextPaymentDueDate_ The new next payment due date.
+     */
+    event ImpairmentRemoved(uint256 nextPaymentDueDate_);
+
+    /**
      *  @dev   Loan was initialized.
      *  @param borrower_    The address of the borrower.
-     *  @param feeManager_  The address of the entity responsible for calculating fees
+     *  @param lender_      The address of the lender.
+     *  @param feeManager_  The address of the entity responsible for calculating fees.
      *  @param assets_      Array of asset addresses.
      *                       [0]: collateralAsset,
      *                       [1]: fundsAsset.
@@ -70,19 +77,20 @@ interface IMapleLoanEvents {
      *                       [0]: interestRate,
      *                       [1]: closingFeeRate,
      *                       [2]: lateFeeRate,
-     *                       [3]: lateInterestPremium
+     *                       [3]: lateInterestPremiumRate
      *  @param fees_        Array of fees:
      *                       [0]: delegateOriginationFee,
      *                       [1]: delegateServiceFee
      */
     event Initialized(
-        address indexed borrower_,
-        address indexed feeManager_,
-        address[2] assets_,
-        uint256[3] termDetails_,
-        uint256[3] amounts_,
-        uint256[4] rates_,
-        uint256[2] fees_
+        address    indexed borrower_,
+        address    indexed lender_,
+        address    indexed feeManager_,
+        address[2]         assets_,
+        uint256[3]         termDetails_,
+        uint256[3]         amounts_,
+        uint256[4]         rates_,
+        uint256[2]         fees_
     );
 
     /**
@@ -132,12 +140,6 @@ interface IMapleLoanEvents {
      *  @param calls_               The individual calls for the refinancer contract.
      */
     event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
-
-    /**
-     *  @dev   The next payment due date was restored to it's original value, reverting the action of loan impairment.
-     *  @param nextPaymentDueDate_ The new next payment due date.
-     */
-    event NextPaymentDueDateRestored(uint256 nextPaymentDueDate_);
 
     /**
      *  @dev   Payments were made.

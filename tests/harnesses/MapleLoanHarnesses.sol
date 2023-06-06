@@ -78,8 +78,8 @@ contract MapleLoanHarness is MapleLoan {
         _lateFeeRate = lateFeeRate_;
     }
 
-    function __setLateInterestPremium(uint256 lateInterestPremium_) external {
-        _lateInterestPremium = lateInterestPremium_;
+    function __setLateInterestPremiumRate(uint256 lateInterestPremiumRate_) external {
+        _lateInterestPremiumRate = lateInterestPremiumRate_;
     }
 
     function __setLender(address lender_) external {
@@ -169,7 +169,7 @@ contract MapleLoanHarness is MapleLoan {
         uint256 paymentsRemaining_,
         uint256 interestRate_,
         uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
+        uint256 lateInterestPremiumRate_
     )
         external view
         returns (
@@ -189,7 +189,7 @@ contract MapleLoanHarness is MapleLoan {
             paymentsRemaining_,
             interestRate_,
             lateFeeRate_,
-            lateInterestPremium_
+            lateInterestPremiumRate_
         );
 
         interestAmount_ = interestArray_[0] + interestArray_[1] + interestArray_[2];
@@ -216,6 +216,7 @@ contract ConstructableMapleLoan is MapleLoanHarness {
     constructor(
         address factory_,
         address borrower_,
+        address lender_,
         address feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
@@ -229,7 +230,7 @@ contract ConstructableMapleLoan is MapleLoanHarness {
 
         _delegateCall(
             address(initializer),
-            initializer.encodeArguments(borrower_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_)
+            initializer.encodeArguments(borrower_, lender_, feeManager_, assets_, termDetails_, amounts_, rates_, fees_)
         );
     }
 

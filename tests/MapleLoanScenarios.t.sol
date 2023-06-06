@@ -6,31 +6,35 @@ import { MockERC20 }          from "../modules/erc20/contracts/test/mocks/MockER
 
 import { ConstructableMapleLoan } from "./harnesses/MapleLoanHarnesses.sol";
 
-import { MapleGlobalsMock, MockFactory, MockFeeManager, MockLoanManager } from "./mocks/Mocks.sol";
+import { EmptyContract, MockFactory, MockFeeManager, MockGlobals, MockLoanManager } from "./mocks/Mocks.sol";
 
 // TODO: Add fees
 contract MapleLoanScenariosTests is TestUtils {
 
-    MapleGlobalsMock internal globals;
-    MockERC20        internal token;
-    MockFactory      internal factory;
-    MockFeeManager   internal feeManager;
-    MockLoanManager  internal lender;
+    MockERC20       internal token;
+    MockFactory     internal factory;
+    MockFeeManager  internal feeManager;
+    MockGlobals     internal globals;
+    MockLoanManager internal lender;
 
     address internal borrower = address(new Address());
     address internal governor = address(new Address());
 
     function setUp() external {
         feeManager = new MockFeeManager();
+        globals    = new MockGlobals(governor);
         lender     = new MockLoanManager();
-        globals    = new MapleGlobalsMock(governor, lender.factory());
         token      = new MockERC20("Test", "TST", 0);
 
         factory = new MockFactory(address(globals));
 
+        lender.__setFundsAsset(address(token));
+
         globals.setValidBorrower(borrower,              true);
         globals.setValidCollateralAsset(address(token), true);
         globals.setValidPoolAsset(address(token),       true);
+
+        globals.__setIsInstanceOf(true);
     }
 
     function test_scenario_fullyAmortized() external {
@@ -40,13 +44,14 @@ contract MapleLoanScenariosTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(0)];
-        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [uint256(0.12e6), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
         ConstructableMapleLoan loan = new ConstructableMapleLoan(
             address(factory),
             borrower,
+            address(lender),
             address(feeManager),
             assets,
             termDetails,
@@ -58,7 +63,7 @@ contract MapleLoanScenariosTests is TestUtils {
         // Fund via a 1M transfer
         vm.startPrank(address(lender));
         token.transfer(address(loan), 1_000_000);
-        loan.fundLoan(address(lender));
+        loan.fundLoan();
         vm.stopPrank();
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
@@ -203,16 +208,16 @@ contract MapleLoanScenariosTests is TestUtils {
         address[2] memory assets      = [address(token), address(token)];
         uint256[3] memory termDetails = [uint256(10 days), uint256(365 days / 6), uint256(6)];
         uint256[3] memory amounts     = [uint256(300_000), uint256(1_000_000), uint256(1_000_000)];
-        uint256[4] memory rates       = [uint256(0.12 ether), uint256(0), uint256(0), uint256(0)];
+        uint256[4] memory rates       = [uint256(0.12e6),  uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
 
         vm.prank(address(factory));
-        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(feeManager), assets, termDetails, amounts, rates, fees);
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
 
         // Fund via a 1M transfer
         vm.startPrank(address(lender));
         token.transfer(address(loan), 1_000_000);
-        loan.fundLoan(address(lender));
+        loan.fundLoan();
         vm.stopPrank();
 
         assertEq(loan.drawableFunds(), 1_000_000, "Different drawable funds");
@@ -336,6 +341,59 @@ contract MapleLoanScenariosTests is TestUtils {
         loan.removeCollateral(150_000, borrower);
 
         assertEq(loan.collateral(), 0, "Different collateral");
+    }
+
+    function test_scenario_lateLoanRefinanceInterest() external {
+        uint256 start = block.timestamp;
+
+        token.mint(address(lender), 1_000_000);
+
+        address[2] memory assets      = [address(token), address(token)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(30 days), uint256(3)];
+        uint256[3] memory amounts     = [uint256(0), uint256(1_000_000), uint256(1_000_000)];
+        uint256[4] memory rates       = [uint256(0.1e6), uint256(0), uint256(0), uint256(0.1e6)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+
+        vm.prank(address(factory));
+        ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
+
+        // Fund via a 1M transfer
+        vm.startPrank(address(lender));
+        token.transfer(address(loan), 1_000_000);
+        loan.fundLoan();
+        vm.stopPrank();
+
+        assertEq(loan.drawableFunds(), 1_000_000);
+
+        // 4 days late on payment #1
+        vm.warp(start + 34 days);
+
+        address mockRefinancer = address(new EmptyContract());
+
+        uint256 deadline = start + 45 days;
+
+        bytes[] memory emptyCalls = new bytes[](1);
+
+        emptyCalls[0] = "";
+
+        // Borrower proposes new terms
+        vm.prank(borrower);
+        loan.proposeNewTerms(mockRefinancer, deadline, emptyCalls);  // No calls required
+
+        assertEq(loan.refinanceInterest(), 0);
+
+        // Lender accepts new terms
+        vm.warp(start + 35 days);
+        vm.prank(address(lender));
+        loan.acceptNewTerms(mockRefinancer, deadline, emptyCalls);
+
+        uint256 normalInterest = 30 days * uint256(1_000_000) * 0.1e18 / 1e18 / 365 days;  // at 10% interest annualized
+        uint256 lateInterest   =  5 days * uint256(1_000_000) * 0.2e18 / 1e18 / 365 days;  // at 20% interest annualized
+
+        assertEq(normalInterest,           8_219);
+        assertEq(lateInterest,             2_739);
+        assertEq(loan.refinanceInterest(), 10_958);
+        assertEq(loan.refinanceInterest(), normalInterest + lateInterest);
     }
 
 }

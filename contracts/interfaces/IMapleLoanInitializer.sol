@@ -8,7 +8,8 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
     /**
      *  @dev   Encodes the initialization arguments for a MapleLoan.
      *  @param borrower_    The address of the borrower.
-     *  @param feeManager_  The address of the entity responsible for calculating fees
+     *  @param lender_      The address of the lender.
+     *  @param feeManager_  The address of the entity responsible for calculating fees.
      *  @param assets_      Array of asset addresses.
      *                       [0]: collateralAsset,
      *                       [1]: fundsAsset
@@ -24,14 +25,15 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *                       [0]: interestRate,
      *                       [1]: closingFeeRate,
      *                       [2]: lateFeeRate,
-     *                       [3]: lateInterestPremium,
+     *                       [3]: lateInterestPremiumRate,
      *  @param fees_        Array of fees:
      *                       [0]: delegateOriginationFee,
      *                       [1]: delegateServiceFee
      */
     function encodeArguments(
-        address borrower_,
-        address feeManager_,
+        address           borrower_,
+        address           lender_,
+        address           feeManager_,
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
@@ -42,7 +44,8 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
     /**
      *  @dev   Decodes the initialization arguments for a MapleLoan.
      *  @return borrower_    The address of the borrower.
-     *  @return feeManager_  The address of the entity responsible for calculating fees
+     *  @return lender_      The address of the lender.
+     *  @return feeManager_  The address of the entity responsible for calculating fees.
      *  @return assets_      Array of asset addresses.
      *                        [0]: collateralAsset,
      *                        [1]: fundsAsset
@@ -58,15 +61,16 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *                        [0]: interestRate,
      *                        [1]: closingFeeRate,
      *                        [2]: lateFeeRate,
-     *                        [3]: lateInterestPremium,
+     *                        [3]: lateInterestPremiumRate,
      *  @return fees_        Array of fees:
      *                        [0]: delegateOriginationFee,
      *                        [1]: delegateServiceFee
      */
     function decodeArguments(bytes calldata encodedArguments_) external pure
         returns (
-            address borrower_,
-            address feeManager_,
+            address           borrower_,
+            address           lender_,
+            address           feeManager_,
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,

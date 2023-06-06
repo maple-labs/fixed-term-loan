@@ -3,15 +3,15 @@ pragma solidity 0.8.7;
 
 import { IERC20 } from "../../modules/erc20/contracts/interfaces/IERC20.sol";
 
-contract MapleGlobalsMock {
+contract MockGlobals {
+
+    bool internal _isFunctionPaused;
 
     address public governor;
     address public mapleTreasury;
     address public securityAdmin;
 
     bool public protocolPaused;
-
-    mapping(bytes32 => mapping(address => bool)) public isFactory;
 
     mapping(address => uint256) public platformOriginationFeeRate;
     mapping(address => uint256) public platformServiceFeeRate;
@@ -20,9 +20,18 @@ contract MapleGlobalsMock {
     mapping(address => bool) public isCollateralAsset;
     mapping(address => bool) public isPoolAsset;
 
-    constructor (address governor_, address loanManagerFactory_) {
-        governor = governor_;
-        isFactory["LOAN_MANAGER"][loanManagerFactory_] = true;
+    bool internal _isInstanceOf;
+
+    constructor (address governor_) {
+        governor   = governor_;
+    }
+
+    function isFunctionPaused(bytes4) external view returns (bool isFunctionPaused_) {
+        isFunctionPaused_ = _isFunctionPaused;
+    }
+
+    function isInstanceOf(bytes32, address) external view returns (bool) {
+        return _isInstanceOf;
     }
 
     function setGovernor(address governor_) external {
@@ -31,10 +40,6 @@ contract MapleGlobalsMock {
 
     function setMapleTreasury(address mapleTreasury_) external {
         mapleTreasury = mapleTreasury_;
-    }
-
-    function setSecurityAdmin(address securityAdmin_) external {
-        securityAdmin = securityAdmin_;
     }
 
     function setPlatformOriginationFeeRate(address poolManager_, uint256 feeRate_) external {
@@ -59,6 +64,18 @@ contract MapleGlobalsMock {
 
     function setValidPoolAsset(address poolAsset_, bool isValid_) external {
         isPoolAsset[poolAsset_] = isValid_;
+    }
+
+    function __setFunctionPaused(bool paused_) external {
+        _isFunctionPaused = paused_;
+    }
+
+    function __setIsInstanceOf(bool isInstanceOf_) external {
+        _isInstanceOf = isInstanceOf_;
+    }
+
+    function __setSecurityAdmin(address securityAdmin_) external {
+        securityAdmin = securityAdmin_;
     }
 
 }
@@ -87,8 +104,18 @@ contract MockFactory {
 
 contract MockLoanManagerFactory {
 
-    function isInstance(address) external pure returns (bool) {
-        return true;
+    bool internal _isInstance;
+
+    constructor() {
+        _isInstance = true;
+    }
+
+    function isInstance(address) external view returns (bool) {
+        return _isInstance;
+    }
+
+    function __setIsInstance(bool isInstance_) external {
+        _isInstance = isInstance_;
     }
 
 }
@@ -182,6 +209,7 @@ contract MockFeeManager {
 contract MockLoanManager {
 
     address public factory;
+    address public fundsAsset;
     address public poolManager;
 
     constructor() {
@@ -189,11 +217,15 @@ contract MockLoanManager {
         poolManager = address(new MockPoolManager(address(1)));
     }
 
+    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external { }
+
     function __setPoolManager(address poolManager_) external {
         poolManager = poolManager_;
     }
 
-    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external { }
+    function __setFundsAsset(address asset_) external {
+        fundsAsset = asset_;
+    }
 
 }
 
