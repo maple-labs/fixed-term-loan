@@ -62,6 +62,8 @@ forge install
 | v3.0.1 - v4.0.0 | Trail of Bits | [`Trail of Bits Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/10246688/Maple.Finance.v2.-.Final.Report.-.Fixed.-.2022.pdf) | 2022-08-24 |
 | v3.0.1 - v4.0.0 | Spearbit | [`Spearbit Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/10223545/Maple.Finance.v2.-.Spearbit.pdf) | 2022-10-17 |
 | v3.0.1 - v4.0.0 | Three Sigma | [`Three Sigma Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/10223541/three-sigma_maple-finance_code-audit_v1.1.1.pdf) | 2022-10-24 |
+| v5.0.0 - v5.0.1 | Spearbit Auditors via Cantina | [`2023-06-05 - Cantina Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/11667848/cantina-maple.pdf) | 2023-06-05 |
+| v5.0.0 - v5.0.1 | Three Sigma | [`2023-04-10 - Three Sigma Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/11663546/maple-v2-audit_three-sigma_2023.pdf) | 2023-04-21 |
 
 ## Bug Bounty
 
