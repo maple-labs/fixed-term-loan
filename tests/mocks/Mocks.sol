@@ -21,6 +21,7 @@ contract MockGlobals {
     mapping(address => bool) public isPoolAsset;
 
     bool internal _isInstanceOf;
+    bool internal _canDeploy;
 
     constructor (address governor_) {
         governor   = governor_;
@@ -32,6 +33,10 @@ contract MockGlobals {
 
     function isInstanceOf(bytes32, address) external view returns (bool) {
         return _isInstanceOf;
+    }
+
+    function canDeploy(address) external view returns (bool) {
+        return _canDeploy;
     }
 
     function setGovernor(address governor_) external {
@@ -72,6 +77,10 @@ contract MockGlobals {
 
     function __setIsInstanceOf(bool isInstanceOf_) external {
         _isInstanceOf = isInstanceOf_;
+    }
+
+    function __setCanDeploy(bool canDeploy_) external {
+        _canDeploy = canDeploy_;
     }
 
     function __setSecurityAdmin(address securityAdmin_) external {

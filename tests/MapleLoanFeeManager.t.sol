@@ -59,6 +59,7 @@ contract TestBase is TestUtils {
 
         globals.setMapleTreasury(TREASURY);
         globals.__setIsInstanceOf(true);
+        globals.__setCanDeploy(true);
         globals.setValidBorrower(BORROWER,                        true);
         globals.setValidCollateralAsset(address(collateralAsset), true);
         globals.setValidPoolAsset(address(fundsAsset),            true);

@@ -47,6 +47,7 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
         globals.setValidCollateralAsset(address(asset), true);
         globals.setValidPoolAsset(address(asset),       true);
         globals.__setIsInstanceOf(true);
+        globals.__setCanDeploy(true);
         globals.__setSecurityAdmin(securityAdmin);
 
         vm.startPrank(governor);

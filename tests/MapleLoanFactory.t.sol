@@ -41,6 +41,7 @@ contract MapleLoanFactoryTest is TestUtils {
         globals.setValidPoolAsset(address(1),       true);
 
         globals.__setIsInstanceOf(true);
+        globals.__setCanDeploy(true);
 
         vm.startPrank(governor);
         factory.registerImplementation(1, implementation, initializer);
@@ -145,7 +146,7 @@ contract MapleLoanFactoryTest is TestUtils {
         uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
         uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
         uint256[2] memory fees        = [uint256(0), uint256(0)];
- 
+
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
             address(1),
             address(lender),
@@ -247,6 +248,34 @@ contract MapleLoanFactoryTest is TestUtils {
 
         // TODO: use vm.expectRevert() without arguments when it is available.
         factory.createInstance(arguments, salt);
+    }
+
+    function test_createInstance_invalidCaller() external {
+        address[2] memory assets      = [address(1), address(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
+        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
+        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(lender),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        globals.__setCanDeploy(false);
+
+        vm.expectRevert("MLF:CI:CANNOT_DEPLOY");
+        factory.createInstance(arguments, "SALT");
+
+        globals.__setCanDeploy(true);
+
+        factory.createInstance(arguments, "SALT");
     }
 
     function test_createInstance(bytes32 salt_) external {

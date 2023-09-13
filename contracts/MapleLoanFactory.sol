@@ -4,6 +4,7 @@ pragma solidity 0.8.7;
 import { IMapleProxyFactory, MapleProxyFactory } from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
 import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
+import { IGlobalsLike }      from "./interfaces/Interfaces.sol";
 
 /// @title MapleLoanFactory deploys Loan instances.
 contract MapleLoanFactory is IMapleLoanFactory, MapleProxyFactory {
@@ -18,6 +19,8 @@ contract MapleLoanFactory is IMapleLoanFactory, MapleProxyFactory {
             address instance_
         )
     {
+        require(IGlobalsLike(mapleGlobals).canDeploy(msg.sender), "MLF:CI:CANNOT_DEPLOY");
+
         isLoan[instance_ = super.createInstance(arguments_, salt_)] = true;
     }
 
