@@ -48,7 +48,7 @@ contract TestBase is TestUtils {
 
         lender.__setFundsAsset(address(fundsAsset));
 
-        factory    = new MapleLoanFactory(address(globals));
+        factory    = new MapleLoanFactory(address(globals), address(0));
         feeManager = new MapleLoanFeeManager(address(globals));
 
         lender.__setPoolManager(address(poolManager));

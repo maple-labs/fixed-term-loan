@@ -7,19 +7,21 @@ import { MapleLoan }            from "../contracts/MapleLoan.sol";
 import { MapleLoanFactory }     from "../contracts/MapleLoanFactory.sol";
 import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 
-import { MockFeeManager, MockGlobals, MockLoanManager, MockLoanManagerFactory } from "./mocks/Mocks.sol";
+import { MockFeeManager, MockGlobals, MockLoanManager, MockLoanManagerFactory, MockLoanFactory } from "./mocks/Mocks.sol";
 
 import { Proxy } from "../modules/maple-proxy-factory/modules/proxy-factory/contracts/Proxy.sol";
 
 contract MapleLoanFactoryTest is TestUtils {
 
+    MockLoanFactory        internal oldFactory;
     MapleLoanFactory       internal factory;
     MockFeeManager         internal feeManager;
     MockGlobals            internal globals;
     MockLoanManager        internal lender;
     MockLoanManagerFactory internal loanManagerFactory;
 
-    address internal governor = address(new Address());
+    address internal governor      = address(new Address());
+    address internal securityAdmin = address(new Address());
 
     address internal implementation;
     address internal initializer;
@@ -32,7 +34,8 @@ contract MapleLoanFactoryTest is TestUtils {
         implementation     = address(new MapleLoan());
         initializer        = address(new MapleLoanInitializer());
 
-        factory = new MapleLoanFactory(address(globals));
+        oldFactory = new MockLoanFactory();
+        factory    = new MapleLoanFactory(address(globals), address(oldFactory));
 
         lender.__setFundsAsset(address(1));
 
@@ -310,8 +313,45 @@ contract MapleLoanFactoryTest is TestUtils {
         // TODO: Change back to hardcoded address once IPFS hashes can be removed on compilation in Foundry.
         assertEq(loan, expectedAddress);
 
-        assertTrue(!factory.isLoan(address(1)));
+        assertTrue(!oldFactory.isLoan(address(1)));
         assertTrue( factory.isLoan(loan));
+    }
+
+    function test_isLoan_withOldFactory() external {
+        address[2] memory assets      = [address(1), address(1)];
+        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
+        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
+        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        uint256[2] memory fees        = [uint256(0), uint256(0)];
+
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            address(1),
+            address(lender),
+            address(feeManager),
+            assets,
+            termDetails,
+            amounts,
+            rates,
+            fees
+        );
+
+        // Assert current factory points to the correct old loan factory
+        assertEq(factory.oldFactory(), address(oldFactory));
+
+        address oldLoan = address(new Address());
+
+        oldFactory.__setIsLoan(oldLoan, true);
+
+        assertTrue(oldFactory.isLoan(oldLoan));
+        assertTrue(factory.isLoan(oldLoan));
+
+        address loan1 = factory.createInstance(arguments, keccak256(abi.encodePacked("salt1")));
+        address loan2 = factory.createInstance(arguments, keccak256(abi.encodePacked("salt2")));
+
+        assertTrue(!oldFactory.isLoan(loan1));
+        assertTrue( factory.isLoan(loan1));
+        assertTrue( factory.isLoan(loan2));
+        assertTrue( factory.isLoan(oldLoan));
     }
 
 }

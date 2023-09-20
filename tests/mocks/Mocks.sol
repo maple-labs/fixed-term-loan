@@ -271,3 +271,12 @@ contract RevertingERC20 {
     }
 
 }
+
+contract MockLoanFactory {
+    mapping(address => bool) public isLoan;
+
+    function __setIsLoan(address loan_, bool isLoan_) external {
+        isLoan[loan_] = isLoan_;
+    }
+
+}
