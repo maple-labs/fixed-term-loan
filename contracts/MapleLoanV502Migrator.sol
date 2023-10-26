@@ -7,6 +7,7 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 /// @title MapleLoanV502Migrator is to update the factory address for each deployed loan.
 contract MapleLoanV502Migrator is ProxiedInternals, MapleLoanStorage  {
+    
     fallback() external {
         ( address factory_ ) = abi.decode(msg.data, (address));
 
