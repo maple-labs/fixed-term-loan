@@ -86,6 +86,16 @@ contract MapleLoanV502MigratorTests is TestUtils {
         loan502 = MapleLoan(oldFactory.createInstance(arguments, "SALT2"));
     }
 
+    function test_migration_sameFactory_noOp() external {
+        newFactory = new MapleLoanFactory(address(globals), address(oldFactory));
+
+        bytes memory arguments = abi.encode(address(oldFactory));
+
+        vm.expectRevert("MPF:UI:FAILED");
+        vm.prank(securityAdmin);
+        loan501.upgrade(502, arguments);
+    }
+
     function test_migration_invalidFactory() external {
         newFactory = new MapleLoanFactory(address(globals), address(oldFactory));
 
