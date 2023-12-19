@@ -2398,6 +2398,8 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
 
         factory = new MockFactory(address(globals));
 
+        factory = new MockFactory(address(globals));
+
         loan.__setBorrower(borrower);
         loan.__setFactory(address(factory));
 

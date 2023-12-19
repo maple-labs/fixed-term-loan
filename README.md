@@ -1,4 +1,4 @@
-# Maple Loan
+# Fixed Term Maple Loan
 
 ![Foundry CI](https://github.com/maple-labs/loan-private/actions/workflows/forge.yml/badge.svg)
 [![GitBook - Documentation](https://img.shields.io/badge/GitBook-Documentation-orange?logo=gitbook&logoColor=white)](https://maplefinance.gitbook.io/maple/maple-for-developers/protocol-overview)
