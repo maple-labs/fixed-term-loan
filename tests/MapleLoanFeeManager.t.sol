@@ -11,7 +11,7 @@ import { MapleLoanFeeManager }  from "../contracts/MapleLoanFeeManager.sol";
 
 import { MockGlobals, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
 
-contract FeeManagerBase is TestUtils {
+contract TestBase is TestUtils {
 
     address internal BORROWER = address(new Address());
     address internal GOVERNOR = address(new Address());
@@ -48,7 +48,7 @@ contract FeeManagerBase is TestUtils {
 
         lender.__setFundsAsset(address(fundsAsset));
 
-        factory    = new MapleLoanFactory(address(globals));
+        factory    = new MapleLoanFactory(address(globals), address(0));
         feeManager = new MapleLoanFeeManager(address(globals));
 
         lender.__setPoolManager(address(poolManager));
@@ -59,6 +59,7 @@ contract FeeManagerBase is TestUtils {
 
         globals.setMapleTreasury(TREASURY);
         globals.__setIsInstanceOf(true);
+        globals.__setCanDeploy(true);
         globals.setValidBorrower(BORROWER,                        true);
         globals.setValidCollateralAsset(address(collateralAsset), true);
         globals.setValidPoolAsset(address(fundsAsset),            true);
@@ -114,7 +115,7 @@ contract FeeManagerBase is TestUtils {
 
 }
 
-contract PayClosingFeesTests is FeeManagerBase {
+contract PayClosingFeesTests is TestBase {
 
     MapleLoan loan;
 
@@ -164,7 +165,7 @@ contract PayClosingFeesTests is FeeManagerBase {
 
 }
 
-contract PayOriginationFeesTests is FeeManagerBase {
+contract PayOriginationFeesTests is TestBase {
 
     MapleLoan loan;
 
@@ -224,7 +225,7 @@ contract PayOriginationFeesTests is FeeManagerBase {
 
 }
 
-contract PayServiceFeesTests is FeeManagerBase {
+contract PayServiceFeesTests is TestBase {
 
     MapleLoan loan;
 
@@ -291,7 +292,7 @@ contract PayServiceFeesTests is FeeManagerBase {
 
 }
 
-contract UpdatePlatformServiceFeeTests is FeeManagerBase {
+contract UpdatePlatformServiceFeeTests is TestBase {
 
     function test_updatePlatformServiceFee() external {
         address loan1 = _createLoan(
@@ -343,7 +344,7 @@ contract UpdatePlatformServiceFeeTests is FeeManagerBase {
 
 }
 
-contract UpdateFeeTerms_SetterTests is FeeManagerBase {
+contract UpdateDelegateFeeTermsTests is TestBase {
 
     function test_updateDelegateFeeTerms() external {
         address someContract = address(new Address());
@@ -360,7 +361,7 @@ contract UpdateFeeTerms_SetterTests is FeeManagerBase {
 
 }
 
-contract FeeManager_Getters is FeeManagerBase {
+contract GetterTests is TestBase {
 
     function setUp() public override {
         super.setUp();

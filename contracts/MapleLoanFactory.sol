@@ -4,21 +4,31 @@ pragma solidity 0.8.7;
 import { IMapleProxyFactory, MapleProxyFactory } from "../modules/maple-proxy-factory/contracts/MapleProxyFactory.sol";
 
 import { IMapleLoanFactory } from "./interfaces/IMapleLoanFactory.sol";
+import { IGlobalsLike }      from "./interfaces/Interfaces.sol";
 
 /// @title MapleLoanFactory deploys Loan instances.
 contract MapleLoanFactory is IMapleLoanFactory, MapleProxyFactory {
 
-    mapping(address => bool) public override isLoan;
+    address public immutable override oldFactory;
 
-    /// @param mapleGlobals_ The address of a Maple Globals contract.
-    constructor(address mapleGlobals_) MapleProxyFactory(mapleGlobals_) {}
+    mapping(address => bool) internal _isLoan;
+
+    constructor(address mapleGlobals_, address oldFactory_) MapleProxyFactory(mapleGlobals_) {
+        oldFactory = oldFactory_;
+    }
 
     function createInstance(bytes calldata arguments_, bytes32 salt_)
         override(IMapleProxyFactory, MapleProxyFactory) public returns (
             address instance_
         )
     {
-        isLoan[instance_ = super.createInstance(arguments_, salt_)] = true;
+        require(IGlobalsLike(mapleGlobals).canDeploy(msg.sender), "MLF:CI:CANNOT_DEPLOY");
+
+        _isLoan[instance_ = super.createInstance(arguments_, salt_)] = true;
+    }
+
+    function isLoan(address instance_) external view override returns (bool) {
+        return (_isLoan[instance_] || IMapleLoanFactory(oldFactory).isLoan(instance_));
     }
 
 }

@@ -1,5 +1,5 @@
 name: fixed-term-loan
-version: 5.0.1
+version: 5.0.2
 source: contracts
 packages:
   - path: contracts/MapleLoan.sol
@@ -10,8 +10,6 @@ packages:
     contractName: MapleLoanFeeManager
   - path: contracts/MapleLoanInitializer.sol
     contractName: MapleLoanInitializer
-  - path: contracts/MapleLoanStorage.sol
-    contractName: MapleLoanStorage
   - path: contracts/MapleLoanV5Migrator.sol
     contractName: MapleLoanV5Migrator
   - path: contracts/Refinancer.sol

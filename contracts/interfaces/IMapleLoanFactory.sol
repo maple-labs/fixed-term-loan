@@ -7,10 +7,16 @@ import { IMapleProxyFactory } from "../../modules/maple-proxy-factory/contracts/
 interface IMapleLoanFactory is IMapleProxyFactory {
 
     /**
-     *  @dev    Whether the proxy is a MapleLoan deployed by this factory.
+     *  @dev    Whether the proxy is a MapleLoan deployed by this factory or the old factory.
      *  @param  proxy_  The address of the proxy contract.
      *  @return isLoan_ Whether the proxy is a MapleLoan deployed by this factory.
      */
     function isLoan(address proxy_) external view returns (bool isLoan_);
+
+    /**
+     *  @dev    Returns the address of the old factory.
+     *  @return oldFactory_ The address of the old factory.
+     */
+    function oldFactory() external view returns (address oldFactory_);
 
 }

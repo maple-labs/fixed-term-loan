@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-/// @title Refinancer uses storage from Maple Loan.
-interface IRefinancer {
+/// @title MapleRefinancer uses storage from Maple Loan.
+interface IMapleRefinancer {
 
     /**************************************************************************************************************************************/
     /*** Events                                                                                                                         ***/

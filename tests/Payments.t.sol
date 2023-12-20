@@ -11,7 +11,7 @@ import { MapleLoanInitializer } from "../contracts/MapleLoanInitializer.sol";
 
 import { MockGlobals, MockLoanManager, MockPoolManager } from "./mocks/Mocks.sol";
 
-contract MapleLoanPaymentsTestBase is TestUtils {
+contract TestBase is TestUtils {
 
     uint256 internal start;
 
@@ -210,7 +210,7 @@ contract MapleLoanPaymentsTestBase is TestUtils {
 
 }
 
-contract ClosingTests is MapleLoanPaymentsTestBase {
+contract ClosingTests is TestBase {
 
     function test_payments_closing_flatRate_case1() external {
         /****************************************/
@@ -473,7 +473,7 @@ contract ClosingTests is MapleLoanPaymentsTestBase {
 
 }
 
-contract FullyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
+contract FullyAmortizedPaymentsTests is TestBase {
 
     function test_payments_fullyAmortized_case1() external {
         /****************************************/
@@ -677,7 +677,7 @@ contract FullyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
 
 }
 
-contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
+contract InterestOnlyPaymentsTests is TestBase {
 
     function test_payments_interestOnly_case1() external {
         /****************************************/
@@ -877,7 +877,7 @@ contract InterestOnlyPaymentsTests is MapleLoanPaymentsTestBase {
 
 }
 
-contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
+contract LateRepaymentsTests is TestBase {
 
     function test_payments_lateRepayment_flatRate_case1() external {
         /****************************************/
@@ -1524,7 +1524,7 @@ contract LateRepaymentsTests is MapleLoanPaymentsTestBase {
 
 }
 
-contract PartiallyAmortizedPaymentsTests is MapleLoanPaymentsTestBase {
+contract PartiallyAmortizedPaymentsTests is TestBase {
 
     function test_payments_partiallyAmortized_case1() external {
         /****************************************/

@@ -4,23 +4,23 @@ pragma solidity 0.8.7;
 import { IERC20 } from "../modules/erc20/contracts/interfaces/IERC20.sol";
 
 import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
-import { IRefinancer }          from "./interfaces/IRefinancer.sol";
+import { IMapleRefinancer }     from "./interfaces/IMapleRefinancer.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 /*
 
-    ██████╗ ███████╗███████╗██╗███╗   ██╗ █████╗ ███╗   ██╗ ██████╗███████╗██████╗
-    ██╔══██╗██╔════╝██╔════╝██║████╗  ██║██╔══██╗████╗  ██║██╔════╝██╔════╝██╔══██╗
-    ██████╔╝█████╗  █████╗  ██║██╔██╗ ██║███████║██╔██╗ ██║██║     █████╗  ██████╔╝
-    ██╔══██╗██╔══╝  ██╔══╝  ██║██║╚██╗██║██╔══██║██║╚██╗██║██║     ██╔══╝  ██╔══██╗
-    ██║  ██║███████╗██║     ██║██║ ╚████║██║  ██║██║ ╚████║╚██████╗███████╗██║  ██║
-    ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚══════╝╚═╝  ╚═╝
+    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗    ██████╗ ███████╗███████╗██╗███╗   ██╗ █████╗ ███╗   ██╗ ██████╗███████╗██████╗
+    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝    ██╔══██╗██╔════╝██╔════╝██║████╗  ██║██╔══██╗████╗  ██║██╔════╝██╔════╝██╔══██╗
+    ██╔████╔██║███████║██████╔╝██║     █████╗      ██████╔╝█████╗  █████╗  ██║██╔██╗ ██║███████║██╔██╗ ██║██║     █████╗  ██████╔╝
+    ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝      ██╔══██╗██╔══╝  ██╔══╝  ██║██║╚██╗██║██╔══██║██║╚██╗██║██║     ██╔══╝  ██╔══██╗
+    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗    ██║  ██║███████╗██║     ██║██║ ╚████║██║  ██║██║ ╚████║╚██████╗███████╗██║  ██║
+    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝    ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚══════╝╚═╝  ╚═╝
 
 */
 
-/// @title Refinancer uses storage from a MapleLoan defined by MapleLoanStorage.
-contract Refinancer is IRefinancer, MapleLoanStorage {
+/// @title MapleRefinancer uses storage from a MapleLoan defined by MapleLoanStorage.
+contract MapleRefinancer is IMapleRefinancer, MapleLoanStorage {
 
     function increasePrincipal(uint256 amount_) external override {
         // Cannot under-fund the principal increase, but over-funding results in additional funds left unaccounted for.

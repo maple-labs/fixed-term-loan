@@ -23,6 +23,8 @@ interface IGlobalsLike {
 
     function securityAdmin() external view returns (address securityAdmin_);
 
+    function canDeploy(address caller_) external view returns (bool canDeploy_);
+
 }
 
 interface ILenderLike {

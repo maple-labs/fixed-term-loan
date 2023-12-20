@@ -8,7 +8,7 @@ import { ConstructableMapleLoan, MapleLoanHarness } from "./harnesses/MapleLoanH
 
 import { MockGlobals, MockFactory, MockFeeManager, MockLoanManager, RevertingERC20 } from "./mocks/Mocks.sol";
 
-import { Refinancer } from "../contracts/Refinancer.sol";
+import { MapleRefinancer } from "../contracts/MapleRefinancer.sol";
 
 contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
@@ -31,7 +31,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
     MockFeeManager         internal feeManager;
     MockGlobals            internal globals;
     MockLoanManager        internal lender;
-    Refinancer             internal refinancer;
+    MapleRefinancer        internal refinancer;
 
     function setUp() external {
         collateralAsset = new MockERC20("Token0", "T0", 0);
@@ -39,7 +39,7 @@ contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
         fundsAsset      = new MockERC20("Token1", "T1", 0);
         globals         = new MockGlobals(governor);
         lender          = new MockLoanManager();
-        refinancer      = new Refinancer();
+        refinancer      = new MapleRefinancer();
 
         factory = new MockFactory(address(globals));
 
@@ -2387,14 +2387,16 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
     MapleLoanHarness loan;
     MockFactory      factory;
     MockGlobals      globals;
-    Refinancer       refinancer;
+    MapleRefinancer  refinancer;
 
     address borrower = address(new Address());
 
     function setUp() external {
         globals    = new MockGlobals(address(0));
         loan       = new MapleLoanHarness();
-        refinancer = new Refinancer();
+        refinancer = new MapleRefinancer();
+
+        factory = new MockFactory(address(globals));
 
         factory = new MockFactory(address(globals));
 
@@ -2424,7 +2426,7 @@ contract MapleLoanLogic_RejectNewTermsTests is TestUtils {
         vm.startPrank(borrower);
         loan.proposeNewTerms(address(refinancer), deadline, calls);
 
-        address anotherRefinancer = address(new Refinancer());
+        address anotherRefinancer = address(new MapleRefinancer());
         vm.expectRevert("ML:RNT:COMMITMENT_MISMATCH");
         loan.rejectNewTerms(anotherRefinancer, deadline, calls);
     }
