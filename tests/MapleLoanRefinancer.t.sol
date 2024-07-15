@@ -77,6 +77,9 @@ contract TestBase is TestUtils {
         vm.prank(address(factory));
         loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
 
+        vm.prank(address(borrower));
+        loan.acceptLoanTerms();
+
         token.mint(address(loan), principalRequested_);
 
         vm.prank(address(lender));
@@ -906,6 +909,9 @@ contract RefinanceInterestTests is TestUtils {
         vm.prank(address(factory));
         loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
 
+        vm.prank(borrower);
+        loan.acceptLoanTerms();
+
         token.mint(address(loan), principalRequested_);
 
         vm.prank(address(lender));
@@ -1283,6 +1289,9 @@ contract RefinancingFeesTerms is TestUtils {
 
         vm.prank(address(factory));
         loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
+
+        vm.prank(borrower);
+        loan.acceptLoanTerms();
 
         token.mint(address(loan), principalRequested_);
 

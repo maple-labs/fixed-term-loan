@@ -84,6 +84,9 @@ contract TestBase is TestUtils {
         // Create Loan
         loan = MapleLoan(factory.createInstance(arguments, salt));
 
+        vm.prank(address(borrower));
+        loan.acceptLoanTerms();
+
         // Approve and fund Loan
         vm.startPrank(address(lender));
         fundsAsset.transfer(address(loan), amounts[1]);

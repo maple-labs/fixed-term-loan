@@ -94,6 +94,14 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(_borrower = msg.sender);
     }
 
+    function acceptLoanTerms() external override whenNotPaused onlyBorrower {
+        require(!_loanTermsAccepted, "ML:ALT:ALREADY_ACCEPTED");
+
+        _loanTermsAccepted = true;
+
+        emit LoanTermsAccepted();
+    }
+
     function closeLoan(uint256 amount_)
         external override whenNotPaused limitDrawableUse returns (uint256 principal_, uint256 interest_, uint256 fees_)
     {
@@ -336,6 +344,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function fundLoan() external override whenNotPaused onlyLender returns (uint256 fundsLent_) {
+        require(_loanTermsAccepted, "ML:FL:TERMS_NOT_ACCEPTED");
+
         address lender_ = _lender;
 
         // Can only fund loan if there are payments remaining (defined in the initialization) and no payment is due (as set by a funding).
@@ -620,6 +630,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function lender() external view override returns (address lender_) {
         lender_ = _lender;
+    }
+
+    function loanTermsAccepted() external view override returns (bool loanTermsAccepted_) {
+        loanTermsAccepted_ = _loanTermsAccepted;
     }
 
     function nextPaymentDueDate() external view override returns (uint256 nextPaymentDueDate_) {

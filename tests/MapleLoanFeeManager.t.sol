@@ -101,6 +101,9 @@ contract TestBase is TestUtils {
     }
 
     function _fundLoan(address loan_, address lender_, uint256 amount_) internal {
+        vm.prank(BORROWER);
+        MapleLoan(loan_).acceptLoanTerms();
+        
         fundsAsset.mint(address(loan_), amount_);
 
         vm.prank(lender_);
@@ -177,6 +180,9 @@ contract PayOriginationFeesTests is TestBase {
         loan = MapleLoan(
             _createLoan(BORROWER, address(lender), address(feeManager), defaultAssets, defaultTermDetails, defaultAmounts, defaultRates, defaultFees, "salt")
         );
+
+        vm.prank(BORROWER);
+        loan.acceptLoanTerms();
 
         globals.setPlatformOriginationFeeRate(address(poolManager), 3000);  // 0.3%
     }
