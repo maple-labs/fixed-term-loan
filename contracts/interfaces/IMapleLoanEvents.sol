@@ -115,6 +115,11 @@ interface IMapleLoanEvents {
     event LoanClosed(uint256 principalPaid_, uint256 interestPaid_, uint256 feesPaid_);
 
     /**
+     *  @dev The loan terms were accepted by the borrower.
+     */
+    event LoanTermsAccepted();
+
+    /**
      *  @dev   The terms of the refinance proposal were accepted.
      *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
      *  @param refinancer_          The address that will execute the refinance.

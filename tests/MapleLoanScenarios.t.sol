@@ -60,6 +60,9 @@ contract MapleLoanScenariosTests is TestUtils {
             fees
         );
 
+        vm.prank(address(borrower));
+        loan.acceptLoanTerms();
+
         // Fund via a 1M transfer
         vm.startPrank(address(lender));
         token.transfer(address(loan), 1_000_000);
@@ -214,6 +217,9 @@ contract MapleLoanScenariosTests is TestUtils {
         vm.prank(address(factory));
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
 
+        vm.prank(address(borrower));
+        loan.acceptLoanTerms();
+
         // Fund via a 1M transfer
         vm.startPrank(address(lender));
         token.transfer(address(loan), 1_000_000);
@@ -356,6 +362,9 @@ contract MapleLoanScenariosTests is TestUtils {
 
         vm.prank(address(factory));
         ConstructableMapleLoan loan = new ConstructableMapleLoan(address(factory), borrower, address(lender), address(feeManager), assets, termDetails, amounts, rates, fees);
+
+        vm.prank(address(borrower));
+        loan.acceptLoanTerms();
 
         // Fund via a 1M transfer
         vm.startPrank(address(lender));
