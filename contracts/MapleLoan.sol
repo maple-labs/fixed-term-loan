@@ -141,7 +141,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsClaimed(principalAndInterest_, _lender);
     }
 
-    function drawdownFunds(uint256 amount_, address destination_) external override whenNotPaused onlyBorrower returns (uint256 collateralPosted_) {
+    function drawdownFunds(
+        uint256 amount_,
+        address destination_
+    )
+        external override whenNotPaused onlyBorrower returns (uint256 collateralPosted_)
+    {
         emit FundsDrawnDown(amount_, destination_);
 
         // Post additional collateral required to facilitate this drawdown, if needed.
@@ -468,7 +473,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function getAdditionalCollateralRequiredFor(uint256 drawdown_) public view override returns (uint256 collateral_) {
         // Determine the collateral needed in the contract for a reduced drawable funds amount.
-        uint256 collateralNeeded_  = _getCollateralRequiredFor(_principal, _drawableFunds - drawdown_, _principalRequested, _collateralRequired);
+        uint256 collateralNeeded_  =
+            _getCollateralRequiredFor(_principal, _drawableFunds - drawdown_, _principalRequested, _collateralRequired);
         uint256 currentCollateral_ = _collateral;
 
         collateral_ = collateralNeeded_ > currentCollateral_ ? collateralNeeded_ - currentCollateral_ : uint256(0);
