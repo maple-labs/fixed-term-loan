@@ -86,6 +86,10 @@ contract MapleLoanHarness is MapleLoan {
         _lender = lender_;
     }
 
+    function __setLoanTermsAccepted(bool termsAccepted_) external {
+        _loanTermsAccepted = termsAccepted_;
+    }
+
     function __setNextPaymentDueDate(uint256 nextPaymentDueDate_) external {
         _nextPaymentDueDate = nextPaymentDueDate_;
     }

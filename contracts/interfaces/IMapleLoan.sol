@@ -97,6 +97,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function lender() external view returns (address lender_);
 
     /**
+     *  @dev Whether the loan terms have been accepted by the borrower.
+     */
+    function loanTermsAccepted() external view returns (bool loanTermsAccepted_);
+
+    /**
      *  @dev The timestamp due date of the next payment.
      */
     function nextPaymentDueDate() external view returns (uint256 nextPaymentDueDate_);
@@ -159,6 +164,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @dev Accept the lender role, must be called by pendingLender.
      */
     function acceptLender() external;
+
+    /**
+     *  @dev Accept the loan terms, must be called by the borrower.
+     */
+    function acceptLoanTerms() external;
 
     /**
      *  @dev    Accept the proposed terms ans trigger refinance execution

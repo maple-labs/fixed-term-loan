@@ -568,6 +568,7 @@ contract MapleLoanTests is TestUtils {
         loan.__setFundsAsset(address(fundsAsset));
         loan.__setPaymentsRemaining(1);
         loan.__setPrincipalRequested(amount);
+        loan.__setLoanTermsAccepted(true);
 
         // Fails without pushing funds
         vm.prank(lender);
@@ -1375,6 +1376,9 @@ contract MapleLoanRoleTests is TestUtils {
 
         vm.prank(address(factory));
         loan = new ConstructableMapleLoan(address(factory), borrower, lender, address(feeManager), assets, termDetails, amounts, rates, fees);
+
+        vm.prank(address(borrower));
+        loan.acceptLoanTerms();
     }
 
     function test_transferBorrowerRole_failIfInvalidBorrower() public {

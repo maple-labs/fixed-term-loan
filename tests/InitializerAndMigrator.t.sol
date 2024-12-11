@@ -76,6 +76,9 @@ contract MapleLoanInitializerAndMigratorTests is TestUtils {
 
         loan = MapleLoan(factory.createInstance(arguments, "SALT"));
 
+        vm.prank(address(1));
+        loan.acceptLoanTerms();
+
         asset.mint(address(loan), 1_000_000e6);
 
         vm.prank(address(lender));

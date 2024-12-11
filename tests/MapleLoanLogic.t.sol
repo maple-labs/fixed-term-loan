@@ -10,6 +10,113 @@ import { MockGlobals, MockFactory, MockFeeManager, MockLoanManager, RevertingERC
 
 import { MapleRefinancer } from "../contracts/MapleRefinancer.sol";
 
+contract MapleLoanLogic_AcceptLoanTerms is TestUtils {
+
+    event LoanTermsAccepted();
+
+    address internal borrower = address(new Address());
+    address internal governor = address(new Address());
+
+    address    internal defaultBorrower;
+    address[2] internal defaultAssets;
+    uint256[3] internal defaultTermDetails;
+    uint256[3] internal defaultAmounts;
+    uint256[4] internal defaultRates;
+    uint256[2] internal defaultFees;
+
+    uint256 internal start;
+
+    ConstructableMapleLoan internal loan;
+    MockERC20              internal collateralAsset;
+    MockERC20              internal fundsAsset;
+    MockFactory            internal factory;
+    MockFeeManager         internal feeManager;
+    MockGlobals            internal globals;
+    MockLoanManager        internal lender;
+
+    function setUp() external {
+        collateralAsset = new MockERC20("Token0", "T0", 0);
+        feeManager      = new MockFeeManager();
+        fundsAsset      = new MockERC20("Token1", "T1", 0);
+        globals         = new MockGlobals(governor);
+        lender          = new MockLoanManager();
+
+        factory = new MockFactory(address(globals));
+
+        lender.__setFundsAsset(address(fundsAsset));
+
+        // Set _initialize() parameters.
+        defaultBorrower    = address(1);
+        defaultAssets      = [address(collateralAsset), address(fundsAsset)];
+        defaultTermDetails = [uint256(12 hours), uint256(30 days), uint256(12)];
+        defaultAmounts     = [uint256(0), uint256(1000), uint256(0)];
+        defaultRates       = [uint256(0.10e6), uint256(7), uint256(8), uint256(9)];
+        defaultFees        = [uint256(0), uint256(0)];
+
+        globals.setValidBorrower(defaultBorrower,                 true);
+        globals.setValidCollateralAsset(address(collateralAsset), true);
+        globals.setValidPoolAsset(address(fundsAsset),            true);
+
+        globals.__setIsInstanceOf(true);
+
+        vm.startPrank(address(factory));
+        loan = new ConstructableMapleLoan(
+            address(factory),
+            defaultBorrower,
+            address(lender),
+            address(feeManager),
+            defaultAssets,
+            defaultTermDetails,
+            defaultAmounts,
+            defaultRates,
+            defaultFees
+        );
+        vm.stopPrank();
+
+        vm.warp(start = 1_500_000_000);
+
+        loan.__setBorrower(borrower);
+        loan.__setDrawableFunds(defaultAmounts[1]);
+        loan.__setFactory(address(factory));
+        loan.__setLender(address(lender));
+        loan.__setNextPaymentDueDate(start + 25 days);  // 5 days into a loan
+        loan.__setPrincipal(defaultAmounts[1]);
+    }
+
+    function test_acceptLoanTerms_failIfPaused() external {
+        globals.__setFunctionPaused(true);
+
+        vm.expectRevert("L:PAUSED");
+        vm.prank(borrower);
+        loan.acceptLoanTerms();
+    }
+
+    function test_acceptLoanTerms_failIfNotBorrower() external {
+        vm.expectRevert("ML:NOT_BORROWER");
+        loan.acceptLoanTerms();
+    }
+
+    function test_acceptLoanTerms_failIfAlreadyAccepted() external {
+        loan.__setLoanTermsAccepted(true);
+
+        vm.prank(borrower);
+        vm.expectRevert("ML:ALT:ALREADY_ACCEPTED");
+        loan.acceptLoanTerms();
+    }
+
+    function test_acceptLoanTerms_success() external {
+        assertTrue(!loan.loanTermsAccepted());
+
+        vm.expectEmit(true, true, true, true);
+        emit LoanTermsAccepted();
+
+        vm.prank(borrower);
+        loan.acceptLoanTerms();
+
+        assertTrue(loan.loanTermsAccepted());
+    }
+}
+
 contract MapleLoanLogic_AcceptNewTermsTests is TestUtils {
 
     address internal borrower = address(new Address());
@@ -867,10 +974,19 @@ contract MapleLoanLogic_FundLoanTests is TestUtils {
         loan.__setFactory(address(factory));
         loan.__setFeeManager(address(feeManager));
         loan.__setLender(address(lender));
+        loan.__setLoanTermsAccepted(true);
     }
 
     function test_fundLoan_notLender() external {
         vm.expectRevert("ML:NOT_LENDER");
+        loan.fundLoan();
+    }
+
+    function test_fundLoan_termsNotAccepted() external {
+        loan.__setLoanTermsAccepted(false);
+
+        vm.prank(address(lender));
+        vm.expectRevert("ML:FL:TERMS_NOT_ACCEPTED");
         loan.fundLoan();
     }
 
