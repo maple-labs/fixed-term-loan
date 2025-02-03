@@ -238,8 +238,10 @@ contract MapleLoanTests is TestUtils {
         loan.setImplementation(someContract);
     }
 
-    function test_drawdownFunds_acl() external {
+    function test_drawdownFunds_acl_asBorrower() external {
         MockERC20 fundsAsset = new MockERC20("Funds Asset", "FA", 18);
+
+        globals.__setIsInstanceOf(false);
 
         fundsAsset.mint(address(loan), 1_000_000);
 
@@ -251,6 +253,25 @@ contract MapleLoanTests is TestUtils {
         loan.drawdownFunds(1, borrower);
 
         vm.prank(borrower);
+        loan.drawdownFunds(1, borrower);
+    }
+
+    function test_drawdownFunds_acl_asBorrowerActions() external {
+        MockERC20 fundsAsset = new MockERC20("Funds Asset", "FA", 18);
+
+        globals.__setIsInstanceOf(false);
+
+        fundsAsset.mint(address(loan), 1_000_000);
+
+        loan.__setDrawableFunds(1_000_000);
+        loan.__setFundsAsset(address(fundsAsset));
+        loan.__setPrincipalRequested(1_000_000);  // Needed for the getAdditionalCollateralRequiredFor
+
+        vm.expectRevert("ML:NOT_BORROWER");
+        loan.drawdownFunds(1, borrower);
+
+        globals.__setIsInstanceOf(true);
+
         loan.drawdownFunds(1, borrower);
     }
 
@@ -266,7 +287,9 @@ contract MapleLoanTests is TestUtils {
         assertEq(refinanceCommitment, bytes32(0x1e5d5a3131b2767db93add6039629037a11bd673fe4726b7e3afc4527f96aeaf));
     }
 
-    function test_proposeNewTerms_acl() external {
+    function test_proposeNewTerms_acl_asBorrower() external {
+        globals.__setIsInstanceOf(false);
+
         address mockRefinancer = address(new EmptyContract());
         uint256 deadline       = block.timestamp + 10 days;
         bytes[] memory calls   = new bytes[](1);
@@ -275,7 +298,25 @@ contract MapleLoanTests is TestUtils {
         vm.expectRevert("ML:NOT_BORROWER");
         loan.proposeNewTerms(mockRefinancer, deadline, calls);
 
+        globals.__setIsInstanceOf(true);
+
         vm.prank(borrower);
+        loan.proposeNewTerms(mockRefinancer, deadline, calls);
+    }
+
+    function test_proposeNewTerms_acl_asBorrowerActions() external {
+        globals.__setIsInstanceOf(false);
+
+        address mockRefinancer = address(new EmptyContract());
+        uint256 deadline       = block.timestamp + 10 days;
+        bytes[] memory calls   = new bytes[](1);
+        calls[0]               = new bytes(0);
+
+        vm.expectRevert("ML:NOT_BORROWER");
+        loan.proposeNewTerms(mockRefinancer, deadline, calls);
+
+        globals.__setIsInstanceOf(true);
+
         loan.proposeNewTerms(mockRefinancer, deadline, calls);
     }
 
@@ -315,8 +356,10 @@ contract MapleLoanTests is TestUtils {
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
     }
 
-    function test_removeCollateral_acl() external {
+    function test_removeCollateral_acl_asBorrower() external {
         MockERC20 collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
+
+        globals.__setIsInstanceOf(false);
 
         loan.__setCollateral(1);
         loan.__setCollateralAsset(address(collateralAsset));
@@ -331,13 +374,47 @@ contract MapleLoanTests is TestUtils {
         loan.removeCollateral(1, borrower);
     }
 
-    function test_setPendingBorrower_acl() external {
+    function test_removeCollateral_acl_asBorrowerActions() external {
+        MockERC20 collateralAsset = new MockERC20("Collateral Asset", "CA", 18);
+
+        globals.__setIsInstanceOf(false);
+
+        loan.__setCollateral(1);
+        loan.__setCollateralAsset(address(collateralAsset));
+        loan.__setPrincipalRequested(1); // Needed for the collateralMaintained check
+
+        collateralAsset.mint(address(loan), 1);
+
+        vm.expectRevert("ML:NOT_BORROWER");
+        loan.removeCollateral(1, borrower);
+
+        globals.__setIsInstanceOf(true);
+
+        loan.removeCollateral(1, borrower);
+    }
+
+    function test_setPendingBorrower_acl_asBorrower() external {
         globals.setValidBorrower(address(1), true);
+
+        globals.__setIsInstanceOf(false);
 
         vm.expectRevert("ML:NOT_BORROWER");
         loan.setPendingBorrower(address(1));
 
         vm.prank(borrower);
+        loan.setPendingBorrower(address(1));
+    }
+
+    function test_setPendingBorrower_acl_asBorrowerActions() external {
+        globals.setValidBorrower(address(1), true);
+
+        globals.__setIsInstanceOf(false);
+
+        vm.expectRevert("ML:NOT_BORROWER");
+        loan.setPendingBorrower(address(1));
+
+        globals.__setIsInstanceOf(true);
+
         loan.setPendingBorrower(address(1));
     }
 
@@ -1392,7 +1469,9 @@ contract MapleLoanRoleTests is TestUtils {
     function test_transferBorrowerRole() public {
         address newBorrower = address(new Address());
 
-        // Set addresse used in this test case as valid borrowers.
+        globals.__setIsInstanceOf(false);
+
+        // Set addresses used in this test case as valid borrowers.
         globals.setValidBorrower(address(newBorrower), true);
         globals.setValidBorrower(address(1),           true);
 
