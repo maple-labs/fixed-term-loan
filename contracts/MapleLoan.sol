@@ -450,7 +450,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused returns (bytes32 refinanceCommitment_)
     {
-        require((msg.sender == _borrower) || (msg.sender == _lender), "ML:RNT:NO_AUTH");
+        require(
+            (msg.sender == _borrower) ||
+            IGlobalsLike(globals()).isInstanceOf("BORROWER_ACTIONS", msg.sender) ||
+            (msg.sender == _lender),
+            "ML:RNT:NO_AUTH"
+        );
 
         require(
             _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),

@@ -15,10 +15,11 @@ contract MapleLoanTests is TestUtils {
     MockFeeManager   internal feeManager;
     MockGlobals      internal globals;
 
-    address internal borrower      = address(new Address());
-    address internal governor      = address(new Address());
-    address internal securityAdmin = address(new Address());
-    address internal user          = address(new Address());
+    address internal borrower        = address(new Address());
+    address internal borrowerActions = address(new Address());
+    address internal governor        = address(new Address());
+    address internal securityAdmin   = address(new Address());
+    address internal user            = address(new Address());
 
     address internal lender;
 
@@ -333,6 +334,7 @@ contract MapleLoanTests is TestUtils {
     }
 
     function test_rejectNewTerms_acl() external {
+        globals.__setIsInstanceOf(false);
         address mockRefinancer = address(new EmptyContract());
         uint256 deadline       = block.timestamp + 10 days;
         bytes[] memory calls   = new bytes[](1);
@@ -353,6 +355,17 @@ contract MapleLoanTests is TestUtils {
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
 
         vm.prank(lender);
+        loan.rejectNewTerms(mockRefinancer, deadline, calls);
+
+        // Set again
+        loan.__setRefinanceCommitment(keccak256(abi.encode(address(mockRefinancer), deadline, calls)));
+
+        vm.expectRevert("ML:RNT:NO_AUTH");
+        loan.rejectNewTerms(mockRefinancer, deadline, calls);
+
+        globals.__setIsInstanceOf(true);
+
+        vm.prank(borrowerActions);
         loan.rejectNewTerms(mockRefinancer, deadline, calls);
     }
 
