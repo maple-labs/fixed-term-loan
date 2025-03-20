@@ -39,6 +39,8 @@ contract MapleLoanFactoryTest is TestUtils {
 
         lender.__setFundsAsset(address(1));
 
+        lender.__setFundsAsset(address(1));
+
         globals.setValidBorrower(address(1),        true);
         globals.setValidCollateralAsset(address(1), true);
         globals.setValidPoolAsset(address(1),       true);

@@ -334,6 +334,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             require(success_, "ML:ANT:FAILED");
         }
 
+        // TODO: Emit this before the refinance calls in order to adhere to the CEI pattern.
         emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
 
         address fundsAsset_         = _fundsAsset;

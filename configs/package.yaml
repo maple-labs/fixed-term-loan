@@ -1,5 +1,5 @@
 name: fixed-term-loan
-version: 5.0.1
+version: 5.0.2
 source: contracts
 packages:
   - path: contracts/MapleLoan.sol
