@@ -15,12 +15,19 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 /*
 
-    ███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗    ██╗      ██████╗  █████╗ ███╗   ██╗    ██╗   ██╗███████╗
-    ████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝    ██║     ██╔═══██╗██╔══██╗████╗  ██║    ██║   ██║██╔════╝
-    ██╔████╔██║███████║██████╔╝██║     █████╗      ██║     ██║   ██║███████║██╔██╗ ██║    ██║   ██║███████╗
-    ██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝      ██║     ██║   ██║██╔══██║██║╚██╗██║    ╚██╗ ██╔╝╚════██║
-    ██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗    ███████╗╚██████╔╝██║  ██║██║ ╚████║     ╚████╔╝ ███████║
-    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝    ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝      ╚═══╝  ╚══════╝
+███╗   ███╗ █████╗ ██████╗ ██╗     ███████╗
+████╗ ████║██╔══██╗██╔══██╗██║     ██╔════╝
+██╔████╔██║███████║██████╔╝██║     █████╗
+██║╚██╔╝██║██╔══██║██╔═══╝ ██║     ██╔══╝
+██║ ╚═╝ ██║██║  ██║██║     ███████╗███████╗
+╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝
+
+███████╗██╗██╗  ██╗███████╗██████╗     ████████╗███████╗██████╗ ███╗   ███╗    ██╗      ██████╗  █████╗ ███╗   ██╗    ██╗   ██╗ ██████╗
+██╔════╝██║╚██╗██╔╝██╔════╝██╔══██╗    ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║    ██║     ██╔═══██╗██╔══██╗████╗  ██║    ██║   ██║██╔════╝
+█████╗  ██║ ╚███╔╝ █████╗  ██║  ██║       ██║   █████╗  ██████╔╝██╔████╔██║    ██║     ██║   ██║███████║██╔██╗ ██║    ██║   ██║███████╗
+██╔══╝  ██║ ██╔██╗ ██╔══╝  ██║  ██║       ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║    ██║     ██║   ██║██╔══██║██║╚██╗██║    ╚██╗ ██╔╝██╔═══██╗
+██║     ██║██╔╝ ██╗███████╗██████╔╝       ██║   ███████╗██║  ██║██║ ╚═╝ ██║    ███████╗╚██████╔╝██║  ██║██║ ╚████║     ╚████╔╝ ╚██████╔╝
+╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝╚═════╝        ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝    ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝      ╚═══╝   ╚═════╝
 
 */
 
@@ -45,8 +52,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(_drawableFunds >= drawableFundsBeforePayment, "ML:CANNOT_USE_DRAWABLE");
     }
 
-    modifier onlyBorrower() {
-        _revertIfNotBorrower();
+    modifier onlyBorrowerOrBorrowerActions() {
+        _revertIfNotBorrowerOrBorrowerActions();
         _;
     }
 
@@ -94,7 +101,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(_borrower = msg.sender);
     }
 
-    function acceptLoanTerms() external override whenNotPaused onlyBorrower {
+    function acceptLoanTerms() external override whenNotPaused onlyBorrowerOrBorrowerActions {
         require(!_loanTermsAccepted, "ML:ALT:ALREADY_ACCEPTED");
 
         _loanTermsAccepted = true;
@@ -145,7 +152,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 amount_,
         address destination_
     )
-        external override whenNotPaused onlyBorrower returns (uint256 collateralPosted_)
+        external override whenNotPaused onlyBorrowerOrBorrowerActions returns (uint256 collateralPosted_)
     {
         emit FundsDrawnDown(amount_, destination_);
 
@@ -230,7 +237,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override whenNotPaused onlyBorrower returns (bytes32 refinanceCommitment_)
+        external override whenNotPaused onlyBorrowerOrBorrowerActions returns (bytes32 refinanceCommitment_)
     {
         require(deadline_ >= block.timestamp,                                       "ML:PNT:INVALID_DEADLINE");
         require(IGlobalsLike(globals()).isInstanceOf("FT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
@@ -244,7 +251,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeCollateral(uint256 amount_, address destination_) external override whenNotPaused onlyBorrower {
+    function removeCollateral(uint256 amount_, address destination_) external override whenNotPaused onlyBorrowerOrBorrowerActions {
         emit CollateralRemoved(amount_, destination_);
 
         _collateral -= amount_;
@@ -266,7 +273,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit FundsReturned(fundsReturned_);
     }
 
-    function setPendingBorrower(address pendingBorrower_) external override whenNotPaused onlyBorrower {
+    function setPendingBorrower(address pendingBorrower_) external override whenNotPaused onlyBorrowerOrBorrowerActions {
         require(IGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
         emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
@@ -451,7 +458,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused returns (bytes32 refinanceCommitment_)
     {
-        require((msg.sender == _borrower) || (msg.sender == _lender), "ML:RNT:NO_AUTH");
+        require(
+            (msg.sender == _borrower) ||
+            IGlobalsLike(globals()).isInstanceOf("BORROWER_ACTIONS", msg.sender) ||
+            (msg.sender == _lender),
+            "ML:RNT:NO_AUTH"
+        );
 
         require(
             _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
@@ -918,8 +930,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         minimum_ = a_ < b_ ? a_ : b_;
     }
 
-    function _revertIfNotBorrower() internal view {
-        require(msg.sender == _borrower, "ML:NOT_BORROWER");
+    function _revertIfNotBorrowerOrBorrowerActions() internal view {
+        require(msg.sender == _borrower || IGlobalsLike(globals()).isInstanceOf("BORROWER_ACTIONS", msg.sender), "ML:NOT_BORROWER");
     }
 
     function _revertIfNotLender() internal view {

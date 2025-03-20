@@ -91,7 +91,9 @@ contract MapleLoanLogic_AcceptLoanTerms is TestUtils {
         loan.acceptLoanTerms();
     }
 
-    function test_acceptLoanTerms_failIfNotBorrower() external {
+    function test_acceptLoanTerms_failIfNotBorrowerOrBorrowerActions() external {
+        globals.__setIsInstanceOf(false);
+
         vm.expectRevert("ML:NOT_BORROWER");
         loan.acceptLoanTerms();
     }
@@ -104,13 +106,24 @@ contract MapleLoanLogic_AcceptLoanTerms is TestUtils {
         loan.acceptLoanTerms();
     }
 
-    function test_acceptLoanTerms_success() external {
+    function test_acceptLoanTerms_successWithBorrower() external {
         assertTrue(!loan.loanTermsAccepted());
 
         vm.expectEmit(true, true, true, true);
         emit LoanTermsAccepted();
 
         vm.prank(borrower);
+        loan.acceptLoanTerms();
+
+        assertTrue(loan.loanTermsAccepted());
+    }
+
+    function test_acceptLoanTerms_successWithBorrowerActions() external {
+        assertTrue(!loan.loanTermsAccepted());
+
+        vm.expectEmit(true, true, true, true);
+        emit LoanTermsAccepted();
+
         loan.acceptLoanTerms();
 
         assertTrue(loan.loanTermsAccepted());
@@ -2481,7 +2494,7 @@ contract MapleLoanLogic_ProposeNewTermsTests is TestUtils {
 
         vm.prank(borrower);
         vm.expectRevert("ML:PNT:EMPTY_CALLS");
-        bytes32 proposedRefinanceCommitment = loan.proposeNewTerms(refinancer_, deadline_, data);
+        loan.proposeNewTerms(refinancer_, deadline_, data);
     }
 
     function test_proposeNewTerms_invalidRefinancer() external {

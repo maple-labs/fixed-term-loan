@@ -229,31 +229,32 @@ contract MapleLoanFactoryTest is TestUtils {
         factory.createInstance(arguments, "SALT");
     }
 
-    function testFail_createInstance_saltAndArgumentsCollision() external {
-        address[2] memory assets      = [address(1), address(1)];
-        uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
-        uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
-        uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
-        uint256[2] memory fees        = [uint256(0), uint256(0)];
+    // TODO: Use forge to test failure
+    // function testFail_createInstance_saltAndArgumentsCollision() external {
+    //     address[2] memory assets      = [address(1), address(1)];
+    //     uint256[3] memory termDetails = [uint256(12 hours), uint256(1), uint256(1)];
+    //     uint256[3] memory amounts     = [uint256(1), uint256(1), uint256(0)];
+    //     uint256[4] memory rates       = [uint256(0), uint256(0), uint256(0), uint256(0)];
+    //     uint256[2] memory fees        = [uint256(0), uint256(0)];
 
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
-            address(1),
-            address(lender),
-            address(feeManager),
-            assets,
-            termDetails,
-            amounts,
-            rates,
-            fees
-        );
+    //     bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+    //         address(1),
+    //         address(lender),
+    //         address(feeManager),
+    //         assets,
+    //         termDetails,
+    //         amounts,
+    //         rates,
+    //         fees
+    //     );
 
-        bytes32 salt = keccak256(abi.encodePacked("salt"));
+    //     bytes32 salt = keccak256(abi.encodePacked("salt"));
 
-        factory.createInstance(arguments, salt);
+    //     factory.createInstance(arguments, salt);
 
-        // TODO: use vm.expectRevert() without arguments when it is available.
-        factory.createInstance(arguments, salt);
-    }
+    //     // TODO: use vm.expectRevert() without arguments when it is available.
+    //     factory.createInstance(arguments, salt);
+    // }
 
     function test_createInstance_invalidCaller() external {
         address[2] memory assets      = [address(1), address(1)];
